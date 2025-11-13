@@ -12,6 +12,7 @@ from bot.keyboards.inline import (
     skip_keyboard,
     result_keyboard,
     prompt_edit_keyboard,
+    prompt_preview_keyboard,
     aspect_ratio_keyboard,
     skip_text_keyboard
 )
@@ -388,9 +389,197 @@ async def proceed_to_prompt_choice(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "use_auto_prompt")
 async def use_auto_prompt(callback: CallbackQuery, state: FSMContext):
-    """Использовать автоматически сгенерированный промпт"""
+    """Сгенерировать и показать автоматический промпт для предварительного просмотра"""
     await callback.answer()
-    await generate_with_ai_prompt(callback.message, state)
+    
+    data = await state.get_data()
+    product_photos = data.get("product_photos", [])
+    reference_photos = data.get("reference_photos", [])
+    card_text = data.get("card_text")
+    
+    await state.set_state(ImageGenerationStates.previewing_prompt)
+    
+    # Список ID сообщений для удаления
+    temp_messages = []
+    
+    try:
+        msg1 = await callback.message.answer("🤖 Анализирую товар и создаю промпт...")
+        temp_messages.append(msg1.message_id)
+        
+        prompt_data = await PromptGeneratorService.generate_prompt_from_images(
+            product_image_urls=product_photos,
+            reference_image_urls=reference_photos
+        )
+        
+        generated_prompt = prompt_data["generated_text_prompt"]
+        analysis = prompt_data["deconstruction_analysis"]
+        
+        # Если указан текст на карточке, добавляем его в промпт
+        if card_text:
+            generated_prompt = f"{generated_prompt}. Add text on the card: '{card_text}'"
+        
+        # Сохраняем промпт и анализ
+        await state.update_data(generated_prompt=generated_prompt, analysis=analysis)
+        
+        # Удаляем временные сообщения
+        await delete_messages(callback.message.chat.id, temp_messages)
+        
+        # Показываем пользователю промпт с возможностью редактирования
+        await callback.message.answer(
+            f"🤖 <b>Автоматически сгенерированный промпт:</b>\n\n"
+            f"📝 <b>Товар:</b> {analysis['product_identified']}\n"
+            f"🎨 <b>Стиль:</b> {analysis['style_source']}\n"
+            f"📐 <b>Композиция:</b> {analysis['layout_source']}\n"
+            f"🎨 <b>Палитра:</b> {analysis['palette_source']}\n\n"
+            f"<b>Промпт:</b>\n<code>{generated_prompt}</code>\n\n"
+            f"Вы можете использовать этот промпт или отредактировать его:",
+            reply_markup=prompt_preview_keyboard()
+        )
+        
+    except Exception as e:
+        # Удаляем временные сообщения даже при ошибке
+        await delete_messages(callback.message.chat.id, temp_messages)
+        
+        await callback.message.answer(
+            f"❌ <b>Ошибка при генерации промпта:</b>\n\n"
+            f"<code>{str(e)}</code>\n\n"
+            f"Попробуйте ещё раз позже."
+        )
+
+
+@router.callback_query(F.data == "confirm_auto_prompt")
+async def confirm_auto_prompt(callback: CallbackQuery, state: FSMContext):
+    """Подтверждение использования автоматически сгенерированного промпта"""
+    await callback.answer()
+    
+    data = await state.get_data()
+    generated_prompt = data.get("generated_prompt")
+    
+    if not generated_prompt:
+        await callback.message.answer("❌ Ошибка: промпт не найден. Попробуйте ещё раз.")
+        return
+    
+    await generate_with_confirmed_prompt(callback.message, state, generated_prompt)
+
+
+@router.callback_query(F.data == "edit_auto_prompt")
+async def edit_auto_prompt(callback: CallbackQuery, state: FSMContext):
+    """Редактирование автоматически сгенерированного промпта"""
+    await callback.answer()
+    
+    data = await state.get_data()
+    generated_prompt = data.get("generated_prompt")
+    
+    if not generated_prompt:
+        await callback.message.answer("❌ Ошибка: промпт не найден. Попробуйте ещё раз.")
+        return
+    
+    await state.set_state(ImageGenerationStates.editing_auto_prompt)
+    
+    await callback.message.answer(
+        f"✏️ <b>Редактирование промпта</b>\n\n"
+        f"<b>Текущий промпт:</b>\n<code>{generated_prompt}</code>\n\n"
+        f"Введите ваш отредактированный промпт:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Оставить как есть", callback_data="confirm_auto_prompt")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
+        ])
+    )
+
+
+@router.message(StateFilter(ImageGenerationStates.editing_auto_prompt))
+async def receive_edited_prompt(message: Message, state: FSMContext):
+    """Получение отредактированного промпта от пользователя"""
+    edited_prompt = message.text.strip()
+    
+    if len(edited_prompt) < 10:
+        await message.answer("⚠️ Промпт слишком короткий. Опишите детальнее (минимум 10 символов).")
+        return
+    
+    await state.update_data(generated_prompt=edited_prompt)
+    
+    await message.answer(
+        f"✅ <b>Промпт обновлён!</b>\n\n"
+        f"<code>{edited_prompt}</code>\n\n"
+        "Начинаю генерацию...",
+        reply_markup=None
+    )
+    
+    await generate_with_confirmed_prompt(message, state, edited_prompt)
+
+
+async def generate_with_confirmed_prompt(message: Message, state: FSMContext, prompt: str):
+    """Генерация изображения с подтверждённым промптом (без повторной генерации промпта)"""
+    data = await state.get_data()
+    product_photos = data.get("product_photos", [])
+    reference_photos = data.get("reference_photos", [])
+    aspect_ratio = data.get("aspect_ratio", "3:4")
+    card_text = data.get("card_text")
+    
+    await state.set_state(ImageGenerationStates.generating)
+    
+    # Список ID сообщений для удаления
+    temp_messages = []
+    
+    try:
+        # Если указан текст на карточке, добавляем его в промпт
+        if card_text:
+            prompt = f"{prompt}. Add text on the card: '{card_text}'"
+        
+        msg1 = await message.answer("🎨 Генерирую изображение через Nano Banana AI...")
+        temp_messages.append(msg1.message_id)
+        
+        image_urls = await FALService.generate_product_image(
+            prompt=prompt,
+            product_images=product_photos,
+            reference_images=reference_photos,
+            num_images=1,
+            aspect_ratio=aspect_ratio
+        )
+        
+        if not image_urls:
+            # Удаляем временные сообщения
+            await delete_messages(message.chat.id, temp_messages)
+            
+            await message.answer(
+                "❌ Не удалось сгенерировать изображение. Попробуйте ещё раз."
+            )
+            await state.clear()
+            return
+        
+        # Сохраняем результат
+        await state.update_data(last_generated_image=image_urls[0], generated_prompt=prompt)
+        
+        # Удаляем все временные сообщения
+        await delete_messages(message.chat.id, temp_messages)
+        
+        # Отправляем результат с кнопками
+        await message.answer_photo(
+            photo=image_urls[0],
+            caption=(
+                "✨ <b>Готово!</b>\n\n"
+                "Ваша карточка товара успешно сгенерирована!\n\n"
+                "Выберите действие:"
+            ),
+            reply_markup=result_keyboard()
+        )
+        
+        logger.info(f"Пользователь успешно сгенерировал изображение")
+        
+    except Exception as e:
+        logger.error(f"Ошибка при генерации изображения: {e}")
+        
+        # Удаляем временные сообщения даже при ошибке
+        await delete_messages(message.chat.id, temp_messages)
+        
+        await message.answer(
+            f"❌ <b>Ошибка при генерации:</b>\n\n"
+            f"<code>{str(e)}</code>\n\n"
+            f"Попробуйте ещё раз позже."
+        )
+    
+    finally:
+        await state.clear()
 
 
 @router.callback_query(F.data == "edit_prompt")

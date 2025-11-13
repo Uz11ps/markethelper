@@ -30,10 +30,20 @@ def result_keyboard():
 
 
 def prompt_edit_keyboard():
-    """Клавиатура для подтверждения редактирования промпта"""
+    """Клавиатура для выбора способа создания промпта"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Использовать этот промпт", callback_data="use_custom_prompt")],
         [InlineKeyboardButton(text="🤖 Сгенерировать автоматически", callback_data="use_auto_prompt")],
+        [InlineKeyboardButton(text="✏️ Написать свой промпт", callback_data="edit_prompt")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
+    ])
+    return keyboard
+
+
+def prompt_preview_keyboard():
+    """Клавиатура для предварительного просмотра промпта"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Использовать промпт", callback_data="confirm_auto_prompt")],
+        [InlineKeyboardButton(text="✏️ Редактировать промпт", callback_data="edit_auto_prompt")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
     ])
     return keyboard
