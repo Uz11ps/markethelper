@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: .
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+
+  bot:
+    build: .
+    command: python -m bot.app
+    volumes:
+      - .:/code
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+  
+  

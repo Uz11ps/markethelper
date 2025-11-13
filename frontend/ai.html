@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Управление</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Навигация -->
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html">Активные подписки</a>
+    <a href="/ai.html" class="active">Нейронка</a>
+    <a href="/files.html">Файлы</a>
+    <a href="/settings.html">Настройки</a>
+  </nav>
+
+  <h1>AI Панель управления</h1>
+
+  <!-- Health -->
+  <section>
+    <h2>Статус сервиса</h2>
+    <button onclick="checkHealth()">🔄 Проверить</button>
+    <p id="healthStatus">⏳ Не проверялось</p>
+  </section>
+
+  <!-- Добавление текста / PDF -->
+  <section>
+    <h2>Добавить в базу знаний</h2>
+    <form id="uploadForm">
+      <label>Текст:</label><br>
+      <textarea name="text" rows="4" cols="50"></textarea><br><br>
+
+      <label>Или загрузить PDF:</label>
+      <input type="file" name="file" accept="application/pdf"><br><br>
+
+      <button type="submit">📥 Загрузить</button>
+    </form>
+    <p id="uploadResult"></p>
+  </section>
+
+  <!-- Таблица текстов -->
+  <section>
+    <h2>Сохранённые тексты</h2>
+    <button onclick="loadTexts()">🔄 Обновить список</button>
+    <table id="textsTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Источник</th>
+          <th>Тип</th>
+          <th>Текст</th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Запрос к AI -->
+  <section>
+    <h2>Задать вопрос</h2>
+    <form id="queryForm">
+      <input type="text" id="question" placeholder="Введите вопрос" required>
+      <button type="submit">❓ Спросить</button>
+    </form>
+    <div id="answerBox"></div>
+  </section>
+
+  <script src="ai.js"></script>
+</body>
+</html>

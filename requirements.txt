@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+tortoise-orm
+aiogram
+python-dotenv
+httpx
+chromadb>=0.5.0
+langchain-text-splitters>=0.2.0
+openai>=1.0.0
+pdfplumber
+uuid
+python-multipart
+matplotlib
+fal-client>=0.4.0
+passlib[bcrypt]
+python-jose[cryptography]
+email-validator

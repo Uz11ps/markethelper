@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Настройки</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Навигация -->
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html">Активные подписки</a>
+    <a href="/ai.html">Нейронка</a>
+    <a href="/files.html">Файлы</a>
+    <a href="/settings.html" class="active">Настройки</a>
+  </nav>
+
+  <h1>Настройки</h1>
+
+  <div class="settings-container">
+    <!-- AI Промпт -->
+    <div class="settings-section">
+      <h2>AI Промпт</h2>
+      <p class="settings-description">
+        Промпт используется AI-помощником для ответов на вопросы пользователей.
+        Определяет поведение и стиль общения бота.
+      </p>
+      <textarea id="aiPrompt" rows="10" placeholder="Введите промпт для AI..."></textarea>
+      <button onclick="saveSettings()" class="btn-primary">Сохранить промпт</button>
+    </div>
+
+    <!-- Реферальный бонус -->
+    <div class="settings-section">
+      <h2>Реферальный бонус</h2>
+      <p class="settings-description">
+        Количество бонусных баллов, которое получает пользователь при регистрации по реферальной ссылке.
+      </p>
+      <div class="input-group">
+        <label for="referralBonus">Бонус за регистрацию:</label>
+        <input type="number" id="referralBonus" min="0" placeholder="100">
+        <span class="input-suffix">баллов</span>
+      </div>
+      <button onclick="saveSettings()" class="btn-primary">Сохранить бонус</button>
+    </div>
+  </div>
+
+  <div id="message" class="message"></div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

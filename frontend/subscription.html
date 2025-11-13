@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Активные подписки</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Навигация -->
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html" class="active">Активные подписки</a>
+    <a href="/ai.html">Нейронка</a>
+    <a href="/files.html">Файлы</a>
+    <a href="/settings.html">Настройки</a>
+  </nav>
+
+  <h1>📦 Активные подписки</h1>
+
+  <!-- Форма рассылки -->
+  <div class="broadcast-section">
+    <h2>📢 Рассылка сообщений</h2>
+    <div class="broadcast-form">
+      <textarea id="broadcastMessage" rows="3" placeholder="Введите текст сообщения для рассылки..."></textarea>
+      <div class="broadcast-controls">
+        <select id="broadcastAudience">
+          <option value="all">Все пользователи</option>
+          <option value="active">Активные подписки</option>
+          <option value="inactive">Неактивные пользователи</option>
+        </select>
+        <button onclick="sendBroadcast()" class="btn-primary">Отправить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="search-container">
+    <input 
+      type="text" 
+      id="searchFile" 
+      placeholder="🔍 Поиск по названию файла..." 
+      class="search-input"
+    >
+  </div>
+  <div style="margin-bottom: 20px;"></div>
+  <table id="subsTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Пользователь</th>
+        <th>Тариф</th>
+        <th>Статус</th>
+        <th>Дата начала</th>
+        <th>Дата окончания</th>
+        <th>Группа</th>
+        <th>Файл</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Модальное окно для продления подписки -->
+  <div id="extendModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeExtendModal()">&times;</span>
+      <h2>Продлить подписку</h2>
+      <p>Подписка ID: <span id="extendSubId"></span></p>
+      <div class="input-group">
+        <label for="extendDays">Количество дней:</label>
+        <input type="number" id="extendDays" min="1" value="30">
+      </div>
+      <button onclick="confirmExtend()" class="btn-primary">Продлить</button>
+      <button onclick="closeExtendModal()" class="btn-secondary">Отмена</button>
+    </div>
+  </div>
+
+  <div id="message" class="message"></div>
+
+  <script src="subscription.js"></script>
+</body>
+</html>

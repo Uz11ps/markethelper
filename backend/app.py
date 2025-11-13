@@ -1,0 +1,51 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from backend.api import (
+    profile, users, files, referrals, requests,
+    mailing, ai, session_updater, settings,
+    admin, admin_users, admin_broadcast, admin_settings
+)
+from backend.core.db import init_db, close_db
+from backend.services.settings_service import SettingsService
+
+def create_app() -> FastAPI:
+    app = FastAPI(prefix="/api", title="MarketHelper Admin API")
+
+    # CORS для фронтенда админки
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # В продакшене указать конкретные домены
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Публичные роуты
+    app.include_router(users.router)
+    """app.include_router(subscriptions.router)"""
+    app.include_router(files.router)
+    app.include_router(referrals.router)
+    app.include_router(requests.router)
+    """app.include_router(mailing.router)
+    app.include_router(session_updater.router)"""
+    app.include_router(ai.router)
+    app.include_router(profile.router)
+    app.include_router(settings.router)
+
+    # Админ роуты
+    app.include_router(admin.router)
+    app.include_router(admin_users.router)
+    app.include_router(admin_broadcast.router)
+    app.include_router(admin_settings.router)
+
+
+    @app.on_event("startup")
+    async def startup_event():
+        await init_db()
+        await SettingsService.initialize_defaults()
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        await close_db()
+
+    return app

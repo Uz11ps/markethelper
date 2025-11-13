@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Файлы / Управление</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Навигация -->
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html">Активные подписки</a>
+    <a href="/ai.html">Нейронка</a>
+    <a href="/files.html" class="active">Файлы</a>
+    <a href="/settings.html">Настройки</a>
+  </nav>
+
+  <h1>Управление AccessFile</h1>
+
+  <!-- Добавление аккаунта -->
+  <section>
+    <h2>Добавить аккаунт</h2>
+    <form id="addForm">
+      <label>Group ID:</label><br>
+      <input type="number" id="group_id" required><br>
+
+      <label>Login (email):</label><br>
+      <input type="text" id="login" required><br>
+
+      <label>Password:</label><br>
+      <input type="password" id="password" required><br>
+
+      <label>Имя файла (например, sf_acc1.txt):</label><br>
+      <input type="text" id="filename"><br><br>
+
+      <button type="submit">➕ Добавить</button>
+    </form>
+    <p id="addResult"></p>
+  </section>
+  <script src="files.js"></script>
+</body>
+</html>
