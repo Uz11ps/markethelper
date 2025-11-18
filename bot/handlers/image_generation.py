@@ -139,19 +139,24 @@ async def collect_product_photos(message: Message, state: FSMContext):
 
         await state.update_data(product_photos=product_photos)
 
+        # Показываем краткое подтверждение (без кнопок)
         confirm_msg = await message.answer(
-            f"✅ Добавлено {uploaded_count} фото товара!\n\n"
-            f"Всего: {len(product_photos)}/5\n\n"
-            f"Отправьте ещё фото или нажмите 'Готово'.",
-            reply_markup=skip_keyboard("product_photos_done")
+            f"✅ Добавлено {uploaded_count} фото товара! Всего: {len(product_photos)}/5"
         )
 
-        # Удаляем подтверждение через 3 секунды
-        await asyncio.sleep(3)
+        # Удаляем подтверждение через 2 секунды
+        await asyncio.sleep(2)
         try:
             await confirm_msg.delete()
         except:
             pass
+
+        # Показываем постоянное сообщение с кнопкой "Готово"
+        await message.answer(
+            f"📸 <b>Фото товара загружены: {len(product_photos)}/5</b>\n\n"
+            f"Отправьте ещё фото или нажмите 'Готово' для продолжения.",
+            reply_markup=skip_keyboard("product_photos_done")
+        )
     else:
         # Одиночное фото
         photo = message.photo[-1]
@@ -167,18 +172,24 @@ async def collect_product_photos(message: Message, state: FSMContext):
         product_photos.append(fal_url)
         await state.update_data(product_photos=product_photos)
 
+        # Показываем краткое подтверждение (без кнопок)
         confirm_msg = await message.answer(
-            f"✅ Фото товара {len(product_photos)}/5 добавлено!\n\n"
-            f"Отправьте ещё фото или нажмите 'Готово'.",
-            reply_markup=skip_keyboard("product_photos_done")
+            f"✅ Фото товара добавлено! Всего: {len(product_photos)}/5"
         )
 
-        # Удаляем подтверждение через 3 секунды
-        await asyncio.sleep(3)
+        # Удаляем подтверждение через 2 секунды
+        await asyncio.sleep(2)
         try:
             await confirm_msg.delete()
         except:
             pass
+
+        # Показываем постоянное сообщение с кнопкой "Готово"
+        await message.answer(
+            f"📸 <b>Фото товара загружены: {len(product_photos)}/5</b>\n\n"
+            f"Отправьте ещё фото или нажмите 'Готово' для продолжения.",
+            reply_markup=skip_keyboard("product_photos_done")
+        )
 
 
 @router.callback_query(F.data == "product_photos_done")
@@ -260,19 +271,24 @@ async def collect_reference_photos(message: Message, state: FSMContext):
 
         await state.update_data(reference_photos=reference_photos)
 
+        # Показываем краткое подтверждение (без кнопок)
         confirm_msg = await message.answer(
-            f"✅ Добавлено {uploaded_count} референсов!\n\n"
-            f"Всего: {len(reference_photos)}/5\n\n"
-            f"Отправьте ещё референсы или нажмите 'Готово'.",
-            reply_markup=skip_keyboard("reference_photos_done")
+            f"✅ Добавлено {uploaded_count} референсов! Всего: {len(reference_photos)}/5"
         )
 
-        # Удаляем подтверждение через 3 секунды
-        await asyncio.sleep(3)
+        # Удаляем подтверждение через 2 секунды
+        await asyncio.sleep(2)
         try:
             await confirm_msg.delete()
         except:
             pass
+
+        # Показываем постоянное сообщение с кнопкой "Готово"
+        await message.answer(
+            f"📸 <b>Референсы загружены: {len(reference_photos)}/5</b>\n\n"
+            f"Отправьте ещё референсы или нажмите 'Готово' для продолжения.",
+            reply_markup=skip_keyboard("reference_photos_done")
+        )
     else:
         # Одиночное фото
         photo = message.photo[-1]
@@ -288,18 +304,24 @@ async def collect_reference_photos(message: Message, state: FSMContext):
         reference_photos.append(fal_url)
         await state.update_data(reference_photos=reference_photos)
 
+        # Показываем краткое подтверждение (без кнопок)
         confirm_msg = await message.answer(
-            f"✅ Референс {len(reference_photos)}/5 добавлен!\n\n"
-            f"Отправьте ещё референсы или нажмите 'Готово'.",
-            reply_markup=skip_keyboard("reference_photos_done")
+            f"✅ Референс добавлен! Всего: {len(reference_photos)}/5"
         )
 
-        # Удаляем подтверждение через 3 секунды
-        await asyncio.sleep(3)
+        # Удаляем подтверждение через 2 секунды
+        await asyncio.sleep(2)
         try:
             await confirm_msg.delete()
         except:
             pass
+
+        # Показываем постоянное сообщение с кнопкой "Готово"
+        await message.answer(
+            f"📸 <b>Референсы загружены: {len(reference_photos)}/5</b>\n\n"
+            f"Отправьте ещё референсы или нажмите 'Готово' для продолжения.",
+            reply_markup=skip_keyboard("reference_photos_done")
+        )
 
 
 @router.callback_query(F.data == "reference_photos_done")
@@ -881,4 +903,39 @@ async def invalid_reference_input(message: Message):
     """Обработка некорректного ввода при ожидании референсов"""
     await message.answer(
         "⚠️ Пожалуйста, отправьте референсное изображение или нажмите 'Готово'."
+    )
+
+
+# Обработчик случайных фото вне процесса генерации
+@router.message(F.photo)
+async def handle_unexpected_photo(message: Message, state: FSMContext):
+    """Обработка фотографий, отправленных вне процесса генерации"""
+    current_state = await state.get_state()
+    
+    # Если пользователь не в процессе генерации, предлагаем начать
+    if current_state is None:
+        await message.answer(
+            "📸 Вижу, что вы отправили фотографию!\n\n"
+            "Хотите начать генерацию карточки товара с этим изображением?",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🎨 Начать генерацию", callback_data="generate_image")],
+                [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_generation")]
+            ])
+        )
+    else:
+        # Если в другом состоянии - просто информируем
+        await message.answer(
+            "📸 Изображение получено, но сейчас не время для его загрузки.\n"
+            "Пожалуйста, следуйте текущим инструкциям или начните новую генерацию."
+        )
+
+
+@router.callback_query(F.data == "cancel_generation")
+async def cancel_generation(callback: CallbackQuery, state: FSMContext):
+    """Отмена генерации"""
+    await callback.answer()
+    await state.clear()
+    await callback.message.answer(
+        "❌ Генерация отменена.\n\n"
+        "Используйте /menu для просмотра доступных команд."
     )

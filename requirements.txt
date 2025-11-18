@@ -4,6 +4,7 @@ tortoise-orm
 aiogram
 python-dotenv
 httpx
+requests>=2.28
 chromadb>=0.5.0
 langchain-text-splitters>=0.2.0
 openai>=1.0.0
