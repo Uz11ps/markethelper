@@ -601,7 +601,7 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
         )
     
     finally:
-        await state.clear()
+        await state.set_state(None)
 
 
 @router.callback_query(F.data == "edit_prompt")
@@ -747,7 +747,7 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
         )
 
     finally:
-        await state.clear()
+        await state.set_state(None)
 
 
 async def generate_with_custom_prompt(message: Message, state: FSMContext, custom_prompt: str):
@@ -821,7 +821,8 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
         )
 
     finally:
-        await state.clear()
+        # Сбрасываем только состояние, чтобы сохранить данные для дальнейшего редактирования
+        await state.set_state(None)
 
 
 @router.callback_query(F.data == "back_to_menu")
