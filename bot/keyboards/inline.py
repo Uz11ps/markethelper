@@ -49,6 +49,16 @@ def prompt_preview_keyboard():
     return keyboard
 
 
+def custom_prompt_preview_keyboard():
+    """Клавиатура подтверждения кастомного промпта"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Запустить генерацию", callback_data="confirm_custom_prompt")],
+        [InlineKeyboardButton(text="✏️ Изменить промпт", callback_data="reenter_custom_prompt")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
+    ])
+    return keyboard
+
+
 def aspect_ratio_keyboard():
     """Клавиатура выбора формата изображения для Озон"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[

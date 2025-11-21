@@ -13,15 +13,19 @@ from bot.keyboards.inline import (
     result_keyboard,
     prompt_edit_keyboard,
     prompt_preview_keyboard,
+    custom_prompt_preview_keyboard,
     aspect_ratio_keyboard,
     skip_text_keyboard
 )
+from bot.keyboards.main_menu import main_menu_kb
 from bot.services.fal_service import FALService
 from bot.services.prompt_generator import PromptGeneratorService
+from bot.services.api_client import APIClient, InsufficientTokensError, APIClientError
 from bot.loader import bot
 
 router = Router()
 logger = logging.getLogger(__name__)
+api_client = APIClient()
 
 # Временная директория для сохранения фото
 TEMP_PHOTO_DIR = "/tmp/bot_photos"
@@ -40,6 +44,22 @@ async def delete_messages(chat_id: int, message_ids: list):
             logger.debug(f"Не удалось удалить сообщение {msg_id}: {e}")
 
 
+async def charge_image_generation(message: Message, state: FSMContext, user_id: int):
+    """Списание токенов перед генерацией изображения"""
+    try:
+        return await api_client.charge_tokens(user_id, "image_generation")
+    except InsufficientTokensError:
+        await message.answer(
+            "❌ Недостаточно токенов для генерации.\n"
+            "Пополните баланс или обратитесь в поддержку."
+        )
+        await state.set_state(None)
+    except APIClientError as exc:
+        await message.answer(f"⚠️ Не удалось списать токены: {exc}")
+        await state.set_state(None)
+    return None
+
+
 # Обработчик для кнопки "🎨Генерация карточки" удалён - теперь используется inline кнопка из профиля
 
 
@@ -52,9 +72,29 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
     await state.set_state(ImageGenerationStates.choosing_aspect_ratio)
     await state.update_data(product_photos=[], reference_photos=[])
 
+    try:
+        pricing = await api_client.get_token_pricing()
+    except Exception as exc:
+        logger.warning(f"Не удалось получить стоимость токенов: {exc}")
+        pricing = {}
+    await state.update_data(token_pricing=pricing)
+
+    try:
+        profile = await api_client.get_profile(callback.from_user.id)
+    except Exception as exc:
+        logger.warning(f"Не удалось получить профиль пользователя: {exc}")
+        profile = {}
+    balance = profile.get("bonus_balance", 0) if profile else 0
+    image_cost = pricing.get("image_generation_cost") if pricing else 0
+
     await callback.message.answer(
         "🎨 <b>Генерация карточки товара</b>\n\n"
-        "Выберите формат изображения для вашей площадки:",
+        "Выберите формат изображения для вашей площадки.\n\n"
+        f"📦 Доступно фото товара: загрузите до 5 штук.\n"
+        f"🎯 Референсы: до 5 примеров стиля.\n"
+        f"💰 Стоимость генерации: <b>{image_cost} токенов</b>.\n"
+        f"💼 Ваш баланс: <b>{balance} токенов</b>.\n\n"
+        "Токены списываются при запуске генерации.",
         reply_markup=aspect_ratio_keyboard()
     )
 
@@ -399,11 +439,14 @@ async def proceed_to_prompt_choice(message: Message, state: FSMContext):
     reference_photos = data.get("reference_photos", [])
 
     await state.set_state(ImageGenerationStates.choosing_prompt_mode)
+    pricing = data.get("token_pricing", {}) if data else {}
+    image_cost = pricing.get("image_generation_cost", 0)
 
     await message.answer(
         "✅ <b>Готово!</b>\n\n"
         f"📦 Фото товара: {len(product_photos)} шт.\n"
         f"🎨 Референсов: {len(reference_photos)} шт.\n\n"
+        f"💰 Стоимость генерации: <b>{image_cost} токенов</b>.\n"
         "Выберите способ создания промпта:",
         reply_markup=prompt_edit_keyboard()
     )
@@ -481,7 +524,12 @@ async def confirm_auto_prompt(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer("❌ Ошибка: промпт не найден. Попробуйте ещё раз.")
         return
     
-    await generate_with_confirmed_prompt(callback.message, state, generated_prompt)
+    await generate_with_confirmed_prompt(
+        callback.message,
+        state,
+        generated_prompt,
+        user_id=callback.from_user.id
+    )
 
 
 @router.callback_query(F.data == "edit_auto_prompt")
@@ -527,10 +575,15 @@ async def receive_edited_prompt(message: Message, state: FSMContext):
         reply_markup=None
     )
     
-    await generate_with_confirmed_prompt(message, state, edited_prompt)
+    await generate_with_confirmed_prompt(
+        message,
+        state,
+        edited_prompt,
+        user_id=message.from_user.id
+    )
 
 
-async def generate_with_confirmed_prompt(message: Message, state: FSMContext, prompt: str):
+async def generate_with_confirmed_prompt(message: Message, state: FSMContext, prompt: str, user_id: int | None = None):
     """Генерация изображения с подтверждённым промптом (без повторной генерации промпта)"""
     data = await state.get_data()
     product_photos = data.get("product_photos", [])
@@ -544,11 +597,20 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
     temp_messages = []
     
     try:
+        tg_id = user_id or message.chat.id
+        charge = await charge_image_generation(message, state, tg_id)
+        if not charge:
+            return
+
         # Если указан текст на карточке, добавляем его в промпт
         if card_text:
             prompt = f"{prompt}. Add text on the card: '{card_text}'"
-        
-        msg1 = await message.answer("🎨 Генерирую изображение через Nano Banana AI...")
+
+        msg1 = await message.answer(
+            "🎨 Генерирую изображение через Nano Banana AI...\n\n"
+            f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
+            f"💼 Остаток: <b>{charge['balance']} токенов</b>"
+        )
         temp_messages.append(msg1.message_id)
         
         image_urls = await FALService.generate_product_image(
@@ -619,7 +681,12 @@ async def edit_prompt_handler(callback: CallbackQuery, state: FSMContext):
     )
 
 
-@router.message(StateFilter(ImageGenerationStates.waiting_for_custom_prompt))
+@router.message(
+    StateFilter(
+        ImageGenerationStates.waiting_for_custom_prompt,
+        ImageGenerationStates.confirming_custom_prompt
+    )
+)
 async def receive_custom_prompt(message: Message, state: FSMContext):
     """Получение кастомного промпта от пользователя"""
     custom_prompt = message.text.strip()
@@ -629,15 +696,42 @@ async def receive_custom_prompt(message: Message, state: FSMContext):
         return
 
     await state.update_data(custom_prompt=custom_prompt)
+    await state.set_state(ImageGenerationStates.confirming_custom_prompt)
 
     await message.answer(
-        f"✅ <b>Промпт сохранён!</b>\n\n"
-        f"<code>{custom_prompt}</code>\n\n"
-        "Начинаю генерацию...",
-        reply_markup=None
+        f"📝 <b>Ваш промпт:</b>\n<code>{custom_prompt}</code>\n\n"
+        "Нажмите «Запустить генерацию» или измените текст.",
+        reply_markup=custom_prompt_preview_keyboard()
     )
 
-    await generate_with_custom_prompt(message, state, custom_prompt)
+
+@router.callback_query(F.data == "confirm_custom_prompt")
+async def confirm_custom_prompt(callback: CallbackQuery, state: FSMContext):
+    """Запуск генерации по кастомному промпту"""
+    await callback.answer()
+
+    data = await state.get_data()
+    custom_prompt = data.get("custom_prompt")
+
+    if not custom_prompt:
+        await callback.message.answer("❌ Кастомный промпт не найден. Введите его заново.")
+        await state.set_state(ImageGenerationStates.waiting_for_custom_prompt)
+        return
+
+    await generate_with_custom_prompt(callback.message, state, custom_prompt)
+
+
+@router.callback_query(F.data == "reenter_custom_prompt")
+async def reenter_custom_prompt(callback: CallbackQuery, state: FSMContext):
+    """Повторный ввод кастомного промпта"""
+    await callback.answer()
+    await state.set_state(ImageGenerationStates.waiting_for_custom_prompt)
+
+    await callback.message.answer(
+        "✏️ <b>Введите новый промпт</b>\n\n"
+        "Опишите вид карточки или вернитесь к автоматической генерации.",
+        reply_markup=prompt_edit_keyboard()
+    )
 
 
 async def generate_with_ai_prompt(message: Message, state: FSMContext):
@@ -693,8 +787,17 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
         )
         temp_messages.append(msg3.message_id)
 
+        tg_id = message.chat.id
+        charge = await charge_image_generation(message, state, tg_id)
+        if not charge:
+            return
+
         # Шаг 2: Генерация изображения через FAL
-        msg4 = await message.answer("🎨 Генерирую изображение через Nano Banana AI...")
+        msg4 = await message.answer(
+            "🎨 Генерирую изображение через Nano Banana AI...\n\n"
+            f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
+            f"💼 Остаток: <b>{charge['balance']} токенов</b>"
+        )
         temp_messages.append(msg4.message_id)
 
         image_urls = await FALService.generate_product_image(
@@ -764,11 +867,20 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
     temp_messages = []
 
     try:
+        tg_id = message.chat.id
+        charge = await charge_image_generation(message, state, tg_id)
+        if not charge:
+            return
+
         # Если указан текст на карточке, добавляем его в промпт
         if card_text:
             custom_prompt = f"{custom_prompt}. Add text on the card: '{card_text}'"
 
-        msg1 = await message.answer("🎨 Генерирую изображение с вашим промптом через Nano Banana AI...")
+        msg1 = await message.answer(
+            "🎨 Генерирую изображение с вашим промптом через Nano Banana AI...\n\n"
+            f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
+            f"💼 Остаток: <b>{charge['balance']} токенов</b>"
+        )
         temp_messages.append(msg1.message_id)
 
         image_urls = await FALService.generate_product_image(
@@ -831,9 +943,25 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
 
+    try:
+        profile = await api_client.get_profile(callback.from_user.id)
+    except Exception:
+        profile = {}
+
+    active_until = profile.get("active_until")
+
     await callback.message.answer(
         "🏠 <b>Главное меню</b>\n\n"
-        "Вы вернулись в главное меню. Используйте /menu для просмотра доступных команд."
+        "Выберите действие на клавиатуре.",
+        reply_markup=main_menu_kb(has_active_sub=True)
+    )
+
+    await callback.message.answer(
+        f"👤 <b>Пользователь:</b> @{profile.get('username') or callback.from_user.username or '—'}\n"
+        f"⭐️ <b>Тариф:</b> {profile.get('tariff_name') or 'Тестовый режим'}\n"
+        f"🗓️ <b>Активен до:</b> {active_until or 'Бессрочно (тест)'}\n"
+        f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}",
+        reply_markup=None
     )
 
 
@@ -882,9 +1010,9 @@ async def receive_refinement(message: Message, state: FSMContext):
     new_prompt = f"{old_prompt}. {refinement_text}"
 
     await message.answer(
-        f"✅ <b>Правки приняты!</b>\n\n"
-        f"<b>Обновлённый промпт:</b>\n<code>{new_prompt}</code>\n\n"
-        "Начинаю генерацию с правками...",
+        "✅ <b>Правки приняты!</b>\n\n"
+        f"📝 Ваше описание:\n<code>{refinement_text}</code>\n\n"
+        "Начинаю генерацию с учётом правок...",
         reply_markup=None
     )
 

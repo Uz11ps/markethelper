@@ -1,4 +1,5 @@
 from aiogram import Router, types, F
+from aiogram.fsm.context import FSMContext
 from bot.services.api_client import APIClient
 from bot.keyboards.main_menu import main_menu_kb
 from bot.keyboards.profile_menu import profile_menu_kb
@@ -59,7 +60,34 @@ async def cmd_start(message: types.Message):
         f"⭐️ <b>Тариф:</b> {profile.get('tariff_name') or 'Тестовый режим'}\n"
         f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Бессрочно (тест)'}\n"
         f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
-        f"💰 <b>Бонусы:</b> {profile.get('bonus_balance') or 0}"
+        f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
+    )
+
+    await message.answer(text, reply_markup=profile_menu_kb())
+
+
+@router.message(F.text == "/menu")
+async def cmd_menu(message: types.Message, state: FSMContext):
+    """Возврат в главное меню"""
+    await state.clear()
+
+    tg = message.from_user
+    profile = await api.get_profile(tg.id)
+    has_active = True
+    active_until = profile.get("active_until") if profile else None
+
+    await message.answer(
+        "🏠 <b>Главное меню</b>\n\n"
+        "Выберите действие на клавиатуре ниже.",
+        reply_markup=main_menu_kb(has_active_sub=has_active)
+    )
+
+    text = (
+        f"👤 <b>Пользователь:</b> @{profile.get('username') or tg.username or '—'}\n"
+        f"⭐️ <b>Тариф:</b> {profile.get('tariff_name') or 'Тестовый режим'}\n"
+        f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Бессрочно (тест)'}\n"
+        f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
+        f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
     )
 
     await message.answer(text, reply_markup=profile_menu_kb())

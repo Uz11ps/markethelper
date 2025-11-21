@@ -3,11 +3,13 @@ import json
 import logging
 from typing import List
 from openai import AsyncOpenAI
+from bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+settings_api = APIClient()
 
 
 SYSTEM_PROMPT = """Ты — 'Деконструктор-Синтезатор Промтов' (Prompt Deconstructor & Synthesizer), ИИ-аналитик, специализирующийся на слиянии контента и стиля для генеративных моделей.
@@ -63,6 +65,25 @@ SYSTEM_PROMPT = """Ты — 'Деконструктор-Синтезатор П�
 
 class PromptGeneratorService:
     """Сервис для генерации промптов через GPT-4o с vision"""
+
+    _system_prompt_cache: str | None = None
+
+    @classmethod
+    async def _get_system_prompt(cls) -> str:
+        if cls._system_prompt_cache:
+            return cls._system_prompt_cache
+
+        try:
+            data = await settings_api.get_admin_settings()
+            prompt = data.get("prompt_generator_prompt")
+            if prompt:
+                cls._system_prompt_cache = prompt
+                return prompt
+        except Exception as exc:
+            logger.warning(f"Не удалось получить промпт генератора из админки: {exc}")
+
+        cls._system_prompt_cache = SYSTEM_PROMPT
+        return SYSTEM_PROMPT
 
     @staticmethod
     async def generate_prompt_from_images(
@@ -126,10 +147,12 @@ class PromptGeneratorService:
                 })
 
             # Запрос к GPT-4o
+            system_prompt = await cls._get_system_prompt()
+
             response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": content}
                 ],
                 max_tokens=1500,

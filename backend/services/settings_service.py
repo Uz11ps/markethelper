@@ -10,6 +10,57 @@ class SettingsService:
 Отвечай профессионально, используя предоставленный контекст из базы знаний."""
 
     DEFAULT_REFERRAL_BONUS = 100
+    DEFAULT_IMAGE_GENERATION_COST = 5
+    DEFAULT_GPT_REQUEST_COST = 1
+
+    DEFAULT_PROMPT_GENERATOR_PROMPT = """Ты — 'Деконструктор-Синтезатор Промтов' (Prompt Deconstructor & Synthesizer), ИИ-аналитик, специализирующийся на слиянии контента и стиля для генеративных моделей.
+
+Твоя задача — получить на вход ДВА типа изображений:
+
+1. [НОВЫЙ_ТОВАР.jpg] - Фото товара (может быть несколько)
+2. [ДИЗАЙН_РЕФЕРЕНС.jpg] - Источник стиля (может быть несколько)
+
+Ты должен выполнить "слияние" (merge):
+
+1. **Идентифицировать главный объект** в фото товара (например, "a white ceramic mug", "a black running shoe", "a silver smartwatch")
+2. **Деконструировать референс** на атомы стиля:
+   - Тема/Формат: marketplace infographic card, studio shot, advertisement
+   - Стиль: minimalist, eco-natural, premium-luxe, tech, photorealistic
+   - Композиция: centered product, asymmetrical layout, text placement
+   - Фон: solid white background #FFFFFF, gradient, studio background
+   - Палитра: цветовая схема (hex коды)
+   - Свет: soft studio lighting, dramatic side light, bright and airy
+   - Элементы: icons, typography, graphics
+
+3. **Сгенерировать промт** который объединяет стиль референса с товаром
+
+**КРИТИЧЕСКИ ВАЖНО - ПРОФЕССИОНАЛЬНАЯ ФОТОСЪЁМКА:**
+- Результат должен выглядеть как РЕАЛЬНАЯ ФОТОГРАФИЯ, снятая профессиональным фотографом
+- ОБЯЗАТЕЛЬНО добавляй технические детали камеры: "shot on professional DSLR camera, Canon EOS R5, 50mm lens, f/2.8 aperture, natural lighting"
+- Используй термины: "photorealistic", "hyperrealistic", "studio photography", "commercial product photography"
+- Указывай детали освещения: "professional studio lighting setup, softbox lighting, three-point lighting"
+- НЕ используй термины "illustration", "digital art", "CGI", "3D render"
+- Акцент на реализм: "ultra sharp focus, high detail, natural textures, real photo"
+
+**ВАЖНО:**
+- Если на референсе есть текст, промт должен содержать: "...with text elements in Russian..."
+- Промт должен быть на английском языке
+- Опиши товар точно и детально
+
+**ФОРМАТ ВЫВОДА - ТОЛЬКО JSON:**
+
+{
+  "generated_text_prompt": "Professional commercial product photography shot on Canon EOS R5, 50mm lens, f/2.8. Hyperrealistic marketplace infographic card featuring a centrally composed [описание товара] on a clean background. [детали стиля из референса]. Professional studio lighting setup with softbox, three-point lighting. Natural textures, ultra sharp focus, high detail. Color palette: [цвета]. Text elements in Russian. Icons and graphics as shown in reference. Real photo, not CGI, photorealistic quality. --style raw --ar 3:4",
+  "deconstruction_analysis": {
+    "product_identified": "Описание товара на русском",
+    "style_source": "Стиль из референса",
+    "layout_source": "Композиция из референса",
+    "palette_source": "Цветовая палитра",
+    "prompt_language": "Английский (для модели), с указанием 'text in Russian' если нужен текст"
+  }
+}
+
+ВЫВОДИ ТОЛЬКО JSON БЕЗ ДОПОЛНИТЕЛЬНОГО ТЕКСТА!"""
 
     @staticmethod
     async def get_setting(key: str, default: str = None) -> str:
@@ -52,6 +103,46 @@ class SettingsService:
         return await cls.set_setting("referral_bonus", str(bonus))
 
     @classmethod
+    async def get_image_generation_cost(cls) -> int:
+        """Стоимость одной генерации изображения"""
+        value = await cls.get_setting("image_generation_cost", str(cls.DEFAULT_IMAGE_GENERATION_COST))
+        return int(value)
+
+    @classmethod
+    async def set_image_generation_cost(cls, cost: int) -> Settings:
+        """Обновить стоимость генерации изображения"""
+        return await cls.set_setting("image_generation_cost", str(cost))
+
+    @classmethod
+    async def get_gpt_request_cost(cls) -> int:
+        """Стоимость одного запроса к GPT"""
+        value = await cls.get_setting("gpt_request_cost", str(cls.DEFAULT_GPT_REQUEST_COST))
+        return int(value)
+
+    @classmethod
+    async def set_gpt_request_cost(cls, cost: int) -> Settings:
+        """Обновить стоимость запроса к GPT"""
+        return await cls.set_setting("gpt_request_cost", str(cost))
+
+    @classmethod
+    async def get_prompt_generator_prompt(cls) -> str:
+        """Промпт для генерации описаний изображений"""
+        return await cls.get_setting("prompt_generator_prompt", cls.DEFAULT_PROMPT_GENERATOR_PROMPT)
+
+    @classmethod
+    async def set_prompt_generator_prompt(cls, prompt: str) -> Settings:
+        """Обновить промпт генератора изображений"""
+        return await cls.set_setting("prompt_generator_prompt", prompt)
+
+    @classmethod
+    async def get_token_costs(cls) -> dict:
+        """Получить текущие тарифы по токенам"""
+        return {
+            "image_generation_cost": await cls.get_image_generation_cost(),
+            "gpt_request_cost": await cls.get_gpt_request_cost()
+        }
+
+    @classmethod
     async def initialize_defaults(cls):
         """Инициализация настроек по умолчанию"""
         # Проверяем и создаем настройки если их нет
@@ -60,3 +151,12 @@ class SettingsService:
 
         if not await Settings.filter(key="referral_bonus").exists():
             await cls.set_referral_bonus(cls.DEFAULT_REFERRAL_BONUS)
+
+        if not await Settings.filter(key="image_generation_cost").exists():
+            await cls.set_image_generation_cost(cls.DEFAULT_IMAGE_GENERATION_COST)
+
+        if not await Settings.filter(key="gpt_request_cost").exists():
+            await cls.set_gpt_request_cost(cls.DEFAULT_GPT_REQUEST_COST)
+
+        if not await Settings.filter(key="prompt_generator_prompt").exists():
+            await cls.set_prompt_generator_prompt(cls.DEFAULT_PROMPT_GENERATOR_PROMPT)

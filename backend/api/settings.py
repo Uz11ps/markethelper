@@ -18,10 +18,16 @@ async def get_settings():
     """Получить текущие настройки"""
     ai_prompt = await SettingsService.get_ai_prompt()
     referral_bonus = await SettingsService.get_referral_bonus()
+    prompt_generator_prompt = await SettingsService.get_prompt_generator_prompt()
+    image_cost = await SettingsService.get_image_generation_cost()
+    gpt_cost = await SettingsService.get_gpt_request_cost()
 
     return SettingsResponse(
         ai_prompt=ai_prompt,
-        referral_bonus=referral_bonus
+        referral_bonus=referral_bonus,
+        prompt_generator_prompt=prompt_generator_prompt,
+        image_generation_cost=image_cost,
+        gpt_request_cost=gpt_cost
     )
 
 
@@ -33,6 +39,15 @@ async def update_settings(data: SettingsUpdate):
 
     if data.referral_bonus is not None:
         await SettingsService.set_referral_bonus(data.referral_bonus)
+
+    if data.image_generation_cost is not None:
+        await SettingsService.set_image_generation_cost(data.image_generation_cost)
+
+    if data.gpt_request_cost is not None:
+        await SettingsService.set_gpt_request_cost(data.gpt_request_cost)
+
+    if data.prompt_generator_prompt is not None:
+        await SettingsService.set_prompt_generator_prompt(data.prompt_generator_prompt)
 
     return {"status": "success", "message": "Настройки обновлены"}
 

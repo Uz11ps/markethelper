@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api import (
     profile, users, files, referrals, requests,
-    mailing, ai, session_updater, settings,
+    mailing, ai, session_updater, settings, tokens,
     admin, admin_users, admin_broadcast, admin_settings
 )
 from backend.core.db import init_db, close_db
@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
     app.include_router(ai.router)
     app.include_router(profile.router)
     app.include_router(settings.router)
+    app.include_router(tokens.router)
 
     # Админ роуты
     app.include_router(admin.router)

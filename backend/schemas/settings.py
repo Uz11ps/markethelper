@@ -5,12 +5,18 @@ from datetime import datetime
 
 class SettingsUpdate(BaseModel):
     ai_prompt: Optional[str] = None
+    prompt_generator_prompt: Optional[str] = None
     referral_bonus: Optional[int] = None
+    image_generation_cost: Optional[int] = None
+    gpt_request_cost: Optional[int] = None
 
 
 class SettingsResponse(BaseModel):
     ai_prompt: str
     referral_bonus: int
+    prompt_generator_prompt: str
+    image_generation_cost: int
+    gpt_request_cost: int
 
 
 class BroadcastCreate(BaseModel):

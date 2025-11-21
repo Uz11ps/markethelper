@@ -11,5 +11,6 @@ class ImageGenerationStates(StatesGroup):
     previewing_prompt = State()  # Предварительный просмотр автоматически сгенерированного промпта
     editing_auto_prompt = State()  # Редактирование автоматически сгенерированного промпта
     waiting_for_custom_prompt = State()  # Ожидание ввода кастомного промпта
+    confirming_custom_prompt = State()  # Подтверждение кастомного промпта перед запуском
     generating = State()  # Процесс генерации
     waiting_for_refinement = State()  # Ожидание описания правок для изображения

@@ -20,13 +20,36 @@
   <div class="settings-container">
     <!-- AI Промпт -->
     <div class="settings-section">
-      <h2>AI Промпт</h2>
+      <h2>AI-промпт (чат)</h2>
       <p class="settings-description">
-        Промпт используется AI-помощником для ответов на вопросы пользователей.
-        Определяет поведение и стиль общения бота.
+        Используется для ответов GPT-помощника в чате. Изменяйте стиль общения и тональность.
       </p>
-      <textarea id="aiPrompt" rows="10" placeholder="Введите промпт для AI..."></textarea>
-      <button onclick="saveSettings()" class="btn-primary">Сохранить промпт</button>
+      <textarea id="aiPrompt" rows="8" placeholder="Введите промпт для AI..."></textarea>
+    </div>
+
+    <div class="settings-section">
+      <h2>Промпт генератора изображений</h2>
+      <p class="settings-description">
+        Описывает, как GPT анализирует фото товара и референсы, чтобы собрать текстовый промпт для Nano Banana.
+      </p>
+      <textarea id="imagePrompt" rows="12" placeholder="Введите системный промпт для генерации изображений..."></textarea>
+    </div>
+
+    <div class="settings-section">
+      <h2>Стоимость токенов</h2>
+      <p class="settings-description">
+        Настройте, сколько токенов списывается за генерацию изображения и за один вопрос к GPT.
+      </p>
+      <div class="input-group">
+        <label for="imageCost">Генерация изображения:</label>
+        <input type="number" id="imageCost" min="0" placeholder="5">
+        <span class="input-suffix">токенов</span>
+      </div>
+      <div class="input-group">
+        <label for="gptCost">Вопрос к GPT:</label>
+        <input type="number" id="gptCost" min="0" placeholder="1">
+        <span class="input-suffix">токенов</span>
+      </div>
     </div>
 
     <!-- Реферальный бонус -->
@@ -40,8 +63,9 @@
         <input type="number" id="referralBonus" min="0" placeholder="100">
         <span class="input-suffix">баллов</span>
       </div>
-      <button onclick="saveSettings()" class="btn-primary">Сохранить бонус</button>
     </div>
+
+    <button onclick="saveSettings()" class="btn-primary">Сохранить все настройки</button>
   </div>
 
   <div id="message" class="message"></div>

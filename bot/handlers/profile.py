@@ -39,7 +39,7 @@ async def show_profile(message: types.Message):
         f"⭐️ <b>Тариф:</b> {data.get('tariff_name') or 'Тестовый режим'}\n"
         f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Бессрочно (тест)'}\n"
         f"📁 <b>Файл:</b> {(data.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
-        f"💰 <b>Бонусы:</b> {data.get('bonus_balance') or 0}"
+        f"💰 <b>Токены:</b> {data.get('bonus_balance') or 0}"
     )
 
     await message.answer(text, reply_markup=profile_menu_kb())
@@ -78,11 +78,15 @@ async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
     from bot.states.ai_states import AIChatStates
     from bot.keyboards.exit_ai import chatgpt_kb
 
+    pricing = await api.get_token_pricing()
+    gpt_cost = pricing.get("gpt_request_cost", 0) if pricing else 0
+
     await state.set_state(AIChatStates.chatting)
 
     await callback.message.answer(
         "🤖 <b>Режим ChatGPT активирован!</b>\n\n"
-        "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n\n"
+        "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
+        f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
         "Для выхода нажмите кнопку ниже 👇",
         reply_markup=chatgpt_kb()
     )
@@ -98,10 +102,26 @@ async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(ImageGenerationStates.waiting_for_product_photos)
     await state.update_data(product_photos=[], reference_photos=[])
 
+    try:
+        pricing = await api.get_token_pricing()
+    except Exception:
+        pricing = {}
+    await state.update_data(token_pricing=pricing)
+
+    try:
+        profile = await api.get_profile(callback.from_user.id)
+    except Exception:
+        profile = {}
+    balance = profile.get("bonus_balance", 0) if profile else 0
+    image_cost = pricing.get("image_generation_cost", 0) if pricing else 0
+
     await callback.message.answer(
         "🎨 <b>Генерация карточки товара</b>\n\n"
         "Отправьте от 1 до 5 фотографий вашего товара.\n"
-        "После отправки всех фото нажмите кнопку 'Готово'.",
+        "После отправки всех фото нажмите кнопку 'Готово'.\n\n"
+        f"💰 Стоимость генерации: <b>{image_cost} токенов</b>.\n"
+        f"💼 Ваш баланс: <b>{balance} токенов</b>.\n"
+        "Токены списываются при запуске генерации.",
         reply_markup=skip_keyboard("product_photos_done")
     )
     await callback.answer()

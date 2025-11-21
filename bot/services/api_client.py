@@ -1,10 +1,36 @@
 import aiohttp
+import json
 from bot.config import BACKEND_URL
+
+
+class APIClientError(Exception):
+    """Базовая ошибка API клиента"""
+
+
+class InsufficientTokensError(APIClientError):
+    """Недостаточно токенов"""
 
 
 class APIClient:
     def __init__(self):
         self.base_url = BACKEND_URL
+
+    async def _handle_response(self, resp: aiohttp.ClientResponse):
+        text = await resp.text()
+        if resp.status >= 400:
+            detail = text
+            try:
+                data = json.loads(text)
+                detail = data.get("detail") or data
+            except Exception:
+                detail = text
+            if resp.status == 402:
+                raise InsufficientTokensError(detail)
+            raise APIClientError(detail)
+        try:
+            return json.loads(text) if text else {}
+        except Exception:
+            return {}
 
     async def create_user(self, tg_id: int, username: str | None, full_name: str | None):
         url = f"{self.base_url}/admin/users/"
@@ -14,13 +40,13 @@ class APIClient:
                 "username": username,
                 "full_name": full_name,
             }) as resp:
-                return await resp.json()
+                return await self._handle_response(resp)
 
     async def get_user(self, tg_id: int):
         url = f"{self.base_url}/admin/users/by_tg/{tg_id}"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
-                return await resp.json()
+                return await self._handle_response(resp)
 
     async def create_request(self, tg_id: int, tariff_code: str, duration_months: int):
         url = f"{self.base_url}/admin/requests/"
@@ -30,13 +56,13 @@ class APIClient:
                 "tariff_code": tariff_code,
                 "duration_months": duration_months
             }) as resp:
-                return await resp.json()
+                return await self._handle_response(resp)
 
     async def get_profile(self, tg_id: int):
         url = f"{self.base_url}/profile/{tg_id}"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
-                return await resp.json()
+                return await self._handle_response(resp)
 
     async def get_referral_info(self, tg_id: int):
         import httpx
@@ -54,11 +80,14 @@ class APIClient:
             }) as resp:
                 return await resp.json()
             
-    async def query_ai(self, question: str) -> str:
+    async def query_ai(self, question: str, tg_id: int | None = None) -> str:
         url = f"{self.base_url}/ai/query"
+        payload = {"question": question}
+        if tg_id:
+            payload["tg_id"] = tg_id
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json={"question": question}) as resp:
-                data = await resp.json()
+            async with session.post(url, json=payload) as resp:
+                data = await self._handle_response(resp)
                 return data.get("answer", "❌ Ошибка ответа от AI")
             
     async def get_user_file(self, tg_id: int):
@@ -81,3 +110,21 @@ class APIClient:
                 if resp.status not in (200, 201):
                     raise Exception(f"Failed to regen user file: {resp.status}, {text}")
                 return await resp.json()
+
+    async def get_admin_settings(self):
+        url = f"{self.base_url}/admin/settings"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await self._handle_response(resp)
+
+    async def charge_tokens(self, tg_id: int, action: str):
+        url = f"{self.base_url}/tokens/charge"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json={"tg_id": tg_id, "action": action}) as resp:
+                return await self._handle_response(resp)
+
+    async def get_token_pricing(self):
+        url = f"{self.base_url}/tokens/pricing"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await self._handle_response(resp)
