@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Генератор дизайна</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html">Активные подписки</a>
+    <a href="/ai.html">Нейронка</a>
+    <a href="/files.html">Файлы</a>
+    <a href="/design.html" class="active">Генератор дизайна</a>
+  </nav>
+
+  <header class="page-header">
+    <div>
+      <h1>Помощник по созданию карточек товара</h1>
+      <p class="subtitle">Выберите режим работы, скорректируйте промт и запустите генерацию с референсами</p>
+    </div>
+  </header>
+
+  <section class="mode-section">
+    <h2>1. Выберите режим</h2>
+    <div class="mode-selector">
+      <button class="mode-btn active" data-mode="infographic">Инфографика</button>
+      <button class="mode-btn" data-mode="custom">Свой промт</button>
+      <button class="mode-btn" data-mode="competitor">По референсу конкурента</button>
+    </div>
+  </section>
+
+  <section id="panel-infographic" class="mode-panel">
+    <h2>Инфографика по вашему изображению</h2>
+    <p class="panel-hint">Загрузите инфографику или макет, укажите тип слайда и ключевые слова — мы предложим промт из базы.</p>
+    <form id="infographicPromptForm" class="mode-form">
+      <label class="input-wrapper">
+        <span>Изображение-референс (обязательно)</span>
+        <input type="file" id="infographicReference" accept="image/*" required>
+      </label>
+      <label class="input-wrapper">
+        <span>Тип слайда</span>
+        <select id="infographicType">
+          <option value="cover">Обложка</option>
+          <option value="second_slide">Второй слайд</option>
+        </select>
+      </label>
+      <label class="input-wrapper">
+        <span>Ключевые слова / тематика</span>
+        <input type="text" id="infographicKeywords" placeholder="Например: уходовая косметика, anti-age">
+      </label>
+      <button type="submit">Получить промт</button>
+    </form>
+
+    <div id="infographicPromptResult" class="prompt-block hidden">
+      <div class="prompt-grid">
+        <label>
+          <span>Промт</span>
+          <textarea id="infographicPromptText" rows="8"></textarea>
+        </label>
+        <label>
+          <span>Негативный промт</span>
+          <textarea id="infographicNegativeText" rows="6" placeholder="Опционально"></textarea>
+        </label>
+      </div>
+      <div class="prompt-actions">
+        <button id="infographicGenerateBtn" class="primary">Начать генерацию</button>
+        <span id="infographicTemplateInfo" class="prompt-info"></span>
+      </div>
+      <div id="infographicWarnings" class="warning-box hidden"></div>
+      <div id="infographicGenerationResult" class="generation-result"></div>
+    </div>
+  </section>
+
+  <section id="panel-custom" class="mode-panel hidden">
+    <h2>Свой промт и описание</h2>
+    <p class="panel-hint">Загрузите фото товара и введите собственный промт. Мы передадим его напрямую в генерацию.</p>
+    <form id="customPromptForm" class="mode-form">
+      <label class="input-wrapper">
+        <span>Фото товара (опционально, используется как референс)</span>
+        <input type="file" id="customReference" accept="image/*">
+      </label>
+      <label class="input-wrapper">
+        <span>Ваш промт</span>
+        <textarea id="customPromptText" rows="7" placeholder="Опишите, какой визуал хотите получить" required></textarea>
+      </label>
+      <label class="input-wrapper">
+        <span>Негативный промт</span>
+        <textarea id="customNegativeText" rows="5" placeholder="Что обязательно нужно исключить"></textarea>
+      </label>
+      <button type="submit">Проверить промт</button>
+    </form>
+
+    <div id="customPromptResult" class="prompt-block hidden">
+      <div class="prompt-grid">
+        <label>
+          <span>Финальный промт</span>
+          <textarea id="customPromptFinal" rows="8"></textarea>
+        </label>
+        <label>
+          <span>Негативный промт</span>
+          <textarea id="customNegativeFinal" rows="6"></textarea>
+        </label>
+      </div>
+      <div class="prompt-actions">
+        <button id="customGenerateBtn" class="primary">Начать генерацию</button>
+      </div>
+      <div id="customWarnings" class="warning-box hidden"></div>
+      <div id="customGenerationResult" class="generation-result"></div>
+    </div>
+  </section>
+
+  <section id="panel-competitor" class="mode-panel hidden">
+    <h2>Копирование карточки конкурента</h2>
+    <p class="panel-hint">Загрузите слайд конкурента — мы создадим промт для бренда nano banana и добавим дизайн в библиотеку.</p>
+    <form id="competitorPromptForm" class="mode-form">
+      <label class="input-wrapper">
+        <span>Слайд конкурента (обязательно)</span>
+        <input type="file" id="competitorReference" accept="image/*" required>
+      </label>
+      <label class="input-wrapper">
+        <span>Название или бренд товара</span>
+        <input type="text" id="competitorProductName" placeholder="nano banana" value="nano banana">
+      </label>
+      <label class="input-wrapper">
+        <span>Тип слайда</span>
+        <select id="competitorType">
+          <option value="cover">Обложка</option>
+          <option value="second_slide">Второй слайд</option>
+        </select>
+      </label>
+      <label class="input-wrapper">
+        <span>Ключевые слова</span>
+        <input type="text" id="competitorKeywords" placeholder="Например: витамины, энергия, спорт">
+      </label>
+      <button type="submit">Получить промт</button>
+    </form>
+
+    <div id="competitorPromptResult" class="prompt-block hidden">
+      <div class="prompt-grid">
+        <label>
+          <span>Промт</span>
+          <textarea id="competitorPromptText" rows="8"></textarea>
+        </label>
+        <label>
+          <span>Негативный промт</span>
+          <textarea id="competitorNegativeText" rows="6" placeholder="Опционально"></textarea>
+        </label>
+      </div>
+      <div class="prompt-actions">
+        <button id="competitorGenerateBtn" class="primary">Начать генерацию</button>
+        <span id="competitorTemplateInfo" class="prompt-info"></span>
+      </div>
+      <div class="prompt-step">
+        <label class="input-wrapper">
+          <span>Фото вашего товара для генерации</span>
+          <input type="file" id="competitorProductReference" accept="image/*">
+        </label>
+      </div>
+      <div id="competitorWarnings" class="warning-box hidden"></div>
+      <div id="competitorGenerationResult" class="generation-result"></div>
+    </div>
+  </section>
+
+  <script src="design.js"></script>
+</body>
+</html>

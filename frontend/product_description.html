@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генерация инфографики по товару</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Генератор инфографики для маркетплейсов</h1>
+            <p>Создавайте продающие инфографики для OZON и WB на основе фотографий товара</p>
+        </header>
+
+        <main>
+            <!-- Блок выбора типа генерации -->
+            <section id="generation-type" class="card">
+                <h2>Выберите тип генерации</h2>
+                <div class="button-grid">
+                    <button id="btn-product-only" class="generation-btn" data-type="product">
+                        <div class="btn-icon">📦</div>
+                        <h3>Создать по товару</h3>
+                        <p>Генерация инфографики только на основе фотографий товара</p>
+                    </button>
+                    
+                    <button id="btn-with-reference" class="generation-btn" data-type="reference">
+                        <div class="btn-icon">🎯</div>
+                        <h3>Создать по референсу</h3>
+                        <p>Генерация с учетом референсного изображения для стиля</p>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Форма загрузки изображений -->
+            <section id="upload-section" class="card" style="display: none;">
+                <h2 id="upload-title">Загрузка изображений</h2>
+                
+                <form id="upload-form">
+                    <div class="form-group">
+                        <label for="product-title">Название товара:</label>
+                        <input type="text" id="product-title" placeholder="Введите название товара" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user-prompt">Дополнительные требования (необязательно):</label>
+                        <textarea id="user-prompt" placeholder="Например: Сделать акцент на экологичности, использовать яркие цвета..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="product-images">Фотографии товара:</label>
+                        <input type="file" id="product-images" multiple accept="image/*" required>
+                        <div id="product-preview" class="image-preview"></div>
+                    </div>
+
+                    <div class="form-group" id="reference-group" style="display: none;">
+                        <label for="reference-images">Референсные изображения:</label>
+                        <input type="file" id="reference-images" multiple accept="image/*">
+                        <div id="reference-preview" class="image-preview"></div>
+                    </div>
+
+                    <button type="submit" id="generate-btn" class="primary-btn">
+                        <span id="generate-text">Сгенерировать концепции</span>
+                        <div id="generate-loader" class="loader" style="display: none;"></div>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Результаты генерации -->
+            <section id="results-section" class="card" style="display: none;">
+                <h2>Выберите концепцию</h2>
+                <div id="concepts-grid" class="concepts-grid"></div>
+                
+                <div id="concept-details" class="concept-details" style="display: none;">
+                    <h3>Детали концепции</h3>
+                    <div id="concept-info"></div>
+                    
+                    <!-- Блок редактирования областей -->
+                    <div id="edit-areas" class="edit-areas">
+                        <h4>🎨 Редактирование стиля</h4>
+                        
+                        <div class="edit-group">
+                            <h5>Иконки</h5>
+                            <div class="edit-fields">
+                                <label>Стиль иконок:</label>
+                                <select id="icon-style">
+                                    <option value="line">Контурные (Line Art)</option>
+                                    <option value="solid">Залитые (Solid)</option>
+                                    <option value="3d">3D / Изометрия</option>
+                                    <option value="sketch">Скетч / Ручная графика</option>
+                                </select>
+                                
+                                <label>Расположение иконок:</label>
+                                <select id="icon-layout">
+                                    <option value="vertical">Вертикально сбоку</option>
+                                    <option value="horizontal">Горизонтально снизу</option>
+                                    <option value="callouts">Выноски (Callouts)</option>
+                                    <option value="zones">Зоны / Состав</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="edit-group">
+                            <h5>Цвета</h5>
+                            <div class="edit-fields">
+                                <label>Цветовая палитра:</label>
+                                <select id="color-palette">
+                                    <option value="monochrome">Монохромная</option>
+                                    <option value="contrast">Контрастная</option>
+                                    <option value="pastel">Пастельная</option>
+                                    <option value="dark">Тёмная (неон)</option>
+                                    <option value="natural">Натуральная</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="edit-group">
+                            <h5>Композиция</h5>
+                            <div class="edit-fields">
+                                <label>Фон:</label>
+                                <select id="background-style">
+                                    <option value="tech">Техно-Фокус</option>
+                                    <option value="eco">Эко-Минимализм</option>
+                                    <option value="bright">Яркий Брутализм</option>
+                                    <option value="premium">Премиум / Люкс</option>
+                                    <option value="lifestyle">Лайфстайл / Контекст</option>
+                                    <option value="info">Инфо-Схема</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button id="create-infographic-btn" class="primary-btn">
+                        <span id="create-text">Создать инфографику</span>
+                        <div id="create-loader" class="loader" style="display: none;"></div>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Готовая инфографика -->
+            <section id="final-result" class="card" style="display: none;">
+                <h2>🎉 Инфографика готова!</h2>
+                <div id="final-image-container"></div>
+                <div id="final-prompt-container">
+                    <h3>Использованный промт:</h3>
+                    <div id="final-prompt-text"></div>
+                </div>
+                
+                <div class="result-actions">
+                    <button id="edit-material-btn" class="secondary-btn">✏️ Редактировать материал</button>
+                    <button id="edit-prompt-btn" class="secondary-btn">🎯 Редактировать промт</button>
+                    <button id="download-btn" class="primary-btn">💾 Скачать</button>
+                    <button id="new-generation-btn" class="secondary-btn">🔄 Новая генерация</button>
+                </div>
+            </section>
+
+            <!-- История проектов -->
+            <section id="projects-history" class="card">
+                <h2>📁 История проектов</h2>
+                <div id="projects-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="product_description.js"></script>
+</body>
+</html>
