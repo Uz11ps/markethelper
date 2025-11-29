@@ -2,7 +2,8 @@ from tortoise import fields
 from tortoise.models import Model
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# use pbkdf2_sha256 to avoid bcrypt's 72-byte limit inside containers
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
 class Admin(Model):
