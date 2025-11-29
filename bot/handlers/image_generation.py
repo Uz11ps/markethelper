@@ -22,6 +22,7 @@ from bot.services.fal_service import FALService
 from bot.services.prompt_generator import PromptGeneratorService
 from bot.services.api_client import APIClient, InsufficientTokensError, APIClientError
 from bot.loader import bot
+from bot.utils import get_full_name
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -80,7 +81,11 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
     await state.update_data(token_pricing=pricing)
 
     try:
-        profile = await api_client.get_profile(callback.from_user.id)
+        profile = await api_client.get_profile(
+            callback.from_user.id,
+            username=callback.from_user.username,
+            full_name=get_full_name(callback.from_user),
+        )
     except Exception as exc:
         logger.warning(f"Не удалось получить профиль пользователя: {exc}")
         profile = {}
@@ -944,7 +949,11 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
 
     try:
-        profile = await api_client.get_profile(callback.from_user.id)
+        profile = await api_client.get_profile(
+            callback.from_user.id,
+            username=callback.from_user.username,
+            full_name=get_full_name(callback.from_user),
+        )
     except Exception:
         profile = {}
 

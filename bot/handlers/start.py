@@ -5,6 +5,7 @@ from bot.keyboards.main_menu import main_menu_kb
 from bot.keyboards.profile_menu import profile_menu_kb
 from bot.keyboards import subscription
 from datetime import datetime
+from bot.utils import get_full_name
 
 router = Router()
 api = APIClient()
@@ -33,7 +34,7 @@ async def cmd_start(message: types.Message):
         await api.create_user(
             tg.id,
             tg.username,
-            f"{tg.first_name or ''} {tg.last_name or ''}".strip(),
+            get_full_name(tg),
         )
     except Exception as e:
         print(f"[ERROR create_user] {e}")
@@ -42,7 +43,7 @@ async def cmd_start(message: types.Message):
         await api.bind_referral(referred_tg=tg.id, referrer_tg=referrer_id)
 
     # Получаем профиль пользователя
-    profile = await api.get_profile(tg.id)
+    profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
 
     # Временно для тестирования - всегда показываем как будто подписка есть
     has_active = True  # Отключена проверка подписки для тестирования
@@ -72,7 +73,7 @@ async def cmd_menu(message: types.Message, state: FSMContext):
     await state.clear()
 
     tg = message.from_user
-    profile = await api.get_profile(tg.id)
+    profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
     has_active = True
     active_until = profile.get("active_until") if profile else None
 

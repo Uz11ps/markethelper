@@ -9,6 +9,7 @@ from bot.services.api_client import APIClient
 from bot.keyboards.profile_menu import profile_menu_kb
 from bot.keyboards import subscription
 from aiogram.types import CallbackQuery, BufferedInputFile
+from bot.utils import get_full_name
 
 router = Router()
 api = APIClient()
@@ -29,7 +30,7 @@ async def choose_tariff(message: types.Message):
 @router.message(F.text == "/profile")
 async def show_profile(message: types.Message):
     tg = message.from_user
-    data = await api.get_profile(tg.id)
+    data = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
 
     # Временно отключена проверка подписки для тестирования
     active_until = data.get("active_until") if data else None
@@ -109,7 +110,11 @@ async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(token_pricing=pricing)
 
     try:
-        profile = await api.get_profile(callback.from_user.id)
+        profile = await api.get_profile(
+            callback.from_user.id,
+            username=callback.from_user.username,
+            full_name=get_full_name(callback.from_user),
+        )
     except Exception:
         profile = {}
     balance = profile.get("bonus_balance", 0) if profile else 0

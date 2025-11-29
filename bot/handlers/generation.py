@@ -11,6 +11,7 @@ from aiogram.fsm.context import FSMContext
 from bot.keyboards.main_menu import main_menu_kb
 from bot.services.api_client import APIClient
 from bot.states.generation_states import GenerationStates
+from bot.utils import get_full_name
 
 router = Router()
 api = APIClient()
@@ -154,7 +155,11 @@ async def _send_meta(message: types.Message, result: dict[str, Any]) -> None:
 async def _return_to_menu(message: types.Message):
     has_access = True
     try:
-        profile = await api.get_profile(message.from_user.id)
+        profile = await api.get_profile(
+            message.from_user.id,
+            username=message.from_user.username,
+            full_name=get_full_name(message.from_user),
+        )
         has_access = bool(profile.get("active_until"))
     except Exception:
         pass

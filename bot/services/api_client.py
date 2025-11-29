@@ -58,11 +58,34 @@ class APIClient:
             }) as resp:
                 return await self._handle_response(resp)
 
-    async def get_profile(self, tg_id: int):
+    async def get_profile(
+        self,
+        tg_id: int,
+        *,
+        username: str | None = None,
+        full_name: str | None = None,
+    ):
+        """Возвращает профиль, создавая пользователя при его отсутствии."""
         url = f"{self.base_url}/profile/{tg_id}"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                return await self._handle_response(resp)
+
+        async def _request():
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    return await self._handle_response(resp)
+
+        try:
+            return await _request()
+        except APIClientError as exc:
+            detail = str(exc).lower()
+            if "user not found" not in detail:
+                raise
+
+            # Создаём пользователя, если есть данные Telegram-пользователя
+            if username is None and full_name is None:
+                raise
+
+            await self.create_user(tg_id, username, full_name)
+            return await _request()
 
     async def get_referral_info(self, tg_id: int):
         import httpx

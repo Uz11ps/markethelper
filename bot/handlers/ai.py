@@ -4,6 +4,7 @@ from bot.keyboards.exit_ai import chatgpt_kb
 from bot.keyboards.main_menu import main_menu_kb
 from bot.services.api_client import APIClient, InsufficientTokensError, APIClientError
 from bot.states.ai_states import AIChatStates
+from bot.utils import get_full_name
 
 router = Router()
 api = APIClient()
@@ -16,7 +17,11 @@ async def exit_chatgpt(message: types.Message, state: FSMContext):
     await state.clear()
 
     user_id = message.from_user.id
-    user = await api.get_profile(user_id)  
+    user = await api.get_profile(
+        user_id,
+        username=message.from_user.username,
+        full_name=get_full_name(message.from_user),
+    )
     has_active_sub = user.get("active_sub", True)
 
     await message.answer(
