@@ -1,0 +1,4 @@
+FROM nginx:alpine
+
+# Копируем статические файлы админки
+COPY frontend /usr/share/nginx/html

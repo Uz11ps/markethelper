@@ -7,3 +7,4 @@ bot = Bot(
     default=DefaultBotProperties(parse_mode="HTML")
 )
 dp = Dispatcher()
+сдела
