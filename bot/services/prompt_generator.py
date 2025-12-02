@@ -85,8 +85,9 @@ class PromptGeneratorService:
         cls._system_prompt_cache = SYSTEM_PROMPT
         return SYSTEM_PROMPT
 
-    @staticmethod
+    @classmethod
     async def generate_prompt_from_images(
+        cls,
         product_image_urls: List[str],
         reference_image_urls: List[str]
     ) -> dict:
