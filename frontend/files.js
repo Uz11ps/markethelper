@@ -1,4 +1,5 @@
-const API_BASE = "http://31.97.183.139:8000/files"; // подставь свой хост
+const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
+const API_BASE = `${API_HOST}/files`;
 
 // Добавление аккаунта
 document.getElementById("addForm").addEventListener("submit", async (e) => {

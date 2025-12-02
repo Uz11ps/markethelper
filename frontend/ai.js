@@ -1,4 +1,5 @@
-const API_BASE = "http://31.97.183.139:8000/ai";
+const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
+const API_BASE = `${API_HOST}/ai`;
 
 // Проверка здоровья
 async function checkHealth() {

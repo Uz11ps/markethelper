@@ -1,3 +1,6 @@
+const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
+const PRODUCT_API_BASE = `${API_HOST}/product-description`;
+
 class ProductDescriptionManager {
     constructor() {
         this.currentGenerationType = null;
@@ -118,7 +121,7 @@ class ProductDescriptionManager {
                 });
             }
 
-            const response = await fetch('/api/product-description/upload-images', {
+            const response = await fetch(`${PRODUCT_API_BASE}/upload-images`, {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -243,7 +246,7 @@ class ProductDescriptionManager {
 
         try {
             // Сначала создаем проект инфографики
-            const projectResponse = await fetch('/api/product-description/infographic-projects', {
+            const projectResponse = await fetch(`${PRODUCT_API_BASE}/infographic-projects`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -283,7 +286,7 @@ class ProductDescriptionManager {
             };
 
             // Генерируем инфографику
-            const generateResponse = await fetch(`/api/product-description/infographic-projects/${projectId}/generate`, {
+            const generateResponse = await fetch(`${PRODUCT_API_BASE}/infographic-projects/${projectId}/generate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -375,7 +378,7 @@ class ProductDescriptionManager {
 
     async loadProjectsHistory() {
         try {
-            const response = await fetch('/api/product-description/', {
+            const response = await fetch(`${PRODUCT_API_BASE}/`, {
                 headers: {
                     'Authorization': 'Bearer dummy-token'
                 }
@@ -414,7 +417,7 @@ class ProductDescriptionManager {
 
     async loadProject(projectId) {
         try {
-            const response = await fetch(`/api/product-description/${projectId}`, {
+            const response = await fetch(`${PRODUCT_API_BASE}/${projectId}`, {
                 headers: {
                     'Authorization': 'Bearer dummy-token'
                 }

@@ -1,5 +1,6 @@
-const API_SUBS = "http://localhost:8000/admin/requests/subscriptions";
-const API_ADMIN = "http://localhost:8000/admin";
+const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
+const API_SUBS = `${API_HOST}/admin/requests/subscriptions`;
+const API_ADMIN = `${API_HOST}/admin`;
 let allSubs = [];
 let currentSubId = null;
 

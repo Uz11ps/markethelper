@@ -1,4 +1,4 @@
-const API_ROOT = "http://31.97.183.139:8000";
+const API_ROOT = `${window.location.protocol}//${window.location.hostname}:8000`;
 const DESIGN_API = `${API_ROOT}/designs`;
 const AI_API = `${API_ROOT}/ai`;
 
