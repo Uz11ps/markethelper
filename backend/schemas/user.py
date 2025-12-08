@@ -7,6 +7,8 @@ class UserBase(BaseModel):
     username: Optional[str] = None
     full_name: Optional[str] = None
     bonus_balance: int = 0
+    token_balance: int = 0
+    is_banned: bool = False
     referrer_id: Optional[int] = None
 
 class UserCreate(BaseModel):
@@ -63,6 +65,7 @@ class ProfileOut(BaseModel):
     access_file_path: Optional[str]  
 
     bonus_balance: int = 0
+    token_balance: int = 0
 
     class Config:
         from_attributes = True

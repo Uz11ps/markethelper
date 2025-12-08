@@ -1,9 +1,15 @@
-const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
-const API_BASE = `${API_HOST}/admin/requests`;
+// Конфигурация API
+const API_BASE_URL = window.location.origin + '/api';
+
+// Проверка аутентификации при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+  if (!requireAuth()) return;
+  loadRequests();
+});
 
 async function loadRequests() {
   try {
-    const res = await fetch(API_BASE + "/");
+    const res = await authFetch(`${API_BASE_URL}/admin/requests/`);
     if (!res.ok) {
       throw new Error(`Ошибка запроса: ${res.status}`);
     }
@@ -56,29 +62,33 @@ async function approve(id) {
   try {
     const input = document.querySelector(`#filename-${id}`);
     const filename = input.value.trim();
-    const formData = new FormData();
-    formData.append("filename", filename);
 
-    const res = await fetch(`${API_BASE}/${id}/approve`, {
+    const res = await authFetch(`${API_BASE_URL}/admin/requests/${id}/approve`, {
       method: "POST",
-      body: formData
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ filename: filename || null })
     });
 
     if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
     loadRequests();
   } catch (err) {
     console.error(err);
-    alert("Не удалось принять заявку");
+    alert("Не удалось принять заявку: " + err.message);
   }
 }
+
 async function reject(id) {
   try {
-    const res = await fetch(`${API_BASE}/${id}/reject`, { method: "POST" });
+    const res = await authFetch(`${API_BASE_URL}/admin/requests/${id}/reject`, {
+      method: "POST"
+    });
     if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
     loadRequests();
   } catch (err) {
     console.error(err);
-    alert("Не удалось отклонить заявку");
+    alert("Не удалось отклонить заявку: " + err.message);
   }
 }
 

@@ -12,6 +12,11 @@ class SettingsService:
     DEFAULT_REFERRAL_BONUS = 100
     DEFAULT_IMAGE_GENERATION_COST = 5
     DEFAULT_GPT_REQUEST_COST = 1
+    
+    # Модели ИИ
+    DEFAULT_GPT_MODEL = "gpt-4o-mini"
+    DEFAULT_IMAGE_MODEL = "fal-ai/flux-pro/v1.1"  # nano-banana 1
+    DEFAULT_IMAGE_MODEL_PRO = "fal-ai/flux-pro/v1.1-ultra"  # nano-banana pro
 
     DEFAULT_PROMPT_GENERATOR_PROMPT = """Ты — 'Деконструктор-Синтезатор Промтов' (Prompt Deconstructor & Synthesizer), ИИ-аналитик, специализирующийся на слиянии контента и стиля для генеративных моделей.
 
@@ -143,6 +148,48 @@ class SettingsService:
         }
 
     @classmethod
+    async def get_gpt_model(cls) -> str:
+        """Получить текущую GPT модель"""
+        return await cls.get_setting("gpt_model", cls.DEFAULT_GPT_MODEL)
+
+    @classmethod
+    async def set_gpt_model(cls, model: str) -> Settings:
+        """Установить GPT модель"""
+        return await cls.set_setting("gpt_model", model)
+
+    @classmethod
+    async def get_image_model(cls) -> str:
+        """Получить текущую модель генерации изображений"""
+        return await cls.get_setting("image_model", cls.DEFAULT_IMAGE_MODEL)
+
+    @classmethod
+    async def set_image_model(cls, model: str) -> Settings:
+        """Установить модель генерации изображений"""
+        return await cls.set_setting("image_model", model)
+
+    @classmethod
+    async def get_referral_referrer_bonus(cls) -> int:
+        """Минимальная сумма бонуса для реферера"""
+        value = await cls.get_setting("referral_referrer_bonus", "50")
+        return int(value)
+
+    @classmethod
+    async def set_referral_referrer_bonus(cls, bonus: int) -> Settings:
+        """Установить минимальную сумму бонуса для реферера"""
+        return await cls.set_setting("referral_referrer_bonus", str(bonus))
+
+    @classmethod
+    async def get_referral_referred_tokens(cls) -> int:
+        """Количество токенов для реферала при регистрации"""
+        value = await cls.get_setting("referral_referred_tokens", "10")
+        return int(value)
+
+    @classmethod
+    async def set_referral_referred_tokens(cls, tokens: int) -> Settings:
+        """Установить количество токенов для реферала"""
+        return await cls.set_setting("referral_referred_tokens", str(tokens))
+
+    @classmethod
     async def initialize_defaults(cls):
         """Инициализация настроек по умолчанию"""
         # Проверяем и создаем настройки если их нет
@@ -160,3 +207,15 @@ class SettingsService:
 
         if not await Settings.filter(key="prompt_generator_prompt").exists():
             await cls.set_prompt_generator_prompt(cls.DEFAULT_PROMPT_GENERATOR_PROMPT)
+
+        if not await Settings.filter(key="gpt_model").exists():
+            await cls.set_gpt_model(cls.DEFAULT_GPT_MODEL)
+
+        if not await Settings.filter(key="image_model").exists():
+            await cls.set_image_model(cls.DEFAULT_IMAGE_MODEL)
+
+        if not await Settings.filter(key="referral_referrer_bonus").exists():
+            await cls.set_referral_referrer_bonus(50)
+
+        if not await Settings.filter(key="referral_referred_tokens").exists():
+            await cls.set_referral_referred_tokens(10)

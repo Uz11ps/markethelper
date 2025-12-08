@@ -89,4 +89,5 @@ class UserService:
             access_group=access_group,
             access_file_path=access_file_path,
             bonus_balance=user.bonus_balance,
+            token_balance=user.token_balance,
         )

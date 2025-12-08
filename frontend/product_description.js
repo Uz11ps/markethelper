@@ -1,5 +1,6 @@
-const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
-const PRODUCT_API_BASE = `${API_HOST}/product-description`;
+// Конфигурация API
+const API_BASE_URL = window.location.origin + '/api';
+const PRODUCT_API_BASE = `${API_BASE_URL}/product-description`;
 
 class ProductDescriptionManager {
     constructor() {

@@ -13,6 +13,7 @@
     <a href="/ai.html">Нейронка</a>
     <a href="/files.html">Файлы</a>
     <a href="/settings.html">Настройки</a>
+    <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
   </nav>
 
   <h1>Новые заявки</h1>
@@ -32,6 +33,13 @@
     <tbody></tbody>
   </table>
 
+  <script src="auth.js"></script>
   <script src="requests.js"></script>
+  <script>
+    // Проверка аутентификации при загрузке страницы
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!requireAuth()) return;
+    });
+  </script>
 </body>
 </html>

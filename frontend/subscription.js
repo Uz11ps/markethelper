@@ -1,13 +1,20 @@
-const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
-const API_SUBS = `${API_HOST}/admin/requests/subscriptions`;
-const API_ADMIN = `${API_HOST}/admin`;
+// Конфигурация API
+const API_BASE_URL = window.location.origin + '/api';
+const API_SUBS = `${API_BASE_URL}/admin/requests/subscriptions`;
+const API_ADMIN = `${API_BASE_URL}/admin`;
 let allSubs = [];
 let currentSubId = null;
+
+// Проверка аутентификации при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+  if (!requireAuth()) return;
+  loadSubscriptions();
+});
 
 // 📡 Загрузка всех активных подписок
 async function loadSubscriptions() {
   try {
-    const res = await fetch(API_SUBS);
+    const res = await authFetch(API_SUBS);
     if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
     allSubs = await res.json();
     renderTable(allSubs);
@@ -79,7 +86,7 @@ async function sendBroadcast() {
   }
 
   try {
-    const response = await fetch(`${API_ADMIN}/broadcast`, {
+    const response = await authFetch(`${API_ADMIN}/broadcast`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -149,7 +156,7 @@ async function revokeSubscription(subId) {
   }
 
   try {
-    const response = await fetch(`${API_ADMIN}/subscriptions/${subId}`, {
+    const response = await authFetch(`${API_ADMIN}/subscriptions/${subId}`, {
       method: 'DELETE'
     });
 

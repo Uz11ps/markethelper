@@ -3,13 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api import (
     profile, users, files, referrals, requests,
     mailing, ai, session_updater, settings, tokens,
-    admin, admin_users, admin_broadcast, admin_settings
+    admin, admin_users, admin_broadcast, admin_settings, admin_tokens
 )
 from backend.core.db import init_db, close_db
 from backend.services.settings_service import SettingsService
 
 def create_app() -> FastAPI:
-    app = FastAPI(prefix="/api", title="MarketHelper Admin API")
+    app = FastAPI(title="MarketHelper Admin API")
 
     # CORS для фронтенда админки
     app.add_middleware(
@@ -21,23 +21,24 @@ def create_app() -> FastAPI:
     )
 
     # Публичные роуты
-    app.include_router(users.router)
+    app.include_router(users.router, prefix="/api")
     """app.include_router(subscriptions.router)"""
-    app.include_router(files.router)
-    app.include_router(referrals.router)
-    app.include_router(requests.router)
+    app.include_router(files.router, prefix="/api")
+    app.include_router(referrals.router, prefix="/api")
+    app.include_router(requests.router, prefix="/api")
     """app.include_router(mailing.router)
     app.include_router(session_updater.router)"""
-    app.include_router(ai.router)
-    app.include_router(profile.router)
-    app.include_router(settings.router)
-    app.include_router(tokens.router)
+    app.include_router(ai.router, prefix="/api")
+    app.include_router(profile.router, prefix="/api")
+    app.include_router(settings.router, prefix="/api")
+    app.include_router(tokens.router, prefix="/api")
 
     # Админ роуты
-    app.include_router(admin.router)
-    app.include_router(admin_users.router)
-    app.include_router(admin_broadcast.router)
-    app.include_router(admin_settings.router)
+    app.include_router(admin.router, prefix="/api")
+    app.include_router(admin_users.router, prefix="/api")
+    app.include_router(admin_broadcast.router, prefix="/api")
+    app.include_router(admin_settings.router, prefix="/api")
+    app.include_router(admin_tokens.router, prefix="/api")
 
 
     @app.on_event("startup")

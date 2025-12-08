@@ -13,6 +13,7 @@
     <a href="/ai.html">Нейронка</a>
     <a href="/files.html">Файлы</a>
     <a href="/settings.html" class="active">Настройки</a>
+    <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
   </nav>
 
   <h1>Настройки</h1>
@@ -54,14 +55,48 @@
 
     <!-- Реферальный бонус -->
     <div class="settings-section">
-      <h2>Реферальный бонус</h2>
+      <h2>Модели ИИ</h2>
       <p class="settings-description">
-        Количество бонусных баллов, которое получает пользователь при регистрации по реферальной ссылке.
+        Выберите модели для генерации изображений и GPT запросов.
       </p>
       <div class="input-group">
-        <label for="referralBonus">Бонус за регистрацию:</label>
+        <label for="gptModel">GPT модель:</label>
+        <select id="gptModel">
+          <option value="gpt-4o-mini">GPT-4o Mini</option>
+          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-4-turbo">GPT-4 Turbo</option>
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="imageModel">Модель генерации изображений:</label>
+        <select id="imageModel">
+          <option value="fal-ai/flux-pro/v1.1">Nano Banana 1</option>
+          <option value="fal-ai/flux-pro/v1.1-ultra">Nano Banana Pro</option>
+          <option value="fal-ai/nano-banana">Nano Banana (обычная)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>Реферальные настройки</h2>
+      <p class="settings-description">
+        Настройки реферальной программы: бонусы и токены.
+      </p>
+      <div class="input-group">
+        <label for="referralBonus">Бонус за регистрацию (рефереру):</label>
         <input type="number" id="referralBonus" min="0" placeholder="100">
         <span class="input-suffix">баллов</span>
+      </div>
+      <div class="input-group">
+        <label for="referralReferrerBonus">Минимальный бонус реферера:</label>
+        <input type="number" id="referralReferrerBonus" min="0" placeholder="50">
+        <span class="input-suffix">баллов</span>
+      </div>
+      <div class="input-group">
+        <label for="referralReferredTokens">Токены для реферала:</label>
+        <input type="number" id="referralReferredTokens" min="0" placeholder="10">
+        <span class="input-suffix">токенов</span>
       </div>
     </div>
 
@@ -70,6 +105,7 @@
 
   <div id="message" class="message"></div>
 
+  <script src="auth.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

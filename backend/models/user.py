@@ -12,6 +12,9 @@ class User(Model):
     full_name = fields.CharField(255, null=True)
 
     bonus_balance = fields.IntField(default=0)
+    token_balance = fields.IntField(default=0)  # Внутренняя валюта - токены
+    
+    is_banned = fields.BooleanField(default=False)  # Черный список
 
     referrer = fields.ForeignKeyField(
         "models.User",

@@ -86,7 +86,7 @@ async def delete_user(
     user_id: int,
     _: Admin = Depends(get_current_admin)
 ):
-    """Удаление пользователя"""
+    """Удаление пользователя (полное удаление из базы)"""
     user = await User.filter(id=user_id).first()
     if not user:
         from fastapi import HTTPException, status
@@ -97,3 +97,61 @@ async def delete_user(
 
     await user.delete()
     return {"message": "User deleted successfully"}
+
+
+@router.post("/{user_id}/ban")
+async def ban_user(
+    user_id: int,
+    _: Admin = Depends(get_current_admin)
+):
+    """Добавить пользователя в черный список (без удаления из базы)"""
+    user = await User.filter(id=user_id).first()
+    if not user:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    user.is_banned = True
+    await user.save()
+    return {"message": "User banned successfully", "user_id": user_id}
+
+
+@router.post("/{user_id}/unban")
+async def unban_user(
+    user_id: int,
+    _: Admin = Depends(get_current_admin)
+):
+    """Убрать пользователя из черного списка"""
+    user = await User.filter(id=user_id).first()
+    if not user:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    user.is_banned = False
+    await user.save()
+    return {"message": "User unbanned successfully", "user_id": user_id}
+
+
+@router.put("/{user_id}/tokens")
+async def update_user_token_balance(
+    user_id: int,
+    tokens: int,
+    _: Admin = Depends(get_current_admin)
+):
+    """Изменение баланса токенов пользователя"""
+    user = await User.filter(id=user_id).first()
+    if not user:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    user.token_balance = tokens
+    await user.save()
+    return {"message": "Token balance updated", "user_id": user_id, "new_balance": user.token_balance}

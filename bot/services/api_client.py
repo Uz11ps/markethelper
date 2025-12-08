@@ -33,7 +33,7 @@ class APIClient:
             return {}
 
     async def create_user(self, tg_id: int, username: str | None, full_name: str | None):
-        url = f"{self.base_url}/admin/users/"
+        url = f"{self.base_url}/api/admin/users/"
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json={
                 "tg_id": tg_id,
@@ -43,13 +43,13 @@ class APIClient:
                 return await self._handle_response(resp)
 
     async def get_user(self, tg_id: int):
-        url = f"{self.base_url}/admin/users/by_tg/{tg_id}"
+        url = f"{self.base_url}/api/admin/users/by_tg/{tg_id}"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
 
     async def create_request(self, tg_id: int, tariff_code: str, duration_months: int):
-        url = f"{self.base_url}/admin/requests/"
+        url = f"{self.base_url}/api/admin/requests/"
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json={
                 "tg_id": tg_id,
@@ -66,7 +66,7 @@ class APIClient:
         full_name: str | None = None,
     ):
         """Возвращает профиль, создавая пользователя при его отсутствии."""
-        url = f"{self.base_url}/profile/{tg_id}"
+        url = f"{self.base_url}/api/profile/{tg_id}"
 
         async def _request():
             async with aiohttp.ClientSession() as session:
@@ -90,12 +90,12 @@ class APIClient:
     async def get_referral_info(self, tg_id: int):
         import httpx
         async with httpx.AsyncClient() as client:
-            r = await client.get(f"{self.base_url}/referrals/{tg_id}/info")
+            r = await client.get(f"{self.base_url}/api/referrals/{tg_id}/info")
             r.raise_for_status()
             return r.json()
     
     async def bind_referral(self, referred_tg: int, referrer_tg: int):
-        url = f"{self.base_url}/referrals/bind"
+        url = f"{self.base_url}/api/referrals/bind"
         async with aiohttp.ClientSession() as session:
             async with session.post(url, params={
                 "referred_tg": referred_tg,
@@ -104,7 +104,7 @@ class APIClient:
                 return await resp.json()
             
     async def query_ai(self, question: str, tg_id: int | None = None) -> str:
-        url = f"{self.base_url}/ai/query"
+        url = f"{self.base_url}/api/ai/query"
         payload = {"question": question}
         if tg_id:
             payload["tg_id"] = tg_id
@@ -114,7 +114,7 @@ class APIClient:
                 return data.get("answer", "❌ Ошибка ответа от AI")
             
     async def get_user_file(self, tg_id: int):
-        url = f"{self.base_url}/files/user/{tg_id}/get"
+        url = f"{self.base_url}/api/files/user/{tg_id}/get"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 text = await resp.text()
@@ -123,7 +123,7 @@ class APIClient:
                 return await resp.json()
 
     async def regen_user_file(self, tg_id: int, filename: str | None = None):
-        url = f"{self.base_url}/files/user/{tg_id}/regen"
+        url = f"{self.base_url}/api/files/user/{tg_id}/regen"
         payload = {}
         if filename:
             payload["filename"] = filename
@@ -135,19 +135,19 @@ class APIClient:
                 return await resp.json()
 
     async def get_admin_settings(self):
-        url = f"{self.base_url}/admin/settings"
+        url = f"{self.base_url}/api/admin/settings"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
 
     async def charge_tokens(self, tg_id: int, action: str):
-        url = f"{self.base_url}/tokens/charge"
+        url = f"{self.base_url}/api/tokens/charge"
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json={"tg_id": tg_id, "action": action}) as resp:
                 return await self._handle_response(resp)
 
     async def get_token_pricing(self):
-        url = f"{self.base_url}/tokens/pricing"
+        url = f"{self.base_url}/api/tokens/pricing"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)

@@ -1,5 +1,6 @@
-const API_HOST = `${window.location.protocol}//${window.location.hostname}:8000`;
-const API_BASE = `${API_HOST}/ai`;
+// Конфигурация API
+const API_BASE_URL = window.location.origin + '/api';
+const API_BASE = `${API_BASE_URL}/ai`;
 
 // Проверка здоровья
 async function checkHealth() {

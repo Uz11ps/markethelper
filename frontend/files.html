@@ -13,6 +13,7 @@
     <a href="/ai.html">Нейронка</a>
     <a href="/files.html" class="active">Файлы</a>
     <a href="/settings.html">Настройки</a>
+    <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
   </nav>
 
   <h1>Управление AccessFile</h1>
@@ -37,6 +38,12 @@
     </form>
     <p id="addResult"></p>
   </section>
+  <script src="auth.js"></script>
   <script src="files.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!requireAuth()) return;
+    });
+  </script>
 </body>
 </html>

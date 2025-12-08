@@ -13,6 +13,7 @@
     <a href="/ai.html" class="active">Нейронка</a>
     <a href="/files.html">Файлы</a>
     <a href="/settings.html">Настройки</a>
+    <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
   </nav>
 
   <h1>AI Панель управления</h1>
@@ -67,6 +68,12 @@
     <div id="answerBox"></div>
   </section>
 
+  <script src="auth.js"></script>
   <script src="ai.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!requireAuth()) return;
+    });
+  </script>
 </body>
 </html>
