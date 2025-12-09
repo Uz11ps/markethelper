@@ -1,10 +1,12 @@
 # backend/api/files.py
 from datetime import datetime, timezone
 import os
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from backend.core.config import COOKIE_DIR
 from backend.models.file import AccessFile
 from backend.models.subscription import AccessGroup
+from backend.models.admin import Admin
+from backend.api.admin import get_current_admin
 from backend.schemas.file import AccessFileCreate
 from backend.services.file_service import FileService
 
@@ -58,7 +60,7 @@ async def regen_user_file(tg_id: int, data: dict | None = None):
     }
 
 @router.post("/add")
-async def add_access_file(data: AccessFileCreate):
+async def add_access_file(data: AccessFileCreate, admin: Admin = Depends(get_current_admin)):
 
     if data.group_id:
         group = await AccessGroup.get_or_none(id=data.group_id)
