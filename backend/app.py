@@ -5,6 +5,7 @@ from backend.api import (
     mailing, ai, session_updater, settings, tokens,
     admin, admin_users, admin_broadcast, admin_settings, admin_tokens
 )
+from backend.api import admin_subscriptions
 from backend.core.db import init_db, close_db
 from backend.services.settings_service import SettingsService
 
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_broadcast.router, prefix="/api")
     app.include_router(admin_settings.router, prefix="/api")
     app.include_router(admin_tokens.router, prefix="/api")
+    app.include_router(admin_subscriptions.router, prefix="/api")
 
 
     @app.on_event("startup")

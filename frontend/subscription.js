@@ -129,7 +129,7 @@ async function confirmExtend() {
   }
 
   try {
-    const response = await fetch(`${API_ADMIN}/subscriptions/${currentSubId}/extend`, {
+    const response = await authFetch(`${API_ADMIN}/subscriptions/${currentSubId}/extend`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -137,7 +137,11 @@ async function confirmExtend() {
       body: JSON.stringify({ days: days })
     });
 
-    if (!response.ok) throw new Error('Ошибка продления подписки');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Ошибка продления:', errorText);
+      throw new Error('Ошибка продления подписки: ' + errorText);
+    }
 
     const result = await response.json();
     showMessage(result.message, 'success');
