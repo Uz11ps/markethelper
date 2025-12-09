@@ -16,7 +16,7 @@ ls -ld data
 echo ""
 
 echo "🔍 Проверка внутри контейнера backend:"
-docker-compose exec backend sh << 'ENDCONTAINER'
+docker-compose exec -T backend sh << 'ENDCONTAINER'
 echo "Текущий пользователь:"
 whoami
 echo ""
