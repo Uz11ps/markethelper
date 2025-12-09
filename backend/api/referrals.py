@@ -1,6 +1,10 @@
 import os
+from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
 from backend.models import User, Referral
+
+# Загружаем переменные окружения из .env
+load_dotenv()
 
 router = APIRouter(prefix="/referrals", tags=["Referrals"])
 
