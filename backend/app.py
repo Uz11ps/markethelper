@@ -9,7 +9,12 @@ from backend.core.db import init_db, close_db
 from backend.services.settings_service import SettingsService
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="MarketHelper Admin API")
+    app = FastAPI(
+        title="MarketHelper Admin API",
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        openapi_url="/api/openapi.json"
+    )
 
     # CORS для фронтенда админки
     app.add_middleware(
