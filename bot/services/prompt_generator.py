@@ -151,6 +151,7 @@ class PromptGeneratorService:
             # Запрос к GPT-4o
             system_prompt = await cls._get_system_prompt()
 
+            logger.info("Отправка запроса к GPT-4o для генерации промпта...")
             response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -159,8 +160,14 @@ class PromptGeneratorService:
                 ],
                 max_tokens=1500,
                 temperature=0.7,
+                response_format={"type": "json_object"}  # Принудительно запрашиваем JSON
             )
 
+            # Проверяем наличие ответа
+            if not response.choices or len(response.choices) == 0:
+                logger.error("GPT вернул пустой список choices")
+                raise ValueError("GPT вернул пустой ответ. Попробуйте ещё раз позже.")
+            
             # Парсим ответ
             raw_content = response.choices[0].message.content
             if raw_content is None:
