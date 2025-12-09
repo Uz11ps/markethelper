@@ -99,8 +99,11 @@ class FileService:
         except Exception as e:
             raise HTTPException(500, f"Ошибка запроса при логине: {e}")
 
-        if resp.status_code not in (200, 201):
-            raise HTTPException(401, f"Ошибка авторизации ({resp.status_code}): {resp.text}")
+        if resp.status_code == 404:
+            raise HTTPException(404, f"Сервис авторизации недоступен (404). Проверьте URL: {SALESFINDER_LOGIN_URL}")
+        elif resp.status_code not in (200, 201):
+            error_text = resp.text[:200] if resp.text else "Нет деталей ошибки"
+            raise HTTPException(401, f"Ошибка авторизации на salesfinder.ru ({resp.status_code}): {error_text}")
 
         try:
             data = resp.json()
