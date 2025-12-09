@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import logging
 from typing import List
 from openai import AsyncOpenAI
@@ -190,7 +191,6 @@ class PromptGeneratorService:
             except json.JSONDecodeError as json_err:
                 logger.error(f"Ошибка парсинга JSON от GPT: {json_err}\nОтвет GPT: {answer[:500]}")
                 # Пытаемся извлечь JSON из текста с помощью регулярных выражений
-                import re
                 json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', answer, re.DOTALL)
                 if json_match:
                     try:
