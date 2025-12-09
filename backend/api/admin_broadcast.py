@@ -46,22 +46,33 @@ async def send_broadcast(
         print(f"[BROADCAST] Все пользователи: {len(users)}")
     elif target == "active":
         # Пользователи с активными подписками
-        active_subs = await Subscription.filter(
-            status__code="ACTIVE",
-            end_date__gte=datetime.utcnow()
-        ).prefetch_related("user", "status")
-        user_ids = {sub.user_id for sub in active_subs}
-        users = await User.filter(id__in=list(user_ids))
-        print(f"[BROADCAST] Активные пользователи: {len(users)}")
-    elif data.target == "inactive":
+        from backend.models import Status
+        active_status = await Status.get_or_none(type="subscription", code="ACTIVE")
+        if not active_status:
+            users = []
+            print("[BROADCAST] Статус ACTIVE не найден")
+        else:
+            active_subs = await Subscription.filter(
+                status_id=active_status.id,
+                end_date__gte=datetime.utcnow()
+            ).prefetch_related("user")
+            user_ids = {sub.user_id for sub in active_subs}
+            users = await User.filter(id__in=list(user_ids))
+            print(f"[BROADCAST] Активные пользователи: {len(users)}")
+    elif target == "inactive":
         # Все пользователи минус активные
+        from backend.models import Status
         all_users = await User.all()
-        active_subs = await Subscription.filter(
-            status__code="ACTIVE",
-            end_date__gte=datetime.utcnow()
-        ).prefetch_related("user", "status")
-        active_user_ids = {sub.user_id for sub in active_subs}
-        users = [u for u in all_users if u.id not in active_user_ids]
+        active_status = await Status.get_or_none(type="subscription", code="ACTIVE")
+        if active_status:
+            active_subs = await Subscription.filter(
+                status_id=active_status.id,
+                end_date__gte=datetime.utcnow()
+            ).prefetch_related("user")
+            active_user_ids = {sub.user_id for sub in active_subs}
+            users = [u for u in all_users if u.id not in active_user_ids]
+        else:
+            users = list(all_users)
         print(f"[BROADCAST] Неактивные пользователи: {len(users)}")
     elif target == "with_referrals":
         users = await User.filter(referrer__isnull=False)

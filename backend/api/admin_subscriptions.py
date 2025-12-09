@@ -64,7 +64,7 @@ async def revoke_subscription(
     """Отозвать подписку (установить статус EXPIRED и дату окончания на текущую)"""
     print(f"[REVOKE_SUBSCRIPTION] Отзыв подписки {subscription_id}")
     
-    subscription = await Subscription.filter(id=subscription_id).prefetch_related("status").first()
+    subscription = await Subscription.filter(id=subscription_id).first()
     
     if not subscription:
         raise HTTPException(status_code=404, detail="Подписка не найдена")
