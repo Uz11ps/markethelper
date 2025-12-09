@@ -22,7 +22,7 @@ async def extend_subscription(
     """Продлить подписку на указанное количество дней"""
     print(f"[EXTEND_SUBSCRIPTION] Продление подписки {subscription_id} на {data.days} дней")
     
-    subscription = await Subscription.filter(id=subscription_id).prefetch_related("user", "status").first()
+    subscription = await Subscription.filter(id=subscription_id).prefetch_related("user").first()
 
     if not subscription:
         print(f"[EXTEND_SUBSCRIPTION] Подписка {subscription_id} не найдена")
