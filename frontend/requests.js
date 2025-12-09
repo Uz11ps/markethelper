@@ -9,21 +9,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadRequests() {
   try {
+    console.log(`[loadRequests] Загрузка заявок из: ${API_BASE_URL}/admin/requests/`);
     const res = await authFetch(`${API_BASE_URL}/admin/requests/`);
+    console.log(`[loadRequests] Ответ API:`, res.status, res.statusText);
+    
     if (!res.ok) {
-      throw new Error(`Ошибка запроса: ${res.status}`);
+      const errorText = await res.text();
+      console.error(`[loadRequests] Ошибка API:`, errorText);
+      throw new Error(`Ошибка запроса: ${res.status} - ${errorText}`);
     }
 
     const data = await res.json();
+    console.log(`[loadRequests] Получено заявок:`, data.length);
+    console.log(`[loadRequests] Данные:`, data);
 
     const tbody = document.querySelector("#requestsTable tbody");
     tbody.innerHTML = "";
 
     // Фильтруем только новые заявки
-    const pending = data.filter(req => req.status === "В ожидании");
+    const pending = data.filter(req => {
+      console.log(`[loadRequests] Проверка заявки:`, req.id, `status="${req.status}"`);
+      return req.status === "В ожидании";
+    });
+    
+    console.log(`[loadRequests] Отфильтровано заявок со статусом "В ожидании":`, pending.length);
 
     if (pending.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">Новых заявок нет</td></tr>`;
+      console.log(`[loadRequests] Нет заявок со статусом "В ожидании"`);
+      // Показываем все заявки для отладки
+      if (data.length > 0) {
+        tbody.innerHTML = `<tr><td colspan="7">Нет заявок со статусом "В ожидании". Всего заявок: ${data.length}. Статусы: ${data.map(r => r.status).join(', ')}</td></tr>`;
+      } else {
+        tbody.innerHTML = `<tr><td colspan="7">Новых заявок нет</td></tr>`;
+      }
       return;
     }
 

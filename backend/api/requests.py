@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Form, HTTPException, BackgroundTasks, Depends
 from backend.models import User, Tariff, Duration, Request, Status, Subscription, Referral
 from backend.models.file import AccessFile
 from backend.schemas import RequestOut
 from backend.services.settings_service import SettingsService
+from backend.api.admin import get_current_admin
+from backend.models.admin import Admin
 from datetime import datetime, timedelta
 import httpx
 
@@ -11,9 +13,9 @@ router = APIRouter(prefix="/admin/requests", tags=["Admin - Requests"])
 BOT_URL = "http://bot:8001/notify" 
 
 @router.get("/subscriptions")
-async def list_subscriptions():
+async def list_subscriptions(admin: Admin = Depends(get_current_admin)):
     """
-    Получить все активные подписки с именем файла
+    Получить все активные подписки с именем файла (требует аутентификации админа)
     """
     subs = await Subscription.all().prefetch_related(
         "user", "group", "group__files"
@@ -53,12 +55,15 @@ async def get_status(type: str, code: str):
 
 
 @router.get("/", response_model=list[RequestOut])
-async def list_requests():
+async def list_requests(admin: Admin = Depends(get_current_admin)):
     """
-    Получить все заявки
+    Получить все заявки (требует аутентификации админа)
     """
+    print(f"[list_requests] Запрос от админа: {admin.username}")
     requests = await Request.all().prefetch_related('user', 'tariff', 'duration', 'status')
-    return [RequestOut.from_orm(req) for req in requests]
+    result = [RequestOut.from_orm(req) for req in requests]
+    print(f"[list_requests] Возвращено заявок: {len(result)}")
+    return result
 
 
 @router.post("/")
@@ -110,6 +115,7 @@ async def create_request(data: dict):
 async def approve_request(
     request_id: int,
     background_tasks: BackgroundTasks,
+    admin: Admin = Depends(get_current_admin),
     filename: str | None = Form(None),  # теперь необязательный
 ):
     req = await Request.get_or_none(id=request_id).prefetch_related("user", "tariff", "duration")
@@ -173,9 +179,13 @@ async def approve_request(
     }
 
 @router.post("/{request_id}/reject")
-async def reject_request(request_id: int, background_tasks: BackgroundTasks):
+async def reject_request(
+    request_id: int, 
+    background_tasks: BackgroundTasks,
+    admin: Admin = Depends(get_current_admin)
+):
     """
-    Отклонить заявку
+    Отклонить заявку (требует аутентификации админа)
     """
     req = await Request.get_or_none(id=request_id).prefetch_related("user", "tariff")
     if not req:
