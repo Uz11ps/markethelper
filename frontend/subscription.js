@@ -1,5 +1,4 @@
-// Конфигурация API
-const API_BASE_URL = window.location.origin + '/api';
+// Конфигурация API (API_BASE_URL уже объявлен в auth.js)
 const API_SUBS = `${API_BASE_URL}/admin/requests/subscriptions`;
 const API_ADMIN = `${API_BASE_URL}/admin`;
 let allSubs = [];

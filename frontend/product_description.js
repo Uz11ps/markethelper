@@ -1,5 +1,4 @@
-// Конфигурация API
-const API_BASE_URL = window.location.origin + '/api';
+// Конфигурация API (API_BASE_URL уже объявлен в auth.js)
 const PRODUCT_API_BASE = `${API_BASE_URL}/product-description`;
 
 class ProductDescriptionManager {
