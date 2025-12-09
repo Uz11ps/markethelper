@@ -85,18 +85,22 @@ async function sendBroadcast() {
   }
 
   try {
-    const response = await authFetch(`${API_ADMIN}/broadcast`, {
+    const response = await authFetch(`${API_ADMIN}/broadcast/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         message: message,
-        audience: audience
+        target: audience  // Используем target вместо audience
       })
     });
 
-    if (!response.ok) throw new Error('Ошибка отправки рассылки');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Ошибка рассылки:', errorText);
+      throw new Error('Ошибка отправки рассылки: ' + errorText);
+    }
 
     const result = await response.json();
     const sentCount = result.sent_count || result.total_users || 0;
