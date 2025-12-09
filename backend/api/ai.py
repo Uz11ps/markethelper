@@ -96,15 +96,24 @@ async def query_ai(data: dict):
     start_time = time.time()
     logger.info(f"Запрос AI: {data['question']}")
 
-    answer = await ai_service.query_ai(data["question"])
+    try:
+        answer = await ai_service.query_ai(data["question"])
+        elapsed = time.time() - start_time
+        logger.info(f"Время обработки запроса: {elapsed:.3f} сек")
 
-    elapsed = time.time() - start_time  # время обработки
-    logger.info(f"Время обработки запроса: {elapsed:.3f} сек")
-
-    return {
-        "answer": answer,
-        "time_seconds": elapsed  # можно возвращать пользователю
-    }
+        return {
+            "answer": answer,
+            "time_seconds": elapsed
+        }
+    except Exception as e:
+        elapsed = time.time() - start_time
+        logger.error(f"Ошибка при обработке AI запроса: {e}, время: {elapsed:.3f} сек")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка при обработке запроса: {str(e)}"
+        )
 
 
 @router.get("/health")

@@ -110,10 +110,14 @@ async def query_ai(question: str) -> str:
         logger.error("OpenAI client not initialized. Check OPENAI_API_KEY.")
         return "❌ Сервис ИИ недоступен. Проверьте настройки."
     try:
-        response = await client_openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
+        # Увеличенный таймаут для OpenAI запросов
+        response = await asyncio.wait_for(
+            client_openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+            ),
+            timeout=240.0  # 4 минуты таймаут
         )
         answer = response.choices[0].message.content
         logger.info("Ответ от OpenAI получен")
