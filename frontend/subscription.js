@@ -99,7 +99,8 @@ async function sendBroadcast() {
     if (!response.ok) throw new Error('Ошибка отправки рассылки');
 
     const result = await response.json();
-    showMessage(`Рассылка отправлена! Получатели: ${result.sent_count}`, 'success');
+    const sentCount = result.sent_count || result.total_users || 0;
+    showMessage(`Рассылка отправлена! Получатели: ${sentCount}`, 'success');
     document.getElementById('broadcastMessage').value = '';
   } catch (error) {
     showMessage('Ошибка: ' + error.message, 'error');
