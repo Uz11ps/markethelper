@@ -242,9 +242,27 @@ class PromptGeneratorService:
                     raise ValueError(f"GPT вернул некорректный JSON: {json_err}. Ответ: {answer[:200]}...")
 
             # Проверяем наличие обязательных полей
+            if not isinstance(result, dict):
+                logger.error(f"Результат парсинга не является словарем: {type(result)}, значение: {result}")
+                raise ValueError("GPT вернул ответ в неверном формате. Ожидался JSON объект.")
+            
             if "generated_text_prompt" not in result:
-                logger.error(f"В ответе GPT отсутствует поле 'generated_text_prompt'. Ответ: {answer[:500]}")
-                raise ValueError("GPT вернул ответ без обязательного поля 'generated_text_prompt'")
+                logger.error(f"В ответе GPT отсутствует поле 'generated_text_prompt'. Доступные поля: {list(result.keys())}. Ответ: {answer[:500]}")
+                # Попытка создать дефолтный промпт из того, что есть
+                if original_answer and len(original_answer) > 50:
+                    logger.warning("Попытка использовать оригинальный ответ как промпт")
+                    result = {
+                        "generated_text_prompt": original_answer[:500],
+                        "deconstruction_analysis": {
+                            "product_identified": "Не удалось определить",
+                            "style_source": "Не удалось определить",
+                            "layout_source": "Не удалось определить",
+                            "palette_source": "Не удалось определить"
+                        }
+                    }
+                    logger.info("Создан fallback промпт из оригинального ответа")
+                else:
+                    raise ValueError("GPT вернул ответ без обязательного поля 'generated_text_prompt'")
 
             logger.info(f"Промпт успешно сгенерирован: {result['generated_text_prompt'][:100]}...")
 
