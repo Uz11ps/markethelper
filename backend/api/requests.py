@@ -67,30 +67,44 @@ async def create_request(data: dict):
     Создание заявки из бота
     data = { tg_id, tariff_code, duration_months }
     """
-    print(f"Received data: {data}")
+    print(f"[CREATE_REQUEST] Received data: {data}")
 
-    user = await User.get_or_none(tg_id=data["tg_id"])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        user = await User.get_or_none(tg_id=data["tg_id"])
+        if not user:
+            print(f"[CREATE_REQUEST] User not found: tg_id={data['tg_id']}")
+            raise HTTPException(status_code=404, detail="User not found")
 
-    tariff = await Tariff.get_or_none(code=data["tariff_code"])
-    if not tariff:
-        raise HTTPException(status_code=400, detail="Invalid tariff")
+        tariff = await Tariff.get_or_none(code=data["tariff_code"])
+        if not tariff:
+            print(f"[CREATE_REQUEST] Invalid tariff: {data['tariff_code']}")
+            raise HTTPException(status_code=400, detail="Invalid tariff")
 
-    duration = await Duration.get_or_none(months=data["duration_months"])
-    if not duration:
-        raise HTTPException(status_code=400, detail="Invalid duration")
+        duration = await Duration.get_or_none(months=data["duration_months"])
+        if not duration:
+            print(f"[CREATE_REQUEST] Invalid duration: {data['duration_months']}")
+            raise HTTPException(status_code=400, detail="Invalid duration")
 
-    status = await get_status(type="request", code="PENDING")
+        status = await get_status(type="request", code="PENDING")
+        print(f"[CREATE_REQUEST] Status: {status.name} (id={status.id})")
 
-    req = await Request.create(
-        user=user,
-        tariff=tariff,
-        duration=duration,
-        status=status,
-    )
+        req = await Request.create(
+            user=user,
+            tariff=tariff,
+            duration=duration,
+            status=status,
+        )
 
-    return {"received_data": data, "id": req.id, "message": "Request created"}
+        print(f"[CREATE_REQUEST] Request created successfully: id={req.id}, user={user.tg_id}, tariff={tariff.code}, duration={duration.months}")
+        
+        return {"received_data": data, "id": req.id, "message": "Request created"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[CREATE_REQUEST] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/{request_id}/approve")
 async def approve_request(
