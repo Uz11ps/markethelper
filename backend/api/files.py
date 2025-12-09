@@ -80,7 +80,22 @@ async def add_access_file(data: AccessFileCreate, admin: Admin = Depends(get_cur
         path=cookie_file_path
     )
 
-    file = await FileService.generate_and_save_cookies(file, filename=cookie_file_name)
+    # Если skip_auth=True, создаем пустой файл без авторизации на внешнем сервисе
+    if data.skip_auth:
+        file = await FileService.create_empty_cookie_file(file, filename=cookie_file_name)
+    else:
+        try:
+            file = await FileService.generate_and_save_cookies(file, filename=cookie_file_name)
+        except HTTPException as e:
+            # Если авторизация не удалась, но skip_auth не установлен,
+            # возвращаем ошибку с предложением использовать skip_auth
+            if e.status_code in (404, 503, 504):
+                raise HTTPException(
+                    e.status_code,
+                    f"{e.detail}. "
+                    f"Вы можете создать файл без авторизации, установив параметр skip_auth=true"
+                )
+            raise
 
     return {
         "status": "ok",
@@ -88,4 +103,5 @@ async def add_access_file(data: AccessFileCreate, admin: Admin = Depends(get_cur
         "group_id": group.id,
         "path": file.path,
         "last_updated": file.last_updated,
+        "skip_auth": data.skip_auth,
     }

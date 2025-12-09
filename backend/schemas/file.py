@@ -10,10 +10,11 @@ class AccessFileBase(BaseModel):
     password: Optional[str]
 
 class AccessFileCreate(BaseModel):
-    group_id: int
+    group_id: int | None = None
     login: str
     password: str
     filename: str | None = None
+    skip_auth: bool = False  # Пропустить авторизацию на внешнем сервисе и создать пустой файл
 
 class AccessFileOut(AccessFileBase):
     id: int

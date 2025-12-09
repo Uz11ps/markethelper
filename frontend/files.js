@@ -9,11 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Добавление аккаунта
 document.getElementById("addForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const groupIdValue = document.getElementById("group_id").value;
   const payload = {
-    group_id: parseInt(document.getElementById("group_id").value) || null,
+    group_id: groupIdValue ? parseInt(groupIdValue) : null,
     login: document.getElementById("login").value,
     password: document.getElementById("password").value,
-    filename: document.getElementById("filename").value || null
+    filename: document.getElementById("filename").value || null,
+    skip_auth: document.getElementById("skip_auth").checked || false
   };
   
   try {
@@ -24,21 +26,33 @@ document.getElementById("addForm").addEventListener("submit", async (e) => {
     });
     
     if (!res.ok) {
-      const errorText = await res.text();
-      document.getElementById("addResult").textContent = `Ошибка: ${errorText}`;
-      document.getElementById("addResult").style.color = "red";
+      const errorData = await res.json().catch(() => ({ detail: await res.text() }));
+      const errorText = errorData.detail || errorData.message || "Неизвестная ошибка";
+      document.getElementById("addResult").innerHTML = `
+        <div style="color: red;">
+          <strong>Ошибка:</strong> ${errorText}
+          ${errorText.includes("skip_auth") ? '<br><br><strong>Совет:</strong> Установите флаг "Пропустить авторизацию" для создания файла без внешнего API' : ''}
+        </div>
+      `;
       return;
     }
     
     const result = await res.json();
-    document.getElementById("addResult").textContent = `Успешно! File ID: ${result.file_id}, Group ID: ${result.group_id}`;
-    document.getElementById("addResult").style.color = "green";
+    const skipAuthNote = result.skip_auth ? '<br><small style="color: orange;">⚠ Файл создан без авторизации на внешнем сервисе. Заполните куки вручную.</small>' : '';
+    document.getElementById("addResult").innerHTML = `
+      <div style="color: green;">
+        <strong>Успешно!</strong><br>
+        File ID: ${result.file_id}<br>
+        Group ID: ${result.group_id}<br>
+        Путь: ${result.path}
+        ${skipAuthNote}
+      </div>
+    `;
     
     // Очистка формы
     document.getElementById("addForm").reset();
   } catch (error) {
-    document.getElementById("addResult").textContent = `Ошибка: ${error.message}`;
-    document.getElementById("addResult").style.color = "red";
+    document.getElementById("addResult").innerHTML = `<div style="color: red;"><strong>Ошибка:</strong> ${error.message}</div>`;
   }
 });
 

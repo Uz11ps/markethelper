@@ -76,6 +76,36 @@ class FileService:
         return file
 
     @staticmethod
+    async def create_empty_cookie_file(file: AccessFile, filename: str | None = None) -> AccessFile:
+        """
+        Создает пустой файл куков без авторизации на внешнем сервисе.
+        Файл можно заполнить вручную позже.
+        """
+        if filename:
+            cookie_filename = filename
+        elif file.path:
+            cookie_filename = os.path.basename(file.path)
+        else:
+            cookie_filename = f"{file.id}.txt"
+
+        cookie_file_path = os.path.join(COOKIE_DIR, cookie_filename)
+        
+        # Создаем пустой файл куков
+        jar = MozillaCookieJar(cookie_file_path)
+        try:
+            jar.save(ignore_discard=True, ignore_expires=True)
+        except Exception as e:
+            raise HTTPException(500, f"Не удалось создать файл куков: {e}")
+
+        file.path = cookie_file_path
+        file.last_updated = datetime.now(timezone.utc)
+        file.locked_until = datetime.now(timezone.utc) + timedelta(minutes=10)
+        await file.save()
+        
+        logger.info(f"Создан пустой файл куков для файла {file.id}: {cookie_file_path}")
+        return file
+
+    @staticmethod
     async def generate_and_save_cookies(file: AccessFile, filename: str | None = None) -> AccessFile:
         if not file.login or not file.password:
             raise HTTPException(400, "У файла нет логина или пароля")

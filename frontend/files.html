@@ -22,8 +22,8 @@
   <section>
     <h2>Добавить аккаунт</h2>
     <form id="addForm">
-      <label>Group ID:</label><br>
-      <input type="number" id="group_id" required><br>
+      <label>Group ID (необязательно, будет создана новая группа если не указано):</label><br>
+      <input type="number" id="group_id"><br>
 
       <label>Login (email):</label><br>
       <input type="text" id="login" required><br>
@@ -33,6 +33,11 @@
 
       <label>Имя файла (например, sf_acc1.txt):</label><br>
       <input type="text" id="filename"><br><br>
+
+      <label>
+        <input type="checkbox" id="skip_auth">
+        Пропустить авторизацию на внешнем сервисе (создать пустой файл для ручного заполнения)
+      </label><br><br>
 
       <button type="submit">➕ Добавить</button>
     </form>
