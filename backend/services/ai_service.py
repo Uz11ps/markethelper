@@ -17,7 +17,7 @@ logger = logging.getLogger("ai_service")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if OPENAI_API_KEY:
-client_openai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    client_openai = AsyncOpenAI(api_key=OPENAI_API_KEY)
 else:
     client_openai = None
     logger.warning("OPENAI_API_KEY is not set. AI features will be unavailable.")
