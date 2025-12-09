@@ -12,8 +12,9 @@ from backend.models import AccessGroup, Subscription, User
 COOKIE_DIR = "/app/cookie"
 os.makedirs(COOKIE_DIR, exist_ok=True)
 
-SALESFINDER_LOGIN_URL = "https://salesfinder.ru/api/user/signIn"
-SALESFINDER_CHECK_URL = "https://salesfinder.ru/api/user/getUser"
+# URL можно настроить через переменные окружения
+SALESFINDER_LOGIN_URL = os.getenv("SALESFINDER_LOGIN_URL", "https://salesfinder.ru/api/user/signIn")
+SALESFINDER_CHECK_URL = os.getenv("SALESFINDER_CHECK_URL", "https://salesfinder.ru/api/user/getUser")
 
 
 class FileService:
@@ -90,20 +91,35 @@ class FileService:
         session = requests.Session()
         session.cookies = jar
 
+        logger.info(f"Попытка авторизации на {SALESFINDER_LOGIN_URL} для файла {file.id}")
         try:
             resp = session.post(
                 SALESFINDER_LOGIN_URL,
                 json={"user_email_address": file.login, "user_password": file.password},
                 timeout=15,
             )
+            logger.info(f"Ответ от {SALESFINDER_LOGIN_URL}: статус {resp.status_code}")
+        except requests.exceptions.ConnectionError as e:
+            raise HTTPException(503, f"Не удалось подключиться к сервису авторизации. Проверьте доступность {SALESFINDER_LOGIN_URL}. Ошибка: {str(e)}")
+        except requests.exceptions.Timeout as e:
+            raise HTTPException(504, f"Превышено время ожидания ответа от сервиса авторизации. Ошибка: {str(e)}")
         except Exception as e:
-            raise HTTPException(500, f"Ошибка запроса при логине: {e}")
+            raise HTTPException(500, f"Ошибка запроса при логине: {str(e)}")
 
         if resp.status_code == 404:
-            raise HTTPException(404, f"Сервис авторизации недоступен (404). Проверьте URL: {SALESFINDER_LOGIN_URL}")
+            raise HTTPException(
+                404, 
+                f"Сервис авторизации недоступен (404). "
+                f"Возможно, URL изменился или сервис временно недоступен. "
+                f"Проверьте URL: {SALESFINDER_LOGIN_URL}. "
+                f"Ответ сервера: {resp.text[:500] if resp.text else 'Пустой ответ'}"
+            )
         elif resp.status_code not in (200, 201):
-            error_text = resp.text[:200] if resp.text else "Нет деталей ошибки"
-            raise HTTPException(401, f"Ошибка авторизации на salesfinder.ru ({resp.status_code}): {error_text}")
+            error_text = resp.text[:500] if resp.text else "Нет деталей ошибки"
+            raise HTTPException(
+                401, 
+                f"Ошибка авторизации на salesfinder.ru (HTTP {resp.status_code}): {error_text}"
+            )
 
         try:
             data = resp.json()
