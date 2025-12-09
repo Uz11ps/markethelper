@@ -162,41 +162,81 @@ class PromptGeneratorService:
             )
 
             # Парсим ответ
-            answer = response.choices[0].message.content.strip()
+            raw_content = response.choices[0].message.content
+            if raw_content is None:
+                logger.error("GPT вернул None в content")
+                raise ValueError("GPT вернул пустой ответ. Попробуйте ещё раз позже.")
+            
+            answer = raw_content.strip()
+            logger.info(f"Получен ответ от GPT (длина: {len(answer)}): {answer[:200]}...")
 
             # Проверяем, что ответ не пустой
             if not answer:
-                logger.error("GPT вернул пустой ответ")
+                logger.error("GPT вернул пустой ответ после strip()")
                 raise ValueError("GPT вернул пустой ответ. Попробуйте ещё раз позже.")
 
             # Убираем возможные markdown блоки
+            original_answer = answer
             if answer.startswith("```json"):
                 answer = answer[7:]
+                logger.debug("Удален префикс ```json")
             elif answer.startswith("```"):
                 answer = answer[3:]
+                logger.debug("Удален префикс ```")
             if answer.endswith("```"):
                 answer = answer[:-3]
+                logger.debug("Удален суффикс ```")
 
             answer = answer.strip()
+            logger.debug(f"После удаления markdown (длина: {len(answer)}): {answer[:200]}...")
 
             # Пытаемся найти JSON в ответе, если он обернут в текст
             json_start = answer.find("{")
             json_end = answer.rfind("}") + 1
-            if json_start != -1 and json_end > json_start:
+            
+            if json_start == -1:
+                logger.warning(f"Не найден символ '{{' в ответе. Ответ: {answer[:500]}")
+                # Пытаемся найти JSON с помощью regex
+                json_match = re.search(r'\{.*\}', answer, re.DOTALL)
+                if json_match:
+                    answer = json_match.group(0)
+                    logger.info("JSON найден с помощью regex")
+                else:
+                    raise ValueError(f"Не найден JSON в ответе GPT. Ответ: {answer[:300]}...")
+            elif json_end <= json_start:
+                logger.warning(f"Некорректные индексы JSON: start={json_start}, end={json_end}")
+                # Пытаемся найти JSON с помощью regex
+                json_match = re.search(r'\{.*\}', answer, re.DOTALL)
+                if json_match:
+                    answer = json_match.group(0)
+                    logger.info("JSON найден с помощью regex после некорректных индексов")
+                else:
+                    raise ValueError(f"Не найден валидный JSON в ответе GPT. Ответ: {answer[:300]}...")
+            else:
                 answer = answer[json_start:json_end]
+                logger.debug(f"Извлечен JSON (длина: {len(answer)}): {answer[:200]}...")
+
+            # Проверяем, что после извлечения JSON не пустой
+            if not answer or not answer.strip():
+                logger.error(f"После извлечения JSON получилась пустая строка. Оригинальный ответ: {original_answer[:500]}")
+                raise ValueError("Не удалось извлечь JSON из ответа GPT. Попробуйте ещё раз позже.")
 
             # Парсим JSON
             try:
                 result = json.loads(answer)
+                logger.info("JSON успешно распарсен")
             except json.JSONDecodeError as json_err:
-                logger.error(f"Ошибка парсинга JSON от GPT: {json_err}\nОтвет GPT: {answer[:500]}")
-                # Пытаемся извлечь JSON из текста с помощью регулярных выражений
-                json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', answer, re.DOTALL)
+                logger.error(f"Ошибка парсинга JSON от GPT: {json_err}\nОтвет GPT: {answer[:500]}\nОригинальный ответ: {original_answer[:500]}")
+                # Пытаемся извлечь JSON из текста с помощью регулярных выражений (более агрессивный поиск)
+                json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', original_answer, re.DOTALL)
                 if json_match:
                     try:
-                        result = json.loads(json_match.group(0))
+                        extracted_json = json_match.group(0)
+                        logger.info(f"Попытка парсинга извлеченного JSON: {extracted_json[:200]}...")
+                        result = json.loads(extracted_json)
                         logger.info("JSON успешно извлечен с помощью regex")
-                    except json.JSONDecodeError:
+                    except json.JSONDecodeError as regex_err:
+                        logger.error(f"Не удалось распарсить JSON даже после regex: {regex_err}")
                         raise ValueError(f"GPT вернул некорректный JSON. Ответ: {answer[:200]}...")
                 else:
                     raise ValueError(f"GPT вернул некорректный JSON: {json_err}. Ответ: {answer[:200]}...")
