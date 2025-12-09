@@ -114,15 +114,35 @@ async def update_welcome_message(
 @router.get("/all")
 async def get_all_settings(_: Admin = Depends(get_current_admin)):
     """Получение всех настроек"""
-    settings = await Settings.all()
+    try:
+        print("[GET_ALL_SETTINGS] Запрос всех настроек")
+        settings = await Settings.all()
+        print(f"[GET_ALL_SETTINGS] Найдено настроек: {len(settings)}")
 
-    return {
-        setting.key: {
-            "value": setting.value,
-            "description": setting.description
-        }
-        for setting in settings
-    }
+        result = {}
+        for setting in settings:
+            try:
+                result[setting.key] = {
+                    "value": setting.value or "",
+                    "description": getattr(setting, 'description', None) or ""
+                }
+            except Exception as e:
+                print(f"[GET_ALL_SETTINGS] Ошибка при обработке настройки {setting.key}: {e}")
+                result[setting.key] = {
+                    "value": str(setting.value) if setting.value else "",
+                    "description": ""
+                }
+
+        print(f"[GET_ALL_SETTINGS] Возвращено настроек: {len(result)}")
+        return result
+    except Exception as e:
+        print(f"[GET_ALL_SETTINGS] Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка при получении настроек: {str(e)}"
+        )
 
 
 @router.post("/")
