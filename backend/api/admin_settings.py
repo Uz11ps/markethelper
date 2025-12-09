@@ -112,30 +112,36 @@ async def update_welcome_message(
 async def get_all_settings(_: Admin = Depends(get_current_admin)):
     """Получение всех настроек"""
     try:
-        print("[GET_ALL_SETTINGS] Запрос всех настроек")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("[GET_ALL_SETTINGS] Запрос всех настроек")
+        
         settings = await Settings.all()
-        print(f"[GET_ALL_SETTINGS] Найдено настроек: {len(settings)}")
+        logger.info(f"[GET_ALL_SETTINGS] Найдено настроек: {len(settings)}")
 
         result = {}
         for setting in settings:
             try:
                 # Модель Settings не имеет поля description, используем только value
-                result[setting.key] = {
-                    "value": setting.value or "",
+                key = getattr(setting, 'key', 'unknown')
+                value = getattr(setting, 'value', '')
+                
+                result[key] = {
+                    "value": value if value else "",
                     "description": ""  # Поле description отсутствует в модели
                 }
             except Exception as e:
-                print(f"[GET_ALL_SETTINGS] Ошибка при обработке настройки {setting.key}: {e}")
-                result[setting.key] = {
-                    "value": str(setting.value) if setting.value else "",
-                    "description": ""
-                }
+                logger.error(f"[GET_ALL_SETTINGS] Ошибка при обработке настройки: {e}", exc_info=True)
+                # Пропускаем проблемную настройку, но продолжаем обработку остальных
+                continue
 
-        print(f"[GET_ALL_SETTINGS] Возвращено настроек: {len(result)}")
+        logger.info(f"[GET_ALL_SETTINGS] Возвращено настроек: {len(result)}")
         return result
     except Exception as e:
-        print(f"[GET_ALL_SETTINGS] Ошибка: {e}")
+        import logging
         import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"[GET_ALL_SETTINGS] Критическая ошибка: {e}", exc_info=True)
         traceback.print_exc()
         raise HTTPException(
             status_code=500,
