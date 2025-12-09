@@ -1,4 +1,5 @@
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
 
@@ -8,6 +9,8 @@ from fastapi import HTTPException
 
 from backend.models.file import AccessFile
 from backend.models import AccessGroup, Subscription, User
+
+logger = logging.getLogger(__name__)
 
 COOKIE_DIR = "/app/cookie"
 os.makedirs(COOKIE_DIR, exist_ok=True)
