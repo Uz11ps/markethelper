@@ -196,11 +196,76 @@ function showMessage(text, type) {
   }, 3000);
 }
 
+// 🔧 Открыть модальное окно редактирования баланса
+function openBalanceModal(userId, username, bonusBalance, tokenBalance) {
+  currentUserId = userId;
+  document.getElementById('balanceUsername').textContent = username || `ID: ${userId}`;
+  document.getElementById('balanceType').value = 'bonus';
+  document.getElementById('balanceAmount').value = bonusBalance || 0;
+  document.getElementById('balanceModal').style.display = 'block';
+}
+
+// ❌ Закрыть модальное окно редактирования баланса
+function closeBalanceModal() {
+  document.getElementById('balanceModal').style.display = 'none';
+  currentUserId = null;
+}
+
+// ✅ Подтвердить изменение баланса
+async function confirmBalanceUpdate() {
+  const balanceType = document.getElementById('balanceType').value;
+  const amount = parseInt(document.getElementById('balanceAmount').value);
+
+  if (isNaN(amount) || amount < 0) {
+    showMessage('Введите корректное значение баланса', 'error');
+    return;
+  }
+
+  if (!currentUserId) {
+    showMessage('Ошибка: не указан ID пользователя', 'error');
+    return;
+  }
+
+  try {
+    const endpoint = balanceType === 'bonus' 
+      ? `${API_USERS}/${currentUserId}/bonus`
+      : `${API_USERS}/${currentUserId}/tokens`;
+    
+    const response = await authFetch(endpoint, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(
+        balanceType === 'bonus' 
+          ? { bonus_amount: amount }
+          : { tokens: amount }
+      )
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error('Ошибка обновления баланса: ' + errorText);
+    }
+
+    const result = await response.json();
+    showMessage(`Баланс успешно обновлен! Новый баланс: ${result.new_balance || result.bonus_balance || amount}`, 'success');
+    closeBalanceModal();
+    loadSubscriptions();
+  } catch (error) {
+    showMessage('Ошибка: ' + error.message, 'error');
+  }
+}
+
 // Закрыть модальное окно при клике вне его
 window.onclick = function(event) {
-  const modal = document.getElementById('extendModal');
-  if (event.target === modal) {
+  const extendModal = document.getElementById('extendModal');
+  const balanceModal = document.getElementById('balanceModal');
+  if (event.target === extendModal) {
     closeExtendModal();
+  }
+  if (event.target === balanceModal) {
+    closeBalanceModal();
   }
 }
 
