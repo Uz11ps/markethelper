@@ -45,7 +45,7 @@ async def extend_subscription(
         subscription.end_date = end_date + timedelta(days=data.days)
         print(f"[EXTEND_SUBSCRIPTION] Продлеваем от {end_date} до {subscription.end_date}")
 
-    subscription.status = active_status
+    subscription.status_id = active_status.id
     await subscription.save()
 
     return {
@@ -75,7 +75,7 @@ async def revoke_subscription(
     if not expired_status:
         expired_status = await Status.create(type="subscription", code="EXPIRED", name="Истекла")
 
-    subscription.status = expired_status
+    subscription.status_id = expired_status.id
     subscription.end_date = datetime.utcnow()
     await subscription.save()
 
