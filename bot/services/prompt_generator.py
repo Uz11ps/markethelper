@@ -163,29 +163,62 @@ class PromptGeneratorService:
             # Парсим ответ
             answer = response.choices[0].message.content.strip()
 
+            # Проверяем, что ответ не пустой
+            if not answer:
+                logger.error("GPT вернул пустой ответ")
+                raise ValueError("GPT вернул пустой ответ. Попробуйте ещё раз позже.")
+
             # Убираем возможные markdown блоки
             if answer.startswith("```json"):
                 answer = answer[7:]
-            if answer.startswith("```"):
+            elif answer.startswith("```"):
                 answer = answer[3:]
             if answer.endswith("```"):
                 answer = answer[:-3]
 
             answer = answer.strip()
 
+            # Пытаемся найти JSON в ответе, если он обернут в текст
+            json_start = answer.find("{")
+            json_end = answer.rfind("}") + 1
+            if json_start != -1 and json_end > json_start:
+                answer = answer[json_start:json_end]
+
             # Парсим JSON
-            result = json.loads(answer)
+            try:
+                result = json.loads(answer)
+            except json.JSONDecodeError as json_err:
+                logger.error(f"Ошибка парсинга JSON от GPT: {json_err}\nОтвет GPT: {answer[:500]}")
+                # Пытаемся извлечь JSON из текста с помощью регулярных выражений
+                import re
+                json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', answer, re.DOTALL)
+                if json_match:
+                    try:
+                        result = json.loads(json_match.group(0))
+                        logger.info("JSON успешно извлечен с помощью regex")
+                    except json.JSONDecodeError:
+                        raise ValueError(f"GPT вернул некорректный JSON. Ответ: {answer[:200]}...")
+                else:
+                    raise ValueError(f"GPT вернул некорректный JSON: {json_err}. Ответ: {answer[:200]}...")
+
+            # Проверяем наличие обязательных полей
+            if "generated_text_prompt" not in result:
+                logger.error(f"В ответе GPT отсутствует поле 'generated_text_prompt'. Ответ: {answer[:500]}")
+                raise ValueError("GPT вернул ответ без обязательного поля 'generated_text_prompt'")
 
             logger.info(f"Промпт успешно сгенерирован: {result['generated_text_prompt'][:100]}...")
 
             return result
 
         except json.JSONDecodeError as e:
-            logger.error(f"Ошибка парсинга JSON от GPT: {e}\nОтвет: {answer}")
+            logger.error(f"Ошибка парсинга JSON от GPT: {e}\nОтвет: {answer[:500] if 'answer' in locals() else 'Нет ответа'}")
             raise ValueError(f"GPT вернул некорректный JSON: {e}")
-        except Exception as e:
-            logger.error(f"Ошибка при генерации промпта: {e}")
+        except ValueError as e:
+            # Пробрасываем ValueError как есть (уже обработанные ошибки)
             raise
+        except Exception as e:
+            logger.error(f"Ошибка при генерации промпта: {e}", exc_info=True)
+            raise ValueError(f"Ошибка при генерации промпта: {str(e)}")
 
     @staticmethod
     async def analyze_product_only(product_image_urls: List[str]) -> str:
