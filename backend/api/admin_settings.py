@@ -122,9 +122,10 @@ async def get_all_settings(_: Admin = Depends(get_current_admin)):
         result = {}
         for setting in settings:
             try:
+                # Модель Settings не имеет поля description, используем только value
                 result[setting.key] = {
                     "value": setting.value or "",
-                    "description": getattr(setting, 'description', None) or ""
+                    "description": ""  # Поле description отсутствует в модели
                 }
             except Exception as e:
                 print(f"[GET_ALL_SETTINGS] Ошибка при обработке настройки {setting.key}: {e}")
