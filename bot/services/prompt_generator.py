@@ -251,13 +251,19 @@ class PromptGeneratorService:
             return result
 
         except json.JSONDecodeError as e:
-            logger.error(f"Ошибка парсинга JSON от GPT: {e}\nОтвет: {answer[:500] if 'answer' in locals() else 'Нет ответа'}")
+            error_msg = f"Ошибка парсинга JSON: {e}"
+            if 'answer' in locals():
+                error_msg += f"\nОтвет GPT: {answer[:500] if answer else 'Пустой ответ'}"
+            if 'original_answer' in locals():
+                error_msg += f"\nОригинальный ответ: {original_answer[:500] if original_answer else 'Нет оригинала'}"
+            logger.error(error_msg)
             raise ValueError(f"GPT вернул некорректный JSON: {e}")
         except ValueError as e:
             # Пробрасываем ValueError как есть (уже обработанные ошибки)
+            logger.error(f"ValueError при генерации промпта: {e}")
             raise
         except Exception as e:
-            logger.error(f"Ошибка при генерации промпта: {e}", exc_info=True)
+            logger.error(f"Неожиданная ошибка при генерации промпта: {e}", exc_info=True)
             raise ValueError(f"Ошибка при генерации промпта: {str(e)}")
 
     @staticmethod
