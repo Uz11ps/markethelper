@@ -52,8 +52,7 @@ async def update_default_prompt(
     else:
         await Settings.create(
             key="default_prompt_template",
-            value=data.template,
-            description="Default prompt template for image generation"
+            value=data.template
         )
 
     return {"message": "Default prompt template updated successfully"}
@@ -73,8 +72,7 @@ async def update_analysis_prompt(
     else:
         await Settings.create(
             key="product_analysis_prompt",
-            value=data.template,
-            description="Prompt template for product analysis"
+            value=data.template
         )
 
     return {"message": "Analysis prompt template updated successfully"}
@@ -104,8 +102,7 @@ async def update_welcome_message(
     else:
         await Settings.create(
             key="welcome_message",
-            value=data.message,
-            description="Welcome message for new users"
+            value=data.message
         )
 
     return {"message": "Welcome message updated successfully"}
@@ -156,15 +153,12 @@ async def create_or_update_setting(
 
     if setting:
         setting.value = data.value
-        if data.description:
-            setting.description = data.description
         await setting.save()
         message = "Setting updated successfully"
     else:
         await Settings.create(
             key=data.key,
-            value=data.value,
-            description=data.description
+            value=data.value
         )
         message = "Setting created successfully"
 
