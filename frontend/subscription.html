@@ -54,6 +54,7 @@
         <th>Дата окончания</th>
         <th>Группа</th>
         <th>Файл</th>
+        <th>Баланс</th>
         <th>Действия</th>
       </tr>
     </thead>
@@ -72,6 +73,28 @@
       </div>
       <button onclick="confirmExtend()" class="btn-primary">Продлить</button>
       <button onclick="closeExtendModal()" class="btn-secondary">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Модальное окно для редактирования баланса -->
+  <div id="balanceModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeBalanceModal()">&times;</span>
+      <h2>Изменить баланс пользователя</h2>
+      <p>Пользователь: <span id="balanceUsername"></span></p>
+      <div class="input-group">
+        <label for="balanceType">Тип баланса:</label>
+        <select id="balanceType">
+          <option value="bonus">Бонусный баланс (токены)</option>
+          <option value="token">Токены</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="balanceAmount">Новое значение:</label>
+        <input type="number" id="balanceAmount" min="0" value="0">
+      </div>
+      <button onclick="confirmBalanceUpdate()" class="btn-primary">Сохранить</button>
+      <button onclick="closeBalanceModal()" class="btn-secondary">Отмена</button>
     </div>
   </div>
 

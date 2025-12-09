@@ -63,7 +63,7 @@ async def get_user_details(
 @router.put("/{user_id}/bonus")
 async def update_user_bonus(
     user_id: int,
-    bonus_amount: int,
+    data: dict,
     _: Admin = Depends(get_current_admin)
 ):
     """Изменение бонусного баланса пользователя"""
@@ -75,6 +75,7 @@ async def update_user_bonus(
             detail="User not found"
         )
 
+    bonus_amount = data.get("bonus_amount", data.get("bonus_balance", 0))
     user.bonus_balance = bonus_amount
     await user.save()
 
@@ -140,7 +141,7 @@ async def unban_user(
 @router.put("/{user_id}/tokens")
 async def update_user_token_balance(
     user_id: int,
-    tokens: int,
+    data: dict,
     _: Admin = Depends(get_current_admin)
 ):
     """Изменение баланса токенов пользователя"""
@@ -152,6 +153,7 @@ async def update_user_token_balance(
             detail="User not found"
         )
 
+    tokens = data.get("tokens", data.get("token_balance", 0))
     user.token_balance = tokens
     await user.save()
     return {"message": "Token balance updated", "user_id": user_id, "new_balance": user.token_balance}

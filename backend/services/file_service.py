@@ -40,15 +40,26 @@ class FileService:
         """
         Возвращает AccessFile для активной подписки пользователя (по tg_id).
         Берёт первую подписку с end_date > now.
+        Если активной подписки нет, пытается найти любую подписку с группой.
         """
         user = await User.get_or_none(tg_id=tg_id)
         if not user:
             raise HTTPException(404, "Пользователь не найден")
 
         now = datetime.now(timezone.utc)
+        # Сначала ищем активную подписку
         subscription = await Subscription.filter(user_id=user.id, end_date__gt=now).prefetch_related("group").first()
+        
+        # Если активной подписки нет, ищем любую подписку с группой
         if not subscription or not subscription.group:
-            raise HTTPException(404, "Активная подписка не найдена")
+            subscription = await Subscription.filter(user_id=user.id).prefetch_related("group").order_by("-end_date").first()
+        
+        if not subscription or not subscription.group:
+            raise HTTPException(
+                404, 
+                "У вас нет активной подписки или подписки с привязанным файлом. "
+                "Обратитесь к администратору для получения доступа."
+            )
 
         file = await FileService.get_group_file(subscription.group.id)
         return file

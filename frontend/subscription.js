@@ -1,8 +1,10 @@
 // Конфигурация API (API_BASE_URL уже объявлен в auth.js)
 const API_SUBS = `${API_BASE_URL}/admin/requests/subscriptions`;
 const API_ADMIN = `${API_BASE_URL}/admin`;
+const API_USERS = `${API_BASE_URL}/admin/users`;
 let allSubs = [];
 let currentSubId = null;
+let currentUserId = null;
 
 // Проверка аутентификации при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,7 +33,7 @@ function renderTable(data) {
   tbody.innerHTML = "";
 
   if (data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9">📭 Подписок не найдено</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10">📭 Подписок не найдено</td></tr>`;
     return;
   }
 
@@ -51,6 +53,10 @@ function renderTable(data) {
       <td>${new Date(item.end_date).toLocaleDateString()}</td>
       <td>${item.group || "—"}</td>
       <td>${item.file_name || "—"}</td>
+      <td>
+        💰 ${item.bonus_balance || 0} токенов
+        ${item.user_id ? `<br><button onclick="openBalanceModal(${item.user_id}, '${item.username || 'пользователь'}', ${item.bonus_balance || 0}, ${item.token_balance || 0})" class="btn-small btn-secondary" style="margin-top: 5px; font-size: 11px;">Изменить</button>` : ''}
+      </td>
       <td class="actions">
         <button onclick="openExtendModal(${item.id})" class="btn-small btn-primary">Продлить</button>
         <button onclick="revokeSubscription(${item.id})" class="btn-small btn-danger">Отозвать</button>
