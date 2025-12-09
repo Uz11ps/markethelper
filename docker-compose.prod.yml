@@ -8,7 +8,7 @@ services:
     volumes:
       - ./chroma_db:/app/chroma_db
       - ./cookie:/app/cookie
-      - ./db.sqlite3:/app/db.sqlite3
+      - ./data:/app/data
       - ./logs:/app/logs
     env_file:
       - .env
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./chroma_db:/app/chroma_db
       - ./cookie:/app/cookie
-      - ./db.sqlite3:/app/db.sqlite3
+      - ./data:/app/data
       - ./logs:/app/logs
     env_file:
       - .env
