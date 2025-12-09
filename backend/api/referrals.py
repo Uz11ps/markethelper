@@ -1,8 +1,11 @@
-
+import os
 from fastapi import APIRouter, HTTPException
 from backend.models import User, Referral
 
 router = APIRouter(prefix="/referrals", tags=["Referrals"])
+
+# Имя бота для реферальных ссылок (можно задать через переменную окружения)
+BOT_USERNAME = os.getenv("BOT_USERNAME", "fghghhjgk_bot")
 
 
 @router.post("/bind")
@@ -37,7 +40,7 @@ async def get_referral_info(tg_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    ref_link = f"https://t.me/trading_freee_bot?start=ref_{user.tg_id}"
+    ref_link = f"https://t.me/{BOT_USERNAME}?start=ref_{user.tg_id}"
     ref_count = await Referral.filter(referrer=user).count()
 
     return {"ref_link": ref_link, "ref_count": ref_count}
