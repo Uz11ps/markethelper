@@ -3,7 +3,7 @@ from backend.models import Tariff, Status, Duration, Audience
 
 TORTOISE_ORM = {
     "connections": {
-        "default": "sqlite:///app/db.sqlite3"
+        "default": "sqlite:///app/data/db.sqlite3"
     },
     "apps": {
         "models": {
