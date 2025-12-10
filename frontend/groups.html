@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Управление группами</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Навигация -->
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html">Активные подписки</a>
+    <a href="/ai.html">Нейронка</a>
+    <a href="/files.html">Файлы</a>
+    <a href="/groups.html" class="active">Группы</a>
+    <a href="/bonuses.html">Бонусы</a>
+    <a href="/topup.html">Пополнения</a>
+    <a href="/settings.html">Настройки</a>
+    <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
+  </nav>
+
+  <h1>Управление группами доступа</h1>
+
+  <!-- Форма создания группы -->
+  <section>
+    <h2>Создать новую группу</h2>
+    <form id="createGroupForm">
+      <label>Название группы:</label><br>
+      <input type="text" id="groupName" required placeholder="Например: SF-1, Складчина-1"><br><br>
+      <button type="submit">➕ Создать группу</button>
+    </form>
+    <p id="createResult"></p>
+  </section>
+
+  <!-- Список групп -->
+  <section>
+    <h2>Список групп</h2>
+    <table id="groupsTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Дата создания</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Модальное окно редактирования -->
+  <div id="editModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeEditModal()">&times;</span>
+      <h2>Редактировать группу</h2>
+      <form id="editGroupForm">
+        <input type="hidden" id="editGroupId">
+        <label>Название группы:</label><br>
+        <input type="text" id="editGroupName" required><br><br>
+        <button type="submit">💾 Сохранить</button>
+        <button type="button" onclick="closeEditModal()">Отмена</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="groups.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!requireAuth()) return;
+    });
+  </script>
+</body>
+</html>
+

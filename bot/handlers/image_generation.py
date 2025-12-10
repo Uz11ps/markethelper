@@ -66,20 +66,19 @@ async def charge_image_generation(message: Message, state: FSMContext, user_id: 
 
 @router.callback_query(F.data == "generate_image")
 async def start_generation(callback: CallbackQuery, state: FSMContext):
-    """Начало процесса генерации изображения - выбор формата"""
+    """Начало процесса генерации изображения - выбор модели"""
     await callback.answer()
 
     await state.clear()
-    await state.set_state(ImageGenerationStates.choosing_aspect_ratio)
+    await state.set_state(ImageGenerationStates.choosing_model)
     await state.update_data(product_photos=[], reference_photos=[])
 
     try:
-        pricing = await api_client.get_token_pricing()
+        models = await api_client.get_image_models()
     except Exception as exc:
-        logger.warning(f"Не удалось получить стоимость токенов: {exc}")
-        pricing = {}
-    await state.update_data(token_pricing=pricing)
-
+        logger.warning(f"Не удалось получить список моделей: {exc}")
+        models = {}
+    
     try:
         profile = await api_client.get_profile(
             callback.from_user.id,
@@ -90,14 +89,57 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
         logger.warning(f"Не удалось получить профиль пользователя: {exc}")
         profile = {}
     balance = profile.get("bonus_balance", 0) if profile else 0
-    image_cost = pricing.get("image_generation_cost") if pricing else 0
+
+    from bot.keyboards.inline import model_selection_keyboard
+    
+    models_text = "\n".join([
+        f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
+        for key, info in models.items()
+    ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
 
     await callback.message.answer(
         "🎨 <b>Генерация карточки товара</b>\n\n"
-        "Выберите формат изображения для вашей площадки.\n\n"
+        "Выберите модель для генерации:\n\n"
+        f"{models_text}\n\n"
+        f"💰 Ваш баланс: <b>{balance} токенов</b>",
+        reply_markup=model_selection_keyboard(models)
+    )
+
+
+@router.callback_query(F.data.startswith("select_model:"))
+async def select_model(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора модели генерации"""
+    await callback.answer()
+    
+    model_key = callback.data.split(":")[1]
+    
+    try:
+        models = await api_client.get_image_models()
+        selected_model = models.get(model_key, {})
+        model_name = selected_model.get("name", model_key)
+        model_cost = selected_model.get("cost", 5)
+        model_id = selected_model.get("model_id", "fal-ai/nano-banana")
+    except Exception as exc:
+        logger.warning(f"Не удалось получить информацию о модели: {exc}")
+        model_name = model_key
+        model_cost = 5
+        model_id = "fal-ai/nano-banana"
+    
+    await state.update_data(
+        selected_model=model_key,
+        model_name=model_name,
+        model_cost=model_cost,
+        model_id=model_id
+    )
+    
+    await state.set_state(ImageGenerationStates.choosing_aspect_ratio)
+    
+    await callback.message.edit_text(
+        f"✅ Выбрана модель: <b>{model_name}</b>\n"
+        f"💰 Стоимость: <b>{model_cost} токенов</b>\n\n"
+        "Выберите формат изображения для вашей площадки:\n\n"
         f"📦 Доступно фото товара: загрузите до 5 штук.\n"
         f"🎯 Референсы: до 5 примеров стиля.\n"
-        f"💰 Стоимость генерации: <b>{image_cost} токенов</b>.\n"
         f"💼 Ваш баланс: <b>{balance} токенов</b>.\n\n"
         "Токены списываются при запуске генерации.",
         reply_markup=aspect_ratio_keyboard()
@@ -611,8 +653,12 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
         if card_text:
             prompt = f"{prompt}. Add text on the card: '{card_text}'"
 
+        data = await state.get_data()
+        model_name = data.get("model_name", "Nano Banana")
+        model_id = data.get("model_id")
+        
         msg1 = await message.answer(
-            "🎨 Генерирую изображение через Nano Banana AI...\n\n"
+            f"🎨 Генерирую изображение через {model_name}...\n\n"
             f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
             f"💼 Остаток: <b>{charge['balance']} токенов</b>"
         )
@@ -623,7 +669,8 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
             product_images=product_photos,
             reference_images=reference_photos,
             num_images=1,
-            aspect_ratio=aspect_ratio
+            aspect_ratio=aspect_ratio,
+            model_id=model_id
         )
         
         if not image_urls:
@@ -797,20 +844,25 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
         if not charge:
             return
 
+        data = await state.get_data()
+        model_name = data.get("model_name", "Nano Banana")
+        model_id = data.get("model_id")
+        
         # Шаг 2: Генерация изображения через FAL
         msg4 = await message.answer(
-            "🎨 Генерирую изображение через Nano Banana AI...\n\n"
+            f"🎨 Генерирую изображение через {model_name}...\n\n"
             f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
             f"💼 Остаток: <b>{charge['balance']} токенов</b>"
         )
         temp_messages.append(msg4.message_id)
-
+        
         image_urls = await FALService.generate_product_image(
             prompt=generated_prompt,
             product_images=product_photos,
             reference_images=reference_photos,
             num_images=1,
-            aspect_ratio=aspect_ratio
+            aspect_ratio=aspect_ratio,
+            model_id=model_id
         )
 
         if not image_urls:
@@ -881,19 +933,31 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
         if card_text:
             custom_prompt = f"{custom_prompt}. Add text on the card: '{card_text}'"
 
+        data = await state.get_data()
+        model_name = data.get("model_name", "Nano Banana")
+        model_id = data.get("model_id")
+        
         msg1 = await message.answer(
-            "🎨 Генерирую изображение с вашим промптом через Nano Banana AI...\n\n"
+            f"🎨 Генерирую изображение с вашим промптом через {model_name}...\n\n"
             f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
             f"💼 Остаток: <b>{charge['balance']} токенов</b>"
         )
         temp_messages.append(msg1.message_id)
-
+        
+        msg1 = await message.answer(
+            f"🎨 Генерирую изображение с вашим промптом через {model_name}...\n\n"
+            f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
+            f"💼 Остаток: <b>{charge['balance']} токенов</b>"
+        )
+        temp_messages.append(msg1.message_id)
+        
         image_urls = await FALService.generate_product_image(
             prompt=custom_prompt,
             product_images=product_photos,
             reference_images=reference_photos,
             num_images=1,
-            aspect_ratio=aspect_ratio
+            aspect_ratio=aspect_ratio,
+            model_id=model_id
         )
 
         if not image_urls:

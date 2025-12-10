@@ -1,5 +1,6 @@
 import aiohttp
 import json
+from typing import Optional
 from bot.config import BACKEND_URL
 
 
@@ -48,14 +49,36 @@ class APIClient:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
 
-    async def create_request(self, tg_id: int, tariff_code: str, duration_months: int):
+    async def create_request(
+        self, 
+        tg_id: int, 
+        tariff_code: str, 
+        duration_months: int,
+        subscription_type: str = "group",
+        group_id: Optional[int] = None,
+        user_email: Optional[str] = None
+    ):
         url = f"{self.base_url}/api/admin/requests/"
+        payload = {
+            "tg_id": tg_id,
+            "tariff_code": tariff_code,
+            "duration_months": duration_months,
+            "subscription_type": subscription_type,
+        }
+        if group_id:
+            payload["group_id"] = group_id
+        if user_email:
+            payload["user_email"] = user_email
+        
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json={
-                "tg_id": tg_id,
-                "tariff_code": tariff_code,
-                "duration_months": duration_months
-            }) as resp:
+            async with session.post(url, json=payload) as resp:
+                return await self._handle_response(resp)
+    
+    async def get_groups(self):
+        """Получить список групп доступа"""
+        url = f"{self.base_url}/api/admin/groups/"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
                 return await self._handle_response(resp)
 
     async def get_profile(
@@ -139,6 +162,13 @@ class APIClient:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
+    
+    async def get_channel_settings(self):
+        """Получить настройки канала"""
+        url = f"{self.base_url}/api/admin/settings/channel"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await self._handle_response(resp)
 
     async def charge_tokens(self, tg_id: int, action: str):
         url = f"{self.base_url}/api/tokens/charge"
@@ -150,4 +180,29 @@ class APIClient:
         url = f"{self.base_url}/api/tokens/pricing"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
+                return await self._handle_response(resp)
+    
+    async def get_image_models(self):
+        """Получить список доступных моделей генерации изображений"""
+        url = f"{self.base_url}/api/tokens/models"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await self._handle_response(resp)
+    
+    async def check_channel_subscription(self, tg_id: int):
+        """Проверить подписку на канал и начислить бонус при необходимости"""
+        url = f"{self.base_url}/api/channel/check-subscription/{tg_id}"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url) as resp:
+                return await self._handle_response(resp)
+    
+    async def create_token_purchase_request(self, tg_id: int, amount: int, cost: float):
+        """Создать заявку на пополнение токенов"""
+        url = f"{self.base_url}/api/tokens/purchase"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json={
+                "tg_id": tg_id,
+                "amount": amount,
+                "cost": float(cost)
+            }) as resp:
                 return await self._handle_response(resp)

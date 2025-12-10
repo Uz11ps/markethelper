@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Заявки на пополнение</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Навигация -->
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html">Активные подписки</a>
+    <a href="/ai.html">Нейронка</a>
+    <a href="/files.html">Файлы</a>
+    <a href="/groups.html">Группы</a>
+    <a href="/bonuses.html">Бонусы</a>
+    <a href="/topup.html" class="active">Пополнения</a>
+    <a href="/settings.html">Настройки</a>
+    <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
+  </nav>
+
+  <h1>💰 Заявки на пополнение баланса</h1>
+
+  <div class="filter-section">
+    <label for="statusFilter">Фильтр по статусу:</label>
+    <select id="statusFilter" onchange="loadTopupRequests()">
+      <option value="">Все</option>
+      <option value="PENDING">Ожидают</option>
+      <option value="APPROVED">Одобрены</option>
+      <option value="REJECTED">Отклонены</option>
+    </select>
+  </div>
+
+  <table id="topupTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Пользователь</th>
+        <th>Токены</th>
+        <th>Стоимость</th>
+        <th>Статус</th>
+        <th>Способ оплаты</th>
+        <th>Дата создания</th>
+        <th>Дата обработки</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Данные будут загружены сюда -->
+    </tbody>
+  </table>
+
+  <!-- Модальное окно для одобрения -->
+  <div id="approveModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" onclick="closeApproveModal()">&times;</span>
+      <h2>Одобрить заявку на пополнение</h2>
+      <p>ID заявки: <span id="approvePurchaseId"></span></p>
+      <label for="paymentMethod">Способ оплаты (опционально):</label>
+      <input type="text" id="paymentMethod" placeholder="Например: СБП, карта, криптовалюта">
+      <button onclick="confirmApprove()">Одобрить</button>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="topup.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!requireAuth()) return;
+      loadTopupRequests();
+    });
+  </script>
+</body>
+</html>
+

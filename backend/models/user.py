@@ -10,11 +10,13 @@ class User(Model):
     tg_id = fields.BigIntField(unique=True, index=True)
     username = fields.CharField(255, null=True)
     full_name = fields.CharField(255, null=True)
+    email = fields.CharField(255, null=True)  # Email для индивидуальных подписок
 
     bonus_balance = fields.IntField(default=0)
     token_balance = fields.IntField(default=0)  # Внутренняя валюта - токены
     
     is_banned = fields.BooleanField(default=False)  # Черный список
+    channel_bonus_given = fields.BooleanField(default=False)  # Был ли начислен бонус за подписку на канал
 
     referrer = fields.ForeignKeyField(
         "models.User",

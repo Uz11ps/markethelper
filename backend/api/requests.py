@@ -64,7 +64,7 @@ async def list_requests(admin: Admin = Depends(get_current_admin)):
     """
     print(f"[list_requests] Запрос от админа: {admin.username}")
     requests = await Request.all().prefetch_related('user', 'tariff', 'duration', 'status')
-    result = [RequestOut.from_orm(req) for req in requests]
+    result = [await RequestOut.from_orm(req) for req in requests]
     print(f"[list_requests] Возвращено заявок: {len(result)}")
     return result
 
@@ -73,7 +73,7 @@ async def list_requests(admin: Admin = Depends(get_current_admin)):
 async def create_request(data: dict):
     """
     Создание заявки из бота
-    data = { tg_id, tariff_code, duration_months }
+    data = { tg_id, tariff_code, duration_months, subscription_type, group_id?, user_email? }
     """
     print(f"[CREATE_REQUEST] Received data: {data}")
 
@@ -93,6 +93,19 @@ async def create_request(data: dict):
             print(f"[CREATE_REQUEST] Invalid duration: {data['duration_months']}")
             raise HTTPException(status_code=400, detail="Invalid duration")
 
+        subscription_type = data.get("subscription_type", "group")  # По умолчанию складчина
+        group_id = data.get("group_id")
+        user_email = data.get("user_email")
+        
+        # Валидация в зависимости от типа подписки
+        if subscription_type == "group" and not group_id:
+            raise HTTPException(status_code=400, detail="Для складчины необходимо указать group_id")
+        elif subscription_type == "individual":
+            # Для индивидуального доступа сохраняем email, если был указан
+            if user_email:
+                user.email = user_email
+                await user.save()
+
         status = await get_status(type="request", code="PENDING")
         print(f"[CREATE_REQUEST] Status: {status.name} (id={status.id})")
 
@@ -101,9 +114,12 @@ async def create_request(data: dict):
             tariff=tariff,
             duration=duration,
             status=status,
+            subscription_type=subscription_type,
+            group_id=group_id,
+            user_email=user_email,
         )
 
-        print(f"[CREATE_REQUEST] Request created successfully: id={req.id}, user={user.tg_id}, tariff={tariff.code}, duration={duration.months}")
+        print(f"[CREATE_REQUEST] Request created successfully: id={req.id}, user={user.tg_id}, tariff={tariff.code}, duration={duration.months}, type={subscription_type}")
         
         return {"received_data": data, "id": req.id, "message": "Request created"}
     except HTTPException:
@@ -119,7 +135,7 @@ async def approve_request(
     request_id: int,
     background_tasks: BackgroundTasks,
     admin: Admin = Depends(get_current_admin),
-    filename: str | None = Form(None),  # теперь необязательный
+    group_id: int | None = Form(None),  # ID группы для складчины
 ):
     req = await Request.get_or_none(id=request_id).prefetch_related("user", "tariff", "duration")
     if not req:
@@ -129,19 +145,30 @@ async def approve_request(
     approved_status = await get_status(type="request", code="APPROVED")
     end_date = datetime.utcnow() + timedelta(days=30 * req.duration.months)
 
+    subscription_type = getattr(req, 'subscription_type', 'group')
     group = None
-    if filename:
-        access_file = await AccessFile.get_or_none(path__icontains=filename).prefetch_related("group")
-        if not access_file:
-            raise HTTPException(status_code=404, detail="AccessFile not found")
-        group = await access_file.group
+    
+    # Для складчины - привязываем группу файлов
+    if subscription_type == "group":
+        if group_id:
+            from backend.models.subscription import AccessGroup
+            group = await AccessGroup.get_or_none(id=group_id)
+            if not group:
+                raise HTTPException(status_code=404, detail="AccessGroup not found")
+        elif req.group_id:
+            # Используем группу из заявки, если она была указана при создании
+            from backend.models.subscription import AccessGroup
+            group = await AccessGroup.get_or_none(id=req.group_id)
+        else:
+            raise HTTPException(status_code=400, detail="Для складчины необходимо указать group_id")
+    # Для индивидуального доступа - группа не привязывается (group остается None)
 
     subscription = await Subscription.create(
         user_id=req.user.id,
         tariff_id=req.tariff.id,
         duration_id=req.duration.id,
         status_id=active_status.id,
-        group=group,  # None если filename не передан
+        group=group,  # None для индивидуального доступа
         start_date=datetime.utcnow(),
         end_date=end_date,
     )
@@ -149,7 +176,7 @@ async def approve_request(
     req.status = approved_status
     await req.save()
 
-    # Уведомления и начисление реферального бонуса
+    # Создание ожидающего реферального бонуса вместо автоматического начисления
     referral = await Referral.get_or_none(referred=req.user)
     if referral and not referral.activated:
         referral.activated = True
@@ -157,28 +184,32 @@ async def approve_request(
 
         # Получаем размер бонуса из настроек
         bonus_amount = await SettingsService.get_referral_bonus()
-
         referrer = await referral.referrer
-        referrer.bonus_balance += bonus_amount
-        await referrer.save()
 
-        background_tasks.add_task(
-            notify_user,
-            referrer.tg_id,
-            f"🎉 Ваш реферал @{req.user.username} активировал подписку! +{bonus_amount} бонусов на баланс."
+        # Создаем запись о pending bonus вместо автоматического начисления
+        from backend.models.pending_bonus import PendingBonus
+        await PendingBonus.create(
+            referral=referral,
+            referrer=referrer,
+            referred=req.user,
+            bonus_amount=bonus_amount,
+            request=req,
+            status="pending"
         )
 
 
-    message = f"✅ Ваша заявка #{req.id} на тариф {req.tariff.name} одобрена!\nИспользуйте /start еще раз для перехода в профиль и использования бота!"
-    if filename:
-        message += f"\nФайл: {filename} привязан к вашей подписке."
+    subscription_type_name = "Индивидуальный доступ" if subscription_type == "individual" else "Складчина"
+    message = f"✅ Ваша заявка #{req.id} на тариф {req.tariff.name} ({subscription_type_name}) одобрена!\nИспользуйте /start еще раз для перехода в профиль и использования бота!"
+    if group:
+        message += f"\nГруппа файлов: {group.name} привязана к вашей подписке."
     background_tasks.add_task(notify_user, req.user.tg_id, message)
 
     return {
         "message": f"Request {request_id} approved",
         "subscription_id": subscription.id,
-        "file": filename,
+        "subscription_type": subscription_type,
         "group": group.name if group else None,
+        "group_id": group.id if group else None,
     }
 
 @router.post("/{request_id}/reject")

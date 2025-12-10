@@ -3,6 +3,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 class ImageGenerationStates(StatesGroup):
     """Состояния для генерации изображений товара"""
+    choosing_model = State()  # Выбор модели генерации
     choosing_aspect_ratio = State()  # Выбор формата изображения
     waiting_for_product_photos = State()  # Ожидание фото товара (1-5)
     waiting_for_reference_photos = State()  # Ожидание фото референсов (1-5)

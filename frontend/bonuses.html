@@ -2,35 +2,34 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Новые заявки</title>
+  <title>Реферальные бонусы</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- Навигация -->
   <nav class="navbar">
-    <a href="/index.html" class="active">Новые заявки</a>
+    <a href="/index.html">Новые заявки</a>
     <a href="/subscription.html">Активные подписки</a>
     <a href="/ai.html">Нейронка</a>
     <a href="/files.html">Файлы</a>
     <a href="/groups.html">Группы</a>
-    <a href="/bonuses.html">Бонусы</a>
+    <a href="/bonuses.html" class="active">Бонусы</a>
     <a href="/topup.html">Пополнения</a>
     <a href="/settings.html">Настройки</a>
     <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
   </nav>
 
-  <h1>Новые заявки</h1>
+  <h1>Реферальные бонусы</h1>
 
-  <table id="requestsTable">
+  <table id="bonusesTable">
     <thead>
       <tr>
         <th>ID</th>
-        <th>Пользователь</th>
-        <th>Тариф</th>
-        <th>Длительность</th>
-        <th>Тип подписки</th>
-        <th>Статус</th>
-        <th>Дата</th>
+        <th>Реферер</th>
+        <th>Реферал</th>
+        <th>Сумма</th>
+        <th>Заявка</th>
+        <th>Дата создания</th>
         <th>Действия</th>
       </tr>
     </thead>
@@ -38,12 +37,12 @@
   </table>
 
   <script src="auth.js"></script>
-  <script src="requests.js"></script>
+  <script src="bonuses.js"></script>
   <script>
-    // Проверка аутентификации при загрузке страницы
     document.addEventListener('DOMContentLoaded', () => {
       if (!requireAuth()) return;
     });
   </script>
 </body>
 </html>
+

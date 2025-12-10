@@ -415,3 +415,42 @@ form button[type="submit"]:hover {
   width: 100%;
   max-width: 400px;
 }
+
+/* Status badges */
+.status-pending {
+  color: #ffa500;
+  font-weight: 600;
+}
+
+.status-approved {
+  color: #2ea44f;
+  font-weight: 600;
+}
+
+.status-rejected {
+  color: var(--btn-reject);
+  font-weight: 600;
+}
+
+/* Filter section */
+.filter-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.filter-section label {
+  margin-right: 12px;
+  color: var(--fg-muted);
+}
+
+.filter-section select {
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 6px);
+  font-size: 14px;
+}

@@ -24,6 +24,14 @@ async function loadSettings() {
     document.getElementById('referralBonus').value = settingsData.referral_bonus?.value || '';
     document.getElementById('imageCost').value = settingsData.image_generation_cost?.value || '';
     document.getElementById('gptCost').value = settingsData.gpt_request_cost?.value || '';
+    
+    // Загружаем настройки канала
+    const channelResponse = await authFetch(`${API_BASE_URL}/admin/settings/channel`);
+    if (channelResponse.ok) {
+      const channelData = await channelResponse.json();
+      document.getElementById('channelUsername').value = channelData.channel_username || '';
+      document.getElementById('channelBonus').value = channelData.channel_bonus || '';
+    }
   } catch (error) {
     showMessage('Ошибка загрузки настроек: ' + error.message, 'error');
   }
@@ -118,6 +126,34 @@ async function saveSettings() {
     showMessage('Настройки успешно сохранены', 'success');
   } catch (error) {
     showMessage('Ошибка сохранения: ' + error.message, 'error');
+  }
+}
+
+async function saveChannelSettings() {
+  const channelUsername = document.getElementById('channelUsername').value.trim();
+  const channelBonus = parseInt(document.getElementById('channelBonus').value);
+
+  if (isNaN(channelBonus) || channelBonus < 0) {
+    showMessage('Некорректное значение бонуса за подписку', 'error');
+    return;
+  }
+
+  try {
+    await authFetch(`${API_BASE_URL}/admin/settings/channel/username`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: channelUsername })
+    });
+
+    await authFetch(`${API_BASE_URL}/admin/settings/channel/bonus`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bonus: channelBonus })
+    });
+
+    showMessage('Настройки канала успешно сохранены', 'success');
+  } catch (error) {
+    showMessage('Ошибка сохранения настроек канала: ' + error.message, 'error');
   }
 }
 

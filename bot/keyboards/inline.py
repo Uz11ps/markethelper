@@ -77,3 +77,20 @@ def skip_text_keyboard():
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
     ])
     return keyboard
+
+
+def model_selection_keyboard(models: dict):
+    """Клавиатура выбора модели генерации"""
+    buttons = []
+    for model_key, model_info in models.items():
+        name = model_info.get("name", model_key)
+        cost = model_info.get("cost", 0)
+        description = model_info.get("description", "")
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{name} ({cost} токенов)",
+                callback_data=f"select_model:{model_key}"
+            )
+        ])
+    buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

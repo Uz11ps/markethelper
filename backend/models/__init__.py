@@ -6,6 +6,7 @@ from .mailing import Mailing
 from .settings import Settings, BroadcastMessage
 from .admin import Admin
 from .token_purchase import TokenPurchaseRequest
+from .pending_bonus import PendingBonus
 from .enums import (
     Tariff, Status, Duration, Audience
 )
@@ -22,6 +23,7 @@ __all__ = [
     "Referral",
     "Admin",
     "TokenPurchaseRequest",
+    "PendingBonus",
     "Tariff",
     "Status",
     "Duration",

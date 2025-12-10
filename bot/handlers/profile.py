@@ -32,18 +32,23 @@ async def show_profile(message: types.Message):
     tg = message.from_user
     data = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
 
-    # Временно отключена проверка подписки для тестирования
     active_until = data.get("active_until") if data else None
+    has_active_sub = active_until is not None
+    has_file_access = bool(data.get("access_file_path"))  # Файл есть только у складчины
 
     text = (
         f"👤 <b>Пользователь:</b> @{data.get('username') or tg.username or '—'}\n"
         f"⭐️ <b>Тариф:</b> {data.get('tariff_name') or 'Тестовый режим'}\n"
         f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Бессрочно (тест)'}\n"
-        f"📁 <b>Файл:</b> {(data.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
-        f"💰 <b>Токены:</b> {data.get('bonus_balance') or 0}"
     )
+    
+    # Показываем файл только для складчины
+    if has_file_access:
+        text += f"📁 <b>Файл:</b> {(data.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
+    
+    text += f"💰 <b>Токены:</b> {data.get('bonus_balance') or 0}"
 
-    await message.answer(text, reply_markup=profile_menu_kb())
+    await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active_sub, has_file_access=has_file_access))
 
 @router.callback_query(F.data == "profile:referral")
 async def referral_info(callback: types.CallbackQuery):

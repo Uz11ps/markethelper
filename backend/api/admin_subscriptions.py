@@ -76,9 +76,13 @@ async def revoke_subscription(
     admin: Admin = Depends(get_current_admin)
 ):
     """Отозвать подписку (установить статус EXPIRED и дату окончания на текущую)"""
-    print(f"[REVOKE_SUBSCRIPTION] Отзыв подписки {subscription_id}")
+    import httpx
+    import logging
     
-    subscription = await Subscription.filter(id=subscription_id).first()
+    logger = logging.getLogger(__name__)
+    logger.info(f"[REVOKE_SUBSCRIPTION] Отзыв подписки {subscription_id}")
+    
+    subscription = await Subscription.filter(id=subscription_id).prefetch_related("user").first()
     
     if not subscription:
         raise HTTPException(status_code=404, detail="Подписка не найдена")
@@ -92,6 +96,24 @@ async def revoke_subscription(
     subscription.status_id = expired_status.id
     subscription.end_date = datetime.utcnow()
     await subscription.save()
+    
+    # Уведомляем пользователя об отзыве подписки
+    user = await subscription.user
+    BOT_URL = "http://bot:8001/notify"
+    
+    async def notify_user(tg_id: int, message: str):
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(BOT_URL, json={"tg_id": tg_id, "message": message}, timeout=5.0)
+            except Exception as e:
+                logger.warning(f"⚠ Ошибка при отправке уведомления: {e}")
+    
+    await notify_user(
+        user.tg_id,
+        "⚠️ Ваша подписка была отозвана администратором.\n"
+        "Ваш профиль переведен в тестовый режим.\n"
+        "Для возобновления доступа обратитесь в поддержку."
+    )
 
     return {
         "status": "success",

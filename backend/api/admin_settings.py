@@ -5,6 +5,7 @@ from typing import Optional, Dict
 from backend.models.settings import Settings
 from backend.models.admin import Admin
 from backend.api.admin import get_current_admin
+from backend.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/admin/settings", tags=["Admin Settings"])
 
@@ -187,3 +188,89 @@ async def delete_setting(
 
     await setting.delete()
     return {"message": "Setting deleted successfully"}
+
+
+class ModelUpdate(BaseModel):
+    """Схема обновления модели"""
+    model_id: str
+
+
+class ModelCostUpdate(BaseModel):
+    """Схема обновления стоимости модели"""
+    cost: int
+
+
+@router.get("/models")
+async def get_image_models(_: Admin = Depends(get_current_admin)):
+    """Получение списка доступных моделей генерации изображений"""
+    models = await SettingsService.get_available_image_models()
+    return models
+
+
+@router.put("/models/{model_type}")
+async def update_image_model(
+    model_type: str,
+    data: ModelUpdate,
+    _: Admin = Depends(get_current_admin)
+):
+    """Обновление модели генерации изображений"""
+    if model_type == "nano-banana":
+        await SettingsService.set_image_model(data.model_id)
+    elif model_type == "pro":
+        await SettingsService.set_image_model_pro(data.model_id)
+    elif model_type == "sd":
+        await SettingsService.set_image_model_sd(data.model_id)
+    else:
+        raise HTTPException(status_code=400, detail="Неизвестный тип модели")
+    
+    return {"message": f"Модель {model_type} обновлена"}
+
+
+@router.put("/models/{model_type}/cost")
+async def update_image_model_cost(
+    model_type: str,
+    data: ModelCostUpdate,
+    _: Admin = Depends(get_current_admin)
+):
+    """Обновление стоимости генерации для модели"""
+    await SettingsService.set_image_model_cost(model_type, data.cost)
+    return {"message": f"Стоимость модели {model_type} обновлена"}
+
+
+class ChannelBonusUpdate(BaseModel):
+    """Схема обновления бонуса за подписку на канал"""
+    bonus: int
+
+
+class ChannelUsernameUpdate(BaseModel):
+    """Схема обновления username канала"""
+    username: str
+
+
+@router.get("/channel")
+async def get_channel_settings(_: Admin = Depends(get_current_admin)):
+    """Получение настроек канала"""
+    return {
+        "channel_bonus": await SettingsService.get_channel_bonus(),
+        "channel_username": await SettingsService.get_channel_username()
+    }
+
+
+@router.put("/channel/bonus")
+async def update_channel_bonus(
+    data: ChannelBonusUpdate,
+    _: Admin = Depends(get_current_admin)
+):
+    """Обновление размера бонуса за подписку на канал"""
+    await SettingsService.set_channel_bonus(data.bonus)
+    return {"message": f"Бонус за подписку на канал обновлен: {data.bonus} токенов"}
+
+
+@router.put("/channel/username")
+async def update_channel_username(
+    data: ChannelUsernameUpdate,
+    _: Admin = Depends(get_current_admin)
+):
+    """Обновление username канала"""
+    await SettingsService.set_channel_username(data.username)
+    return {"message": f"Username канала обновлен: {data.username}"}

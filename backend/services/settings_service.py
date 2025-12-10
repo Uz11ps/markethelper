@@ -10,13 +10,21 @@ class SettingsService:
 Отвечай профессионально, используя предоставленный контекст из базы знаний."""
 
     DEFAULT_REFERRAL_BONUS = 100
+    DEFAULT_CHANNEL_BONUS = 50  # Бонус за подписку на канал
+    DEFAULT_CHANNEL_USERNAME = ""  # Username канала (например, "@channel" или "channel")
     DEFAULT_IMAGE_GENERATION_COST = 5
     DEFAULT_GPT_REQUEST_COST = 1
     
     # Модели ИИ
     DEFAULT_GPT_MODEL = "gpt-4o-mini"
-    DEFAULT_IMAGE_MODEL = "fal-ai/flux-pro/v1.1"  # nano-banana 1
-    DEFAULT_IMAGE_MODEL_PRO = "fal-ai/flux-pro/v1.1-ultra"  # nano-banana pro
+    DEFAULT_IMAGE_MODEL = "fal-ai/nano-banana"  # nano-banana 1
+    DEFAULT_IMAGE_MODEL_PRO = "fal-ai/flux-pro/v1.1-ultra"  # nano-banana pro / FLUX Pro Ultra
+    DEFAULT_IMAGE_MODEL_SD = "fal-ai/flux-pro/v1.1"  # Stable Diffusion / FLUX Pro
+    
+    # Стоимость генерации для разных моделей
+    DEFAULT_IMAGE_MODEL_COST = 5  # nano-banana
+    DEFAULT_IMAGE_MODEL_PRO_COST = 10  # FLUX Pro Ultra
+    DEFAULT_IMAGE_MODEL_SD_COST = 3  # FLUX Pro
 
     DEFAULT_PROMPT_GENERATOR_PROMPT = """Ты — 'Деконструктор-Синтезатор Промтов' (Prompt Deconstructor & Synthesizer), ИИ-аналитик, специализирующийся на слиянии контента и стиля для генеративных моделей.
 
@@ -159,13 +167,84 @@ class SettingsService:
 
     @classmethod
     async def get_image_model(cls) -> str:
-        """Получить текущую модель генерации изображений"""
+        """Получить модель генерации изображений по умолчанию"""
         return await cls.get_setting("image_model", cls.DEFAULT_IMAGE_MODEL)
 
     @classmethod
     async def set_image_model(cls, model: str) -> Settings:
-        """Установить модель генерации изображений"""
+        """Установить модель генерации изображений по умолчанию"""
         return await cls.set_setting("image_model", model)
+    
+    @classmethod
+    async def get_image_model_pro(cls) -> str:
+        """Получить Pro модель генерации изображений"""
+        return await cls.get_setting("image_model_pro", cls.DEFAULT_IMAGE_MODEL_PRO)
+
+    @classmethod
+    async def set_image_model_pro(cls, model: str) -> Settings:
+        """Установить Pro модель генерации изображений"""
+        return await cls.set_setting("image_model_pro", model)
+    
+    @classmethod
+    async def get_image_model_sd(cls) -> str:
+        """Получить SD модель генерации изображений"""
+        return await cls.get_setting("image_model_sd", cls.DEFAULT_IMAGE_MODEL_SD)
+
+    @classmethod
+    async def set_image_model_sd(cls, model: str) -> Settings:
+        """Установить SD модель генерации изображений"""
+        return await cls.set_setting("image_model_sd", model)
+    
+    @classmethod
+    async def get_image_model_cost(cls, model: str = None) -> int:
+        """Получить стоимость генерации для модели"""
+        if not model:
+            model = await cls.get_image_model()
+        
+        # Определяем тип модели по model_id или переданному параметру
+        if model == "pro" or "ultra" in model.lower():
+            value = await cls.get_setting("image_model_pro_cost", str(cls.DEFAULT_IMAGE_MODEL_PRO_COST))
+            return int(value)
+        elif model == "sd" or ("flux-pro" in model.lower() and "ultra" not in model.lower()):
+            value = await cls.get_setting("image_model_sd_cost", str(cls.DEFAULT_IMAGE_MODEL_SD_COST))
+            return int(value)
+        else:  # nano-banana по умолчанию
+            value = await cls.get_setting("image_model_cost", str(cls.DEFAULT_IMAGE_MODEL_COST))
+            return int(value)
+    
+    @classmethod
+    async def set_image_model_cost(cls, model: str, cost: int) -> Settings:
+        """Установить стоимость генерации для модели"""
+        if model == "pro":
+            return await cls.set_setting("image_model_pro_cost", str(cost))
+        elif model == "sd":
+            return await cls.set_setting("image_model_sd_cost", str(cost))
+        else:  # nano-banana
+            return await cls.set_setting("image_model_cost", str(cost))
+    
+    @classmethod
+    async def get_available_image_models(cls) -> dict:
+        """Получить список доступных моделей с их стоимостью"""
+        return {
+            "nano-banana": {
+                "name": "Nano Banana",
+                "model_id": await cls.get_image_model(),
+                "cost": await cls.get_image_model_cost("nano-banana"),
+                "description": "Быстрая генерация с применением стиля референсов"
+            },
+            "pro": {
+                "name": "FLUX Pro Ultra",
+                "model_id": await cls.get_image_model_pro(),
+                "cost": await cls.get_image_model_cost("pro"),
+                "description": "Высокое качество, генерация без референсов"
+            },
+            "sd": {
+                "name": "FLUX Pro",
+                "model_id": await cls.get_image_model_sd(),
+                "cost": await cls.get_image_model_cost("sd"),
+                "description": "Базовое качество, низкая стоимость"
+            }
+        }
 
     @classmethod
     async def get_referral_referrer_bonus(cls) -> int:
@@ -188,6 +267,27 @@ class SettingsService:
     async def set_referral_referred_tokens(cls, tokens: int) -> Settings:
         """Установить количество токенов для реферала"""
         return await cls.set_setting("referral_referred_tokens", str(tokens))
+    
+    @classmethod
+    async def get_channel_bonus(cls) -> int:
+        """Получить размер бонуса за подписку на канал"""
+        value = await cls.get_setting("channel_bonus", str(cls.DEFAULT_CHANNEL_BONUS))
+        return int(value)
+    
+    @classmethod
+    async def set_channel_bonus(cls, bonus: int) -> Settings:
+        """Установить размер бонуса за подписку на канал"""
+        return await cls.set_setting("channel_bonus", str(bonus))
+    
+    @classmethod
+    async def get_channel_username(cls) -> str:
+        """Получить username канала для проверки подписки"""
+        return await cls.get_setting("channel_username", cls.DEFAULT_CHANNEL_USERNAME)
+    
+    @classmethod
+    async def set_channel_username(cls, username: str) -> Settings:
+        """Установить username канала для проверки подписки"""
+        return await cls.set_setting("channel_username", username)
 
     @classmethod
     async def initialize_defaults(cls):
@@ -213,9 +313,30 @@ class SettingsService:
 
         if not await Settings.filter(key="image_model").exists():
             await cls.set_image_model(cls.DEFAULT_IMAGE_MODEL)
+        
+        if not await Settings.filter(key="image_model_pro").exists():
+            await cls.set_image_model_pro(cls.DEFAULT_IMAGE_MODEL_PRO)
+        
+        if not await Settings.filter(key="image_model_sd").exists():
+            await cls.set_image_model_sd(cls.DEFAULT_IMAGE_MODEL_SD)
+        
+        if not await Settings.filter(key="image_model_cost").exists():
+            await cls.set_image_model_cost("nano-banana", cls.DEFAULT_IMAGE_MODEL_COST)
+        
+        if not await Settings.filter(key="image_model_pro_cost").exists():
+            await cls.set_image_model_cost("pro", cls.DEFAULT_IMAGE_MODEL_PRO_COST)
+        
+        if not await Settings.filter(key="image_model_sd_cost").exists():
+            await cls.set_image_model_cost("sd", cls.DEFAULT_IMAGE_MODEL_SD_COST)
 
         if not await Settings.filter(key="referral_referrer_bonus").exists():
             await cls.set_referral_referrer_bonus(50)
 
         if not await Settings.filter(key="referral_referred_tokens").exists():
             await cls.set_referral_referred_tokens(10)
+        
+        if not await Settings.filter(key="channel_bonus").exists():
+            await cls.set_channel_bonus(cls.DEFAULT_CHANNEL_BONUS)
+        
+        if not await Settings.filter(key="channel_username").exists():
+            await cls.set_channel_username(cls.DEFAULT_CHANNEL_USERNAME)

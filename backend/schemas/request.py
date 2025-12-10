@@ -26,16 +26,30 @@ class RequestOut(BaseModel):
     duration_months: int
     status: str
     created_at: datetime
+    
+    # Новые поля
+    subscription_type: Optional[str] = "group"
+    group_id: Optional[int] = None
+    group_name: Optional[str] = None
+    user_email: Optional[str] = None
 
     class Config:
         from_attributes = True
 
     @classmethod
-    def from_orm(cls, obj: 'Request') -> 'RequestOut':
+    async def from_orm(cls, obj: 'Request') -> 'RequestOut':
         tariff = obj.tariff
         duration = obj.duration
         status = obj.status
         user = obj.user
+        
+        # Получаем название группы, если есть
+        group_name = None
+        if hasattr(obj, 'group_id') and obj.group_id:
+            from backend.models.subscription import AccessGroup
+            group = await AccessGroup.get_or_none(id=obj.group_id)
+            if group:
+                group_name = group.name
 
         return cls(
             id=obj.id,
@@ -46,4 +60,8 @@ class RequestOut(BaseModel):
             duration_months=duration.months,
             status=status.name,
             created_at=obj.created_at,
+            subscription_type=getattr(obj, 'subscription_type', 'group'),
+            group_id=getattr(obj, 'group_id', None),
+            group_name=group_name,
+            user_email=getattr(obj, 'user_email', None),
         )

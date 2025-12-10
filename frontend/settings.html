@@ -12,6 +12,9 @@
     <a href="/subscription.html">Активные подписки</a>
     <a href="/ai.html">Нейронка</a>
     <a href="/files.html">Файлы</a>
+    <a href="/groups.html">Группы</a>
+    <a href="/bonuses.html">Бонусы</a>
+    <a href="/topup.html">Пополнения</a>
     <a href="/settings.html" class="active">Настройки</a>
     <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
   </nav>
@@ -34,6 +37,23 @@
         Описывает, как GPT анализирует фото товара и референсы, чтобы собрать текстовый промпт для Nano Banana.
       </p>
       <textarea id="imagePrompt" rows="12" placeholder="Введите системный промпт для генерации изображений..."></textarea>
+    </div>
+
+    <div class="settings-section">
+      <h2>Настройки канала</h2>
+      <p class="settings-description">
+        Настройте канал для проверки подписки и размер бонуса за подписку.
+      </p>
+      <div class="input-group">
+        <label for="channelUsername">Username канала:</label>
+        <input type="text" id="channelUsername" placeholder="channel (без @)">
+      </div>
+      <div class="input-group">
+        <label for="channelBonus">Бонус за подписку:</label>
+        <input type="number" id="channelBonus" min="0" placeholder="50">
+        <span class="input-suffix">токенов</span>
+      </div>
+      <button onclick="saveChannelSettings()" class="btn-primary">💾 Сохранить настройки канала</button>
     </div>
 
     <div class="settings-section">

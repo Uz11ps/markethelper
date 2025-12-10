@@ -82,9 +82,9 @@ async def approve_token_purchase(
             detail="Заявка уже обработана"
         )
     
-    # Начисляем токены пользователю
+    # Начисляем токены пользователю (используем bonus_balance, так как он используется для списания)
     user = purchase.user
-    user.token_balance += purchase.amount
+    user.bonus_balance += purchase.amount
     await user.save()
     
     # Обновляем статус заявки
@@ -98,7 +98,7 @@ async def approve_token_purchase(
         "message": "Заявка одобрена",
         "user_id": user.id,
         "tokens_added": purchase.amount,
-        "new_balance": user.token_balance
+        "new_balance": user.bonus_balance
     }
 
 
@@ -144,12 +144,12 @@ async def update_user_tokens(
             detail="Пользователь не найден"
         )
     
-    user.token_balance = tokens
+    user.bonus_balance = tokens
     await user.save()
     
     return {
         "message": "Баланс токенов обновлен",
         "user_id": user.id,
-        "new_balance": user.token_balance
+        "new_balance": user.bonus_balance
     }
 

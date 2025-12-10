@@ -24,7 +24,8 @@ class FALService:
         product_images: List[str],
         reference_images: List[str],
         num_images: int = 1,
-        aspect_ratio: str = "3:4"
+        aspect_ratio: str = "3:4",
+        model_id: str = None
     ) -> List[str]:
         """
         Генерация изображения товара с применением стиля референсов
