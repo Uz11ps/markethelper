@@ -20,11 +20,10 @@ def skip_keyboard(callback_data: str):
 
 def result_keyboard(image_url: str = None):
     """Клавиатура после генерации изображения"""
-    # URL может быть длинным, поэтому используем короткий callback_data
-    # Сохраняем только первые 100 символов URL в callback_data, остальное берем из state
-    download_callback = f"download_image:{image_url[:100]}" if image_url else "download_image"
+    # Telegram ограничивает callback_data до 64 байт, поэтому не передаем URL напрямую
+    # URL будет браться из state в обработчике
     buttons = [
-        [InlineKeyboardButton(text="📥 Получить файлом", callback_data=download_callback)],
+        [InlineKeyboardButton(text="📥 Получить файлом", callback_data="download_image")],
         [InlineKeyboardButton(text="✏️ Редактировать промпт", callback_data="edit_prompt")],
         [InlineKeyboardButton(text="🔄 Внести правки в изображение", callback_data="refine_image")],
         [InlineKeyboardButton(text="🎨 Создать новое изображение", callback_data="generate_image")],

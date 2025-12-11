@@ -1442,21 +1442,27 @@ async def cancel_generation(callback: CallbackQuery, state: FSMContext):
     )
 
 
-@router.callback_query(F.data.startswith("download_image"))
+@router.callback_query(F.data == "download_image")
 async def download_image_handler(callback: CallbackQuery, state: FSMContext):
     """Скачивание изображения как файл"""
     await callback.answer("Загружаю файл...")
     
     try:
-        # Получаем URL из callback_data или из state
-        image_url = None
-        if ":" in callback.data:
-            image_url = callback.data.split(":", 1)[1]
+        # Получаем URL из state (он сохраняется при генерации)
+        data = await state.get_data()
+        image_url = data.get("last_generated_image")
         
-        # Если URL не в callback_data, берем из state
+        # Если URL не в state, пытаемся получить из сообщения с фото
         if not image_url:
-            data = await state.get_data()
-            image_url = data.get("last_generated_image")
+            # Пытаемся найти последнее сообщение с фото в чате
+            if callback.message.photo:
+                # Если текущее сообщение содержит фото, берем его
+                photo = callback.message.photo[-1]  # Берем самое большое фото
+                file_info = await bot.get_file(photo.file_id)
+                image_url = f"https://api.telegram.org/file/bot{bot.token}/{file_info.file_path}"
+            else:
+                await callback.message.answer("❌ Не удалось найти изображение для скачивания. Попробуйте сгенерировать новое изображение.")
+                return
         
         if not image_url:
             await callback.message.answer("❌ Не удалось найти изображение для скачивания.")
