@@ -100,7 +100,7 @@ async def update_user_bonus(
         )
 
     user.bonus_balance = data.bonus_amount
-    await user.save()
+    await user.save(update_fields=['bonus_balance'])
 
     return {"message": "Bonus updated successfully", "new_balance": user.bonus_balance}
 

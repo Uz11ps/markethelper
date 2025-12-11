@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime
 from backend.services.file_service import FileService
 from tortoise.exceptions import DoesNotExist
-from bot.keyboards.cookie import file_actions_kb
+# file_actions_kb больше не используется, так как кнопка "обновить куки" удалена
 from bot.services.api_client import APIClient
 from bot.keyboards.profile_menu import profile_menu_kb
 from bot.keyboards import subscription
@@ -178,24 +178,47 @@ async def topup_from_profile(callback: types.CallbackQuery):
     """Обработка кнопки пополнения из профиля"""
     await callback.answer()
     
-    # Импортируем функцию и вызываем её
-    from bot.handlers.topup import show_topup_menu
-    from aiogram.types import Message
-    
-    # Создаем объект Message из callback для совместимости
-    # Используем callback.message как основу
-    if callback.message:
-        # Создаем Message объект из CallbackQuery.message
-        message = Message(
-            message_id=callback.message.message_id,
-            date=callback.message.date,
-            chat=callback.message.chat,
-            from_user=callback.from_user,
-            text="💰 Пополнить"
-        )
-        await show_topup_menu(message)
-    else:
+    if not callback.message:
         await callback.message.answer("❌ Ошибка: не удалось обработать запрос")
+        return
+    
+    # Импортируем необходимые функции и классы
+    from bot.handlers.topup import topup_amounts_kb
+    from bot.utils import get_full_name
+    
+    tg = callback.from_user
+    
+    try:
+        profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
+        balance = profile.get("bonus_balance", 0) if profile else 0
+    except Exception as e:
+        logger.error(f"Ошибка получения профиля: {e}")
+        balance = 0
+    
+    # Получаем настройки пополнения из базы данных
+    try:
+        topup_settings = await api.get_topup_settings()
+        topup_options = topup_settings.get("topup_options", [])
+        token_price = topup_settings.get("token_price", 1.0)
+    except Exception as e:
+        logger.error(f"Ошибка получения настроек пополнения: {e}")
+        # Используем значения по умолчанию
+        topup_options = [
+            {"tokens": 100, "price": 100},
+            {"tokens": 250, "price": 225},
+            {"tokens": 500, "price": 400},
+            {"tokens": 1000, "price": 700},
+        ]
+        token_price = 1.0
+    
+    text = (
+        "💰 <b>Пополнение баланса</b>\n\n"
+        f"💼 Ваш текущий баланс: <b>{balance} токенов</b>\n"
+        f"💵 Стоимость 1 токена: <b>{token_price:.2f}₽</b>\n\n"
+        "Выберите сумму для пополнения:"
+    )
+    
+    await callback.message.answer(text, reply_markup=topup_amounts_kb(topup_options))
 
 @router.callback_query(F.data == "profile:chatgpt")
 async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
@@ -501,8 +524,7 @@ async def on_file_get(callback: CallbackQuery):
 
         if not cookies_text or not cookies_text.strip():
             await callback.message.answer(
-                f"❌ Файл куков пустой.\n\n📅 Последнее обновление: {updated_at or 'нет данных'}",
-                reply_markup=file_actions_kb(file_id) if file_id else None
+                f"❌ Файл куков пустой.\n\n📅 Последнее обновление: {updated_at or 'нет данных'}"
             )
             return
 
@@ -522,8 +544,7 @@ async def on_file_get(callback: CallbackQuery):
             updated_str = "нет данных"
         await callback.message.answer_document(
             document=file,
-            caption=f"📅 Последнее обновление: {updated_str}",
-            reply_markup=file_actions_kb(file_id) if file_id else None
+            caption=f"📅 Последнее обновление: {updated_str}"
         )
 
     except Exception as e:
@@ -532,6 +553,5 @@ async def on_file_get(callback: CallbackQuery):
             file_id_safe = res.get("id") or res.get("file_id")
 
         await callback.message.answer(
-            f"Ошибка при получении файла: {e}",
-            reply_markup=file_actions_kb(file_id_safe) if file_id_safe else None
+            f"Ошибка при получении файла: {e}"
         )
