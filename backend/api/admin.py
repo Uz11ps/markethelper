@@ -74,6 +74,8 @@ async def get_all_admins(_: Admin = Depends(require_super_admin)):
     return admins
 
 
+# ВАЖНО: Маршрут с параметром должен быть ПОСЛЕДНИМ, чтобы не перехватывать специфичные маршруты
+# (например, /admin/groups не должен попадать в /admin/{admin_id})
 @router.get("/{admin_id}", response_model=AdminResponse)
 async def get_admin(
     admin_id: int,
