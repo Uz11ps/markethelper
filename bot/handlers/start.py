@@ -82,7 +82,8 @@ async def cmd_start(message: types.Message):
 
     active_until = profile.get("active_until") if profile else None
     has_active = active_until is not None
-    has_file_access = bool(profile.get("access_file_path"))  # Файл есть только у складчины
+    tariff_code = profile.get('tariff_code') if profile else None
+    is_group_subscription = tariff_code == "GROUP"  # Проверяем тариф "Складчина"
 
     # Отправляем приветствие с обновленной клавиатурой (с кнопкой Пополнить)
     # Важно: отправляем клавиатуру ПЕРВЫМ сообщением для гарантии обновления
@@ -105,12 +106,12 @@ async def cmd_start(message: types.Message):
     )
     
     # Показываем файл только для складчины
-    if has_file_access:
+    if is_group_subscription and profile.get("access_file_path"):
         text += f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
     
     text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
 
-    await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, has_file_access=has_file_access))
+    await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, is_group_subscription=is_group_subscription))
 
 
 @router.message(F.text == "/menu")
@@ -122,7 +123,8 @@ async def cmd_menu(message: types.Message, state: FSMContext):
     profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
     active_until = profile.get("active_until") if profile else None
     has_active = active_until is not None
-    has_file_access = bool(profile.get("access_file_path"))  # Файл есть только у складчины
+    tariff_code = profile.get('tariff_code') if profile else None
+    is_group_subscription = tariff_code == "GROUP"  # Проверяем тариф "Складчина"
 
     keyboard = main_menu_kb(has_active_sub=has_active)
     
@@ -144,9 +146,9 @@ async def cmd_menu(message: types.Message, state: FSMContext):
     )
     
     # Показываем файл только для складчины
-    if has_file_access:
+    if is_group_subscription and profile.get("access_file_path"):
         text += f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
     
     text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
 
-    await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, has_file_access=has_file_access))
+    await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, is_group_subscription=is_group_subscription))

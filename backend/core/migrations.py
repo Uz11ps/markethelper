@@ -143,3 +143,42 @@ async def migrate_requests_table():
         traceback.print_exc()
         # Не прерываем запуск приложения, если миграция не удалась
 
+
+async def migrate_tariff_name():
+    """Обновить название тарифа 'Групповой' на 'Складчина'"""
+    try:
+        from backend.models import Tariff
+        conn = connections.get("default")
+        
+        # Обновляем название тарифа GROUP с "Групповой" на "Складчина"
+        try:
+            result = await conn.execute_query(
+                "UPDATE tariffs SET name = 'Складчина' WHERE code = 'GROUP' AND name = 'Групповой'"
+            )
+            if result and hasattr(result, 'rowcount') and result.rowcount > 0:
+                logger.info(f"✅ Обновлено {result.rowcount} записей тарифа GROUP: 'Групповой' -> 'Складчина'")
+            else:
+                # Проверяем, существует ли тариф с нужным названием
+                tariff = await Tariff.get_or_none(code="GROUP")
+                if tariff:
+                    if tariff.name == "Складчина":
+                        logger.debug("Тариф GROUP уже имеет название 'Складчина'")
+                    else:
+                        tariff.name = "Складчина"
+                        await tariff.save()
+                        logger.info("✅ Название тарифа GROUP обновлено на 'Складчина'")
+                else:
+                    logger.debug("Тариф GROUP не найден, будет создан при инициализации")
+        except OperationalError as e:
+            if "no such table" in str(e).lower():
+                logger.debug(f"Таблица tariffs еще не создана: {e}")
+            else:
+                logger.error(f"Ошибка при обновлении названия тарифа: {e}")
+                import traceback
+                traceback.print_exc()
+    except Exception as e:
+        logger.error(f"Ошибка при миграции названия тарифа: {e}")
+        import traceback
+        traceback.print_exc()
+        # Не прерываем запуск приложения, если миграция не удалась
+

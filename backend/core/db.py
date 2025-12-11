@@ -16,7 +16,7 @@ TORTOISE_ORM = {
 # Данные для заполнения
 TARIFFS = [
     {"code": "INDIVIDUAL", "name": "Индивидуальный"},
-    {"code": "GROUP", "name": "Групповой"}
+    {"code": "GROUP", "name": "Складчина"}
 ]
 
 STATUSES = [

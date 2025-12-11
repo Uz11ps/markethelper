@@ -38,7 +38,8 @@ async def show_profile(message: types.Message):
 
     active_until = data.get("active_until") if data else None
     has_active_sub = active_until is not None
-    has_file_access = bool(data.get("access_file_path"))  # Файл есть только у складчины
+    tariff_code = data.get('tariff_code')
+    is_group_subscription = tariff_code == "GROUP"  # Проверяем тариф "Складчина"
 
     # Определяем статус пользователя
     tariff_name = data.get('tariff_name')
@@ -56,7 +57,7 @@ async def show_profile(message: types.Message):
     )
     
     # Показываем файл только для складчины
-    if has_file_access:
+    if is_group_subscription and data.get("access_file_path"):
         text += f"📁 <b>Файл:</b> {(data.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
     
     text += f"💰 <b>Токены:</b> {data.get('bonus_balance') or 0}"
@@ -64,7 +65,7 @@ async def show_profile(message: types.Message):
     # Отправляем профиль с inline клавиатурой
     await message.answer(
         text, 
-        reply_markup=profile_menu_kb(has_active_sub=has_active_sub, has_file_access=has_file_access)
+        reply_markup=profile_menu_kb(has_active_sub=has_active_sub, is_group_subscription=is_group_subscription)
     )
     # Обновляем главную клавиатуру с кнопкой "Пополнить" - отправляем отдельным сообщением
     await message.answer(
@@ -485,7 +486,8 @@ async def back_to_profile_handler(callback: types.CallbackQuery, state: FSMConte
     
     active_until = profile.get("active_until")
     has_active = active_until is not None
-    has_file_access = bool(profile.get("access_file_path"))
+    tariff_code = profile.get('tariff_code')
+    is_group_subscription = tariff_code == "GROUP"  # Проверяем тариф "Складчина"
     
     from bot.keyboards.profile_menu import profile_menu_kb
     
@@ -495,12 +497,12 @@ async def back_to_profile_handler(callback: types.CallbackQuery, state: FSMConte
         f"🗓️ <b>Активен до:</b> {active_until if active_until else 'Нет активной подписки'}\n"
     )
     
-    if has_file_access:
+    if is_group_subscription and profile.get("access_file_path"):
         text += f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
     
     text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
     
-    await callback.message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, has_file_access=has_file_access))
+    await callback.message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, is_group_subscription=is_group_subscription))
 
 @router.callback_query(F.data == "profile:renew")
 async def renew_subscription(callback: types.CallbackQuery):
