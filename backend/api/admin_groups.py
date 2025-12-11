@@ -22,8 +22,13 @@ class GroupUpdate(BaseModel):
 @router.get("/", response_model=List[dict])
 async def list_groups(admin: Admin = Depends(get_current_admin)):
     """Получить список всех групп доступа (требует аутентификации админа)"""
+    # Логируем для отладки
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("Обработка запроса GET /api/admin/groups")
+    
     groups = await AccessGroup.all()
-    return [
+    result = [
         {
             "id": group.id,
             "name": group.name,
@@ -31,6 +36,8 @@ async def list_groups(admin: Admin = Depends(get_current_admin)):
         }
         for group in groups
     ]
+    logger.info(f"Возвращено {len(result)} групп")
+    return result
 
 
 # Публичный endpoint для бота (без аутентификации)

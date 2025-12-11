@@ -94,16 +94,18 @@ async def get_admin(
     _: Admin = Depends(get_current_admin)
 ):
     """Получение администратора по ID"""
+    # Логируем для отладки
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Обработка запроса GET /api/admin/{{admin_id}} с admin_id='{admin_id}'")
+    
     # Проверяем, что это не зарезервированное слово
     # Если это зарезервированный путь, это означает, что маршрут должен обрабатываться
     # другим роутером. Но если мы здесь, значит FastAPI не нашел совпадения в других роутерах.
     # Это может произойти, если маршрут с параметрами проверяется раньше специфичных маршрутов.
     # В этом случае возвращаем 404, но это не идеальное решение.
     if admin_id in RESERVED_PATHS:
-        # Логируем для отладки
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Попытка доступа к зарезервированному пути '/admin/{admin_id}' через маршрут /{{admin_id}}")
+        logger.error(f"КРИТИЧНО: Попытка доступа к зарезервированному пути '/admin/{admin_id}' через маршрут /{{admin_id}}. Это означает, что FastAPI проверил этот маршрут раньше специфичного маршрута!")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Admin not found"
