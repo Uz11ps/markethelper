@@ -20,13 +20,13 @@ class SettingsService:
     DEFAULT_GPT_MODEL = "gpt-4o-mini"
     DEFAULT_GPT_MODEL_NANO = "gpt-4o-mini"  # GPT 5 NANO MINI (маппится на gpt-4o-mini)
     DEFAULT_IMAGE_MODEL = "fal-ai/nano-banana"  # nano-banana 1
-    DEFAULT_IMAGE_MODEL_PRO = "fal-ai/flux-pro/v1.1-ultra"  # nano-banana pro / FLUX Pro Ultra
-    DEFAULT_IMAGE_MODEL_SD = "fal-ai/seedream-4"  # Seedream 4.0 (заменяет FLUX Pro)
+    DEFAULT_IMAGE_MODEL_PRO = "fal-ai/nano-banana-pro"  # Nano Banana Pro (заменяет FLUX Pro Ultra)
+    DEFAULT_IMAGE_MODEL_SD = "fal-ai/seedream-4"  # Seedream 4.0
     
     # Стоимость генерации для разных моделей
     DEFAULT_IMAGE_MODEL_COST = 5  # nano-banana
-    DEFAULT_IMAGE_MODEL_PRO_COST = 10  # FLUX Pro Ultra
-    DEFAULT_IMAGE_MODEL_SD_COST = 3  # FLUX Pro
+    DEFAULT_IMAGE_MODEL_PRO_COST = 10  # Nano Banana Pro
+    DEFAULT_IMAGE_MODEL_SD_COST = 3  # Seedream 4.0
     
     # Цены пополнения и стоимость токена
     DEFAULT_TOKEN_PRICE = 1.0  # Стоимость 1 токена в рублях
@@ -224,10 +224,10 @@ class SettingsService:
             model = await cls.get_image_model()
         
         # Определяем тип модели по model_id или переданному параметру
-        if model == "pro" or "ultra" in model.lower():
+        if model == "pro" or "nano-banana-pro" in model.lower() or "ultra" in model.lower():
             value = await cls.get_setting("image_model_pro_cost", str(cls.DEFAULT_IMAGE_MODEL_PRO_COST))
             return int(value)
-        elif model == "sd" or ("flux-pro" in model.lower() and "ultra" not in model.lower()):
+        elif model == "sd" or "seedream" in model.lower():
             value = await cls.get_setting("image_model_sd_cost", str(cls.DEFAULT_IMAGE_MODEL_SD_COST))
             return int(value)
         else:  # nano-banana по умолчанию
@@ -255,7 +255,7 @@ class SettingsService:
                 "description": "Быстрая генерация с применением стиля референсов"
             },
             "pro": {
-                "name": "FLUX Pro Ultra",
+                "name": "Nano Banana Pro",
                 "model_id": await cls.get_image_model_pro(),
                 "cost": await cls.get_image_model_cost("pro"),
                 "description": "Высокое качество, генерация без референсов"

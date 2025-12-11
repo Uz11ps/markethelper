@@ -104,7 +104,7 @@ class FALService:
                 model = model_id if model_id else "fal-ai/nano-banana"
             else:
                 # Без референса, но с фото товара - обычная генерация
-                logger.info("Генерация с фото товара без референса - используется FLUX Pro Ultra")
+                logger.info("Генерация с фото товара без референса - используется Nano Banana Pro")
 
                 arguments = {
                     "prompt": prompt,
@@ -115,7 +115,7 @@ class FALService:
                     "enable_safety_checker": True,
                 }
 
-                model = model_id if model_id else "fal-ai/flux-pro/v1.1-ultra"
+                model = model_id if model_id else "fal-ai/nano-banana-pro"
 
             logger.info(f"Используется модель: {model}")
             logger.info(f"Параметры: {arguments}")
