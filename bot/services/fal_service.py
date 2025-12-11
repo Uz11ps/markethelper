@@ -59,7 +59,7 @@ class FALService:
                 if model_id:
                     model = model_id
                 else:
-                    model = "fal-ai/flux-pro/v1.1-ultra"
+                    model = "fal-ai/nano-banana-pro"
                 
                 # Определяем размер изображения на основе aspect_ratio
                 if aspect_ratio == "1:1":
