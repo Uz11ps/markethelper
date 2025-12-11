@@ -51,7 +51,40 @@ def create_app() -> FastAPI:
     # Специфичные маршруты (например, /admin/groups) должны регистрироваться ПЕРЕД общими маршрутами (например, /admin/{admin_id})
     # FastAPI проверяет маршруты в порядке их регистрации, поэтому специфичные маршруты должны быть первыми
     
-    # 1. Регистрируем роутер с группами ПЕРВЫМ (для GET, POST, PUT, DELETE)
+    # 0. Явные маршруты для групп (регистрируются ПЕРВЫМИ, до всех роутеров)
+    @app.get("/api/admin/groups", response_model=List[dict])
+    async def list_groups_direct(admin: Admin = Depends(get_current_admin)):
+        """Получить список всех групп доступа (требует аутентификации админа)"""
+        groups = await AccessGroup.all()
+        return [
+            {
+                "id": group.id,
+                "name": group.name,
+                "created_at": group.created_at.isoformat() if group.created_at else None,
+            }
+            for group in groups
+        ]
+    
+    @app.post("/api/admin/groups", response_model=dict)
+    async def create_group_direct(
+        data: admin_groups.GroupCreate,
+        admin: Admin = Depends(get_current_admin)
+    ):
+        """Создать новую группу доступа"""
+        existing = await AccessGroup.get_or_none(name=data.name)
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Группа с именем '{data.name}' уже существует"
+            )
+        group = await AccessGroup.create(name=data.name)
+        return {
+            "id": group.id,
+            "name": group.name,
+            "created_at": group.created_at.isoformat() if group.created_at else None,
+        }
+    
+    # 1. Регистрируем роутер с группами (для PUT, DELETE и других методов)
     app.include_router(admin_groups.router, prefix="/api/admin")
     
     # 2. Регистрируем другие админские роутеры
