@@ -3,6 +3,7 @@
 """
 import logging
 from tortoise import connections
+from tortoise.exceptions import OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +14,9 @@ async def migrate_user_generation_settings():
         conn = connections.get("default")
         
         # Проверяем существование колонки через PRAGMA table_info
-        result = await conn.execute_query(
-            "PRAGMA table_info(user_generation_settings)"
-        )
-        
-        # result может быть списком кортежей или списком строк
         # В SQLite PRAGMA table_info возвращает: (cid, name, type, notnull, dflt_value, pk)
+        result = await conn.execute_query("PRAGMA table_info(user_generation_settings)")
+        
         columns = []
         if result:
             for row in result:
@@ -35,10 +33,17 @@ async def migrate_user_generation_settings():
             logger.info("✅ Колонка selected_gpt_model успешно добавлена")
         else:
             logger.debug("Колонка selected_gpt_model уже существует")
+    except OperationalError as e:
+        # Если таблица не существует, это нормально - она будет создана автоматически
+        if "no such table" in str(e).lower():
+            logger.debug(f"Таблица user_generation_settings еще не создана: {e}")
+        else:
+            logger.error(f"Ошибка при миграции user_generation_settings: {e}")
+            import traceback
+            traceback.print_exc()
     except Exception as e:
         logger.error(f"Ошибка при миграции user_generation_settings: {e}")
         import traceback
         traceback.print_exc()
         # Не прерываем запуск приложения, если миграция не удалась
-        # Пользователь может выполнить её вручную
 
