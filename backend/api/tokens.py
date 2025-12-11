@@ -49,11 +49,18 @@ async def charge_tokens(request: ChargeTokensRequest):
         result = await TokenService.charge(request.tg_id, request.action)
         logger.info(f"[charge_tokens] Токены успешно списаны: {result}")
         return ChargeTokensResponse(**result)
-    except HTTPException:
+    except HTTPException as e:
+        # Передаем детали HTTPException как есть
+        logger.warning(f"[charge_tokens] HTTPException: {e.status_code} - {e.detail}")
         raise
     except Exception as e:
         logger.error(f"[charge_tokens] Неожиданная ошибка: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
+        # Включаем детали ошибки в ответ для отладки (в продакшене можно скрыть)
+        import traceback
+        error_detail = str(e)
+        if logger.level <= logging.DEBUG:
+            error_detail += f"\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=f"Ошибка при списании токенов: {error_detail}")
 
 
 @router.post("/purchase", response_model=TokenPurchaseRequestResponse)
