@@ -51,6 +51,17 @@ class RequestOut(BaseModel):
             if group:
                 group_name = group.name
 
+        # Получаем subscription_type из объекта, проверяя разные варианты
+        subscription_type = None
+        if hasattr(obj, 'subscription_type'):
+            subscription_type = obj.subscription_type
+        # Если subscription_type не установлен, пытаемся определить по tariff_code
+        if not subscription_type:
+            if tariff.code == "INDIVIDUAL":
+                subscription_type = "individual"
+            else:
+                subscription_type = "group"  # По умолчанию складчина
+
         return cls(
             id=obj.id,
             tg_id=user.tg_id,
@@ -60,7 +71,7 @@ class RequestOut(BaseModel):
             duration_months=duration.months,
             status=status.name,
             created_at=obj.created_at,
-            subscription_type=getattr(obj, 'subscription_type', 'group'),
+            subscription_type=subscription_type,
             group_id=getattr(obj, 'group_id', None),
             group_name=group_name,
             user_email=getattr(obj, 'user_email', None),
