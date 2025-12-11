@@ -80,7 +80,8 @@ class TokenService:
 
             old_balance = user.bonus_balance
             user.bonus_balance -= cost
-            await user.save()
+            # Указываем update_fields для частичной модели
+            await user.save(update_fields=['bonus_balance'])
             
             logger.info(f"[TokenService.charge] Токены списаны: balance {old_balance} -> {user.bonus_balance}, cost={cost}")
 
