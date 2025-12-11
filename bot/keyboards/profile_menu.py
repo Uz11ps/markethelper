@@ -18,6 +18,7 @@ def profile_menu_kb(has_active_sub: bool = False, has_file_access: bool = False)
         buttons.append([InlineKeyboardButton(text="🔑 Куки аккаунта", callback_data="profile:get_file")])
     
     buttons.extend([
+        [InlineKeyboardButton(text="💰 Пополнить баланс", callback_data="profile:topup")],
         [InlineKeyboardButton(text="💳 Продлить подписку", callback_data="profile:renew")],
         [InlineKeyboardButton(text="🎁 Реферальная ссылка", callback_data="profile:referral")],
         [InlineKeyboardButton(text="📞 Связь с оператором", callback_data="profile:support")],

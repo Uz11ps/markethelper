@@ -90,6 +90,14 @@ async def support_handler(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+@router.callback_query(F.data == "profile:topup")
+async def topup_from_profile(callback: types.CallbackQuery):
+    """Обработка кнопки пополнения из профиля"""
+    from bot.handlers.topup import show_topup_menu
+    await callback.answer()
+    # Вызываем обработчик пополнения
+    await show_topup_menu(callback.message)
+
 @router.callback_query(F.data == "profile:chatgpt")
 async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
     """Переход в режим ChatGPT из профиля"""
