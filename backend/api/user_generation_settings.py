@@ -71,29 +71,37 @@ async def update_user_generation_settings(tg_id: int, data: GenerationSettingsUp
             traceback.print_exc()
             raise HTTPException(status_code=400, detail=f"Invalid model key: {str(e)}")
     
-    settings, created = await UserGenerationSettings.get_or_create(
-        user=user,
-        defaults={
-            "selected_model_key": data.selected_model_key,
-            "selected_gpt_model": data.selected_gpt_model,
-            "custom_prompt": data.custom_prompt,
+    try:
+        settings = await UserGenerationSettings.get_or_none(user=user)
+        
+        if not settings:
+            # Создаем новую запись
+            settings = await UserGenerationSettings.create(
+                user=user,
+                selected_model_key=data.selected_model_key,
+                selected_gpt_model=data.selected_gpt_model,
+                custom_prompt=data.custom_prompt,
+            )
+        else:
+            # Обновляем существующую запись
+            if data.selected_model_key is not None:
+                settings.selected_model_key = data.selected_model_key
+            if data.selected_gpt_model is not None:
+                settings.selected_gpt_model = data.selected_gpt_model
+            if data.custom_prompt is not None:
+                settings.custom_prompt = data.custom_prompt
+            await settings.save()
+        
+        return {
+            "status": "success",
+            "message": "Settings updated",
+            "selected_model_key": settings.selected_model_key,
+            "selected_gpt_model": settings.selected_gpt_model,
+            "custom_prompt": settings.custom_prompt,
         }
-    )
-    
-    if not created:
-        if data.selected_model_key is not None:
-            settings.selected_model_key = data.selected_model_key
-        if data.selected_gpt_model is not None:
-            settings.selected_gpt_model = data.selected_gpt_model
-        if data.custom_prompt is not None:
-            settings.custom_prompt = data.custom_prompt
-        await settings.save()
-    
-    return {
-        "status": "success",
-        "message": "Settings updated",
-        "selected_model_key": settings.selected_model_key,
-        "selected_gpt_model": settings.selected_gpt_model,
-        "custom_prompt": settings.custom_prompt,
-    }
+    except Exception as e:
+        logger.error(f"Ошибка сохранения настроек: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения настроек: {str(e)}")
 
