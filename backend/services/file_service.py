@@ -29,7 +29,14 @@ class FileService:
         now = datetime.now(timezone.utc)
         candidates = await AccessFile.filter(group_id=group_id).order_by("last_updated").all()
         if not candidates:
-            raise HTTPException(404, "Нет файлов для этой группы")
+            # Получаем название группы для более информативного сообщения
+            group = await AccessGroup.get_or_none(id=group_id)
+            group_name = group.name if group else f"группы {group_id}"
+            raise HTTPException(
+                404, 
+                f"Для группы доступа '{group_name}' еще не загружен файл куков. "
+                "Обратитесь к администратору для загрузки файла."
+            )
         for f in candidates:
             if not f.locked_until or f.locked_until < now:
                 return f

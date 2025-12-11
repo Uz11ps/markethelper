@@ -171,7 +171,16 @@ class APIClient:
             async with session.get(url) as resp:
                 text = await resp.text()
                 if resp.status != 200:
-                    raise Exception(f"Failed to get user file: {resp.status}, {text}")
+                    # Пытаемся извлечь понятное сообщение об ошибке из JSON
+                    detail = text
+                    try:
+                        data = json.loads(text)
+                        detail = data.get("detail") or data
+                        if isinstance(detail, dict):
+                            detail = detail.get("message") or str(detail)
+                    except Exception:
+                        pass
+                    raise Exception(detail if detail else f"Ошибка {resp.status}: {text}")
                 return await resp.json()
 
     async def regen_user_file(self, tg_id: int, filename: str | None = None):

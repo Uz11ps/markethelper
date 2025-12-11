@@ -550,10 +550,29 @@ async def on_file_get(callback: CallbackQuery):
         )
 
     except Exception as e:
-        file_id_safe = None
-        if res:
-            file_id_safe = res.get("id") or res.get("file_id")
-
-        await callback.message.answer(
-            f"Ошибка при получении файла: {e}"
-        )
+        error_msg = str(e)
+        # Улучшаем сообщения об ошибках для пользователя
+        if "Нет файлов для этой группы" in error_msg:
+            await callback.message.answer(
+                "❌ <b>Файл куков недоступен</b>\n\n"
+                "Для вашей группы доступа еще не загружен файл куков.\n"
+                "Пожалуйста, обратитесь к администратору для загрузки файла."
+            )
+        elif "нет активной подписки" in error_msg.lower() or "нет подписки" in error_msg.lower():
+            await callback.message.answer(
+                "❌ <b>Доступ к файлу недоступен</b>\n\n"
+                "У вас нет активной подписки с доступом к файлам.\n"
+                "Обратитесь к администратору для получения доступа."
+            )
+        elif "Файл отсутствует или пуст" in error_msg:
+            await callback.message.answer(
+                "❌ <b>Файл куков пуст или отсутствует</b>\n\n"
+                "Файл для вашей группы существует, но он пустой или был удален.\n"
+                "Обратитесь к администратору для обновления файла."
+            )
+        else:
+            await callback.message.answer(
+                f"❌ <b>Ошибка при получении файла</b>\n\n"
+                f"{error_msg}\n\n"
+                "Если проблема повторяется, обратитесь к администратору."
+            )
