@@ -41,8 +41,19 @@ async def get_image_models():
 @router.post("/charge", response_model=ChargeTokensResponse)
 async def charge_tokens(request: ChargeTokensRequest):
     """Списать токены у пользователя по действию"""
-    result = await TokenService.charge(request.tg_id, request.action)
-    return ChargeTokensResponse(**result)
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"[charge_tokens] Запрос на списание токенов: tg_id={request.tg_id}, action={request.action}")
+        result = await TokenService.charge(request.tg_id, request.action)
+        logger.info(f"[charge_tokens] Токены успешно списаны: {result}")
+        return ChargeTokensResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[charge_tokens] Неожиданная ошибка: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
 
 
 @router.post("/purchase", response_model=TokenPurchaseRequestResponse)
