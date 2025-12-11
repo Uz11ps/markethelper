@@ -109,16 +109,15 @@ def create_app() -> FastAPI:
     # Публичные роуты
     app.include_router(admin_groups.public_router, prefix="/api")
 
-
-            @app.on_event("startup")
-            async def startup_event():
-                await init_db()
-                await SettingsService.initialize_defaults()
-                # Выполняем миграции
-                from backend.core.migrations import migrate_user_generation_settings, migrate_requests_table, migrate_tariff_name
-                await migrate_user_generation_settings()
-                await migrate_requests_table()
-                await migrate_tariff_name()
+    @app.on_event("startup")
+    async def startup_event():
+        await init_db()
+        await SettingsService.initialize_defaults()
+        # Выполняем миграции
+        from backend.core.migrations import migrate_user_generation_settings, migrate_requests_table, migrate_tariff_name
+        await migrate_user_generation_settings()
+        await migrate_requests_table()
+        await migrate_tariff_name()
 
     @app.on_event("shutdown")
     async def shutdown_event():
