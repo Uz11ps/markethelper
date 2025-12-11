@@ -3,7 +3,12 @@ const API_GROUPS = `${API_BASE_URL}/admin/groups`;
 
 // Загрузка групп при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-  if (!requireAuth()) return;
+  console.log("DOMContentLoaded - инициализация страницы групп");
+  if (!requireAuth()) {
+    console.log("Пользователь не авторизован, редирект на логин");
+    return;
+  }
+  console.log("Пользователь авторизован, начинаем загрузку групп");
   loadGroups();
   
   // Инициализация формы создания группы
@@ -46,23 +51,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Загрузка списка групп
 async function loadGroups() {
+  const tbody = document.querySelector("#groupsTable tbody");
+  if (!tbody) {
+    console.error("Элемент #groupsTable tbody не найден!");
+    return;
+  }
+  
+  // Показываем индикатор загрузки
+  tbody.innerHTML = `<tr><td colspan="5">⏳ Загрузка групп...</td></tr>`;
+  
   try {
     console.log("Загрузка групп из:", API_GROUPS);
     const res = await authFetch(API_GROUPS);
+    console.log("Ответ API:", res.status, res.statusText);
+    
     if (!res.ok) {
       const errorText = await res.text();
       console.error("Ошибка API:", res.status, errorText);
-      throw new Error(`Ошибка: ${res.status} - ${errorText}`);
+      tbody.innerHTML = `<tr><td colspan="5">❌ Ошибка: ${res.status} - ${errorText}</td></tr>`;
+      return;
     }
     
     const groups = await res.json();
     console.log("Получено групп:", groups.length, groups);
+    
+    if (!groups || groups.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5">📭 Групп не найдено. Создайте первую группу выше.</td></tr>`;
+      return;
+    }
+    
     await renderGroupsTable(groups);
   } catch (err) {
     console.error("Ошибка при загрузке групп:", err);
-    const tbody = document.querySelector("#groupsTable tbody");
+    console.error("Stack trace:", err.stack);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="5">❌ Ошибка при загрузке групп: ${err.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5">❌ Ошибка при загрузке групп: ${err.message}<br><small>Проверьте консоль браузера для подробностей</small></td></tr>`;
     }
   }
 }
@@ -70,19 +93,33 @@ async function loadGroups() {
 // Отрисовка таблицы групп
 async function renderGroupsTable(groups) {
   const tbody = document.querySelector("#groupsTable tbody");
+  if (!tbody) {
+    console.error("Элемент #groupsTable tbody не найден при отрисовке!");
+    return;
+  }
+  
   tbody.innerHTML = "";
 
-  if (groups.length === 0) {
+  if (!groups || groups.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5">📭 Групп не найдено</td></tr>`;
     return;
   }
 
+  console.log(`Начинаем отрисовку ${groups.length} групп...`);
+
   // Загружаем файлы для каждой группы
   for (const group of groups) {
     try {
+      console.log(`Загрузка файлов для группы ${group.id}...`);
       const filesRes = await authFetch(`${API_BASE_URL}/admin/files/group/${group.id}`);
-      const files = filesRes.ok ? await filesRes.json() : [];
-      group.files = files || [];
+      if (filesRes.ok) {
+        const files = await filesRes.json();
+        group.files = files || [];
+        console.log(`Для группы ${group.id} найдено ${group.files.length} файлов`);
+      } else {
+        console.warn(`Не удалось загрузить файлы для группы ${group.id}: ${filesRes.status}`);
+        group.files = [];
+      }
     } catch (err) {
       console.error(`Ошибка загрузки файлов для группы ${group.id}:`, err);
       group.files = [];
@@ -98,16 +135,16 @@ async function renderGroupsTable(groups) {
       : 'Нет файлов';
     
     // Экранируем кавычки в названии группы для безопасного использования в onclick
-    const safeGroupName = (group.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const safeGroupName = (group.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
     
     row.innerHTML = `
       <td>${group.id}</td>
-      <td><b>${group.name}</b></td>
+      <td><b>${group.name || '—'}</b></td>
       <td>
         <span style="font-size: 0.9em;">${filesCount} файл(ов)</span><br>
         <span style="font-size: 0.8em; color: #666;">${filesList}</span>
       </td>
-      <td>${group.created_at ? new Date(group.created_at).toLocaleDateString() : '—'}</td>
+      <td>${group.created_at ? new Date(group.created_at).toLocaleDateString('ru-RU') : '—'}</td>
       <td>
         <button onclick="openFileModal(${group.id})" class="btn-small btn-secondary">📁 Загрузить файл</button>
         <button onclick="openEditModal(${group.id}, '${safeGroupName}')" class="btn-small btn-primary">✏️ Редактировать</button>
@@ -116,6 +153,8 @@ async function renderGroupsTable(groups) {
     `;
     tbody.appendChild(row);
   }
+  
+  console.log(`Отрисовка завершена. Добавлено ${groups.length} строк.`);
 }
 
 // Обработчик формы создания группы уже добавлен в DOMContentLoaded
