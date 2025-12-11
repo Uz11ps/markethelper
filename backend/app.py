@@ -58,6 +58,9 @@ def create_app() -> FastAPI:
     async def startup_event():
         await init_db()
         await SettingsService.initialize_defaults()
+        # Выполняем миграции
+        from backend.core.migrations import migrate_user_generation_settings
+        await migrate_user_generation_settings()
 
     @app.on_event("shutdown")
     async def shutdown_event():
