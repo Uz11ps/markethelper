@@ -18,9 +18,10 @@ class SettingsService:
     
     # Модели ИИ
     DEFAULT_GPT_MODEL = "gpt-4o-mini"
+    DEFAULT_GPT_MODEL_NANO = "gpt-4o-mini"  # GPT 5 NANO MINI (маппится на gpt-4o-mini)
     DEFAULT_IMAGE_MODEL = "fal-ai/nano-banana"  # nano-banana 1
     DEFAULT_IMAGE_MODEL_PRO = "fal-ai/flux-pro/v1.1-ultra"  # nano-banana pro / FLUX Pro Ultra
-    DEFAULT_IMAGE_MODEL_SD = "fal-ai/flux-pro/v1.1"  # Stable Diffusion / FLUX Pro
+    DEFAULT_IMAGE_MODEL_SD = "fal-ai/seedream-4"  # Seedream 4.0 (заменяет FLUX Pro)
     
     # Стоимость генерации для разных моделей
     DEFAULT_IMAGE_MODEL_COST = 5  # nano-banana
@@ -260,7 +261,7 @@ class SettingsService:
                 "description": "Высокое качество, генерация без референсов"
             },
             "sd": {
-                "name": "FLUX Pro",
+                "name": "Seedream 4.0",
                 "model_id": await cls.get_image_model_sd(),
                 "cost": await cls.get_image_model_cost("sd"),
                 "description": "Базовое качество, низкая стоимость"

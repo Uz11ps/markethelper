@@ -222,7 +222,7 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         # Кнопки для выбора модели ChatGPT
         gpt_models = {
             "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная"},
-            "gpt-4o-mini": {"name": "GPT-4o Mini", "description": "Быстрая и экономичная"},
+            "gpt-4o-mini": {"name": "GPT 5 NANO MINI", "description": "Быстрая и экономичная"},
             "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
         }
         
@@ -342,7 +342,7 @@ async def select_gpt_model_handler(callback: types.CallbackQuery):
         
         gpt_models = {
             "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная модель"},
-            "gpt-4o-mini": {"name": "GPT-4o Mini", "description": "Быстрая и экономичная"},
+            "gpt-4o-mini": {"name": "GPT 5 NANO MINI", "description": "Быстрая и экономичная"},
             "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
         }
         

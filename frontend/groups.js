@@ -263,10 +263,8 @@ function showMessage(text, type) {
 // Открытие модального окна загрузки файла
 function openFileModal(groupId) {
   document.getElementById("fileGroupId").value = groupId;
-  document.getElementById("fileLogin").value = "";
-  document.getElementById("filePassword").value = "";
+  document.getElementById("fileInput").value = "";
   document.getElementById("fileFilename").value = "";
-  document.getElementById("fileSkipAuth").checked = false;
   document.getElementById("fileModal").style.display = "block";
 }
 
@@ -274,36 +272,31 @@ function openFileModal(groupId) {
 function closeFileModal() {
   document.getElementById("fileModal").style.display = "none";
   document.getElementById("fileGroupId").value = "";
-  document.getElementById("fileLogin").value = "";
-  document.getElementById("filePassword").value = "";
+  document.getElementById("fileInput").value = "";
   document.getElementById("fileFilename").value = "";
-  document.getElementById("fileSkipAuth").checked = false;
 }
 
 // Обработка загрузки файла
 document.getElementById("uploadFileForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const groupId = parseInt(document.getElementById("fileGroupId").value);
-  const login = document.getElementById("fileLogin").value.trim();
-  const password = document.getElementById("filePassword").value.trim();
+  const fileInput = document.getElementById("fileInput");
   const filename = document.getElementById("fileFilename").value.trim();
-  const skipAuth = document.getElementById("fileSkipAuth").checked;
 
-  if (!login || !password) {
-    showMessage("Заполните login и password", "error");
+  if (!fileInput.files || fileInput.files.length === 0) {
+    showMessage("Выберите файл для загрузки", "error");
     return;
   }
+
+  const file = fileInput.files[0];
+  const finalFilename = filename || file.name;
 
   try {
     const formData = new FormData();
     formData.append("group_id", groupId);
-    formData.append("login", login);
-    formData.append("password", password);
+    formData.append("file", file);
     if (filename) {
-      formData.append("filename", filename);
-    }
-    if (skipAuth) {
-      formData.append("skip_auth", "true");
+      formData.append("filename", finalFilename);
     }
 
     const res = await authFetch(`${API_BASE_URL}/admin/files/add`, {

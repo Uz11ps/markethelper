@@ -88,19 +88,13 @@ async def process_duration(callback: CallbackQuery, state: FSMContext):
                 await state.set_state(SubscriptionStates.waiting_for_email)
                 await callback.answer()
         else:
-            # Для складчины запрашиваем выбор группы
-            groups = await api.get_groups()
-            if not groups:
-                await callback.message.edit_text(
-                    "❌ К сожалению, сейчас нет доступных групп файлов.\n"
-                    "Обратитесь к администратору."
-                )
-                await callback.answer("Нет доступных групп", show_alert=True)
-                return
-            
-            await callback.message.edit_text(
-                "Выберите группу файлов для складчины:",
-                reply_markup=subscription.groups_kb(groups, tariff_code, months)
+            # Для складчины создаем заявку без выбора группы (админ назначит группу)
+            await create_request_final(
+                callback,
+                tariff_code,
+                months,
+                subscription_type,
+                group_id=None
             )
             await callback.answer()
             
@@ -224,7 +218,7 @@ async def create_request_final(
         print(f"[SUCCESS] Request created: {result}")
 
         success_message = (
-            "✅ Ваша заявка принята!\n"
+            "✅ Заявка отправлена, ожидайте.\n"
             "Администратор скоро свяжется с вами для подтверждения."
         )
         

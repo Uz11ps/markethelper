@@ -1,7 +1,7 @@
 # backend/api/files.py
 from datetime import datetime, timezone
 import os
-from fastapi import APIRouter, HTTPException, Depends, Form
+from fastapi import APIRouter, HTTPException, Depends, Form, UploadFile, File
 from backend.core.config import COOKIE_DIR
 from backend.models.file import AccessFile
 from backend.models.subscription import AccessGroup
@@ -89,22 +89,66 @@ async def get_group_files(group_id: int, admin: Admin = Depends(get_current_admi
 @admin_router.post("/add")
 async def add_access_file(
     group_id: int = Form(...),
-    login: str = Form(...),
-    password: str = Form(...),
+    file: UploadFile = File(None),
+    login: str = Form(None),
+    password: str = Form(None),
     filename: str = Form(None),
     skip_auth: bool = Form(False),
     admin: Admin = Depends(get_current_admin)
 ):
-    """Добавить файл доступа (для админки через FormData)"""
-    # Если group_id не указан, создаем новую группу
+    """Добавить файл доступа (для админки через FormData)
+    
+    Можно загрузить файл напрямую (file) или использовать авторизацию (login/password).
+    Если загружается файл напрямую, login/password не требуются.
+    """
     group = await AccessGroup.get_or_none(id=group_id)
     if not group:
         raise HTTPException(status_code=404, detail=f"Группа с ID {group_id} не найдена")
     
+    # Если загружается файл напрямую
+    if file:
+        # Определяем имя файла
+        if filename:
+            cookie_file_name = filename
+        else:
+            cookie_file_name = file.filename or f"file_{int(datetime.utcnow().timestamp())}.txt"
+        
+        cookie_file_path = os.path.join(COOKIE_DIR, cookie_file_name)
+        
+        # Сохраняем содержимое файла
+        content = await file.read()
+        os.makedirs(os.path.dirname(cookie_file_path), exist_ok=True)
+        with open(cookie_file_path, "wb") as f:
+            f.write(content)
+        
+        # Создаем запись в БД
+        access_file = await AccessFile.create(
+            group=group,
+            login=login or "",
+            password=password or "",
+            path=cookie_file_path
+        )
+        
+        access_file.last_updated = datetime.now(timezone.utc)
+        await access_file.save()
+        
+        return {
+            "status": "ok",
+            "file_id": access_file.id,
+            "group_id": group.id,
+            "path": access_file.path,
+            "last_updated": access_file.last_updated.isoformat() if access_file.last_updated else None,
+            "uploaded": True,
+        }
+    
+    # Старая логика с авторизацией (если файл не загружен)
+    if not login or not password:
+        raise HTTPException(status_code=400, detail="Необходимо либо загрузить файл, либо указать login и password")
+    
     cookie_file_name = filename or f"{login}_{int(datetime.utcnow().timestamp())}.txt"
     cookie_file_path = os.path.join(COOKIE_DIR, cookie_file_name)
 
-    file = await AccessFile.create(
+    access_file = await AccessFile.create(
         group=group,
         login=login,
         password=password,
@@ -113,10 +157,10 @@ async def add_access_file(
 
     # Если skip_auth=True, создаем пустой файл без авторизации на внешнем сервисе
     if skip_auth:
-        file = await FileService.create_empty_cookie_file(file, filename=cookie_file_name)
+        access_file = await FileService.create_empty_cookie_file(access_file, filename=cookie_file_name)
     else:
         try:
-            file = await FileService.generate_and_save_cookies(file, filename=cookie_file_name)
+            access_file = await FileService.generate_and_save_cookies(access_file, filename=cookie_file_name)
         except HTTPException as e:
             # Если авторизация не удалась, но skip_auth не установлен,
             # возвращаем ошибку с предложением использовать skip_auth
@@ -130,9 +174,9 @@ async def add_access_file(
 
     return {
         "status": "ok",
-        "file_id": file.id,
+        "file_id": access_file.id,
         "group_id": group.id,
-        "path": file.path,
-        "last_updated": file.last_updated.isoformat() if file.last_updated else None,
+        "path": access_file.path,
+        "last_updated": access_file.last_updated.isoformat() if access_file.last_updated else None,
         "skip_auth": skip_auth,
     }

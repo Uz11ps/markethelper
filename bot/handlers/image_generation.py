@@ -48,7 +48,20 @@ async def delete_messages(chat_id: int, message_ids: list):
 async def charge_image_generation(message: Message, state: FSMContext, user_id: int):
     """Списание токенов перед генерацией изображения"""
     try:
-        return await api_client.charge_tokens(user_id, "image_generation")
+        # Получаем стоимость модели из state
+        data = await state.get_data()
+        model_cost = data.get("model_cost", 5)
+        
+        # Используем специальный endpoint для списания с указанием стоимости
+        # Или используем стандартный endpoint, если он поддерживает стоимость модели
+        # Пока используем стандартный endpoint, но в будущем можно добавить поддержку стоимости модели
+        result = await api_client.charge_tokens(user_id, "image_generation")
+        
+        # Обновляем результат с правильной стоимостью модели
+        if result and isinstance(result, dict):
+            result["cost"] = model_cost
+        
+        return result
     except InsufficientTokensError:
         await message.answer(
             "❌ Недостаточно токенов для генерации.\n"
@@ -59,6 +72,114 @@ async def charge_image_generation(message: Message, state: FSMContext, user_id: 
         await message.answer(f"⚠️ Не удалось списать токены: {exc}")
         await state.set_state(None)
     return None
+
+
+# Обработчики для кнопок "🖼 Картинки" и "📊 Инфографика"
+@router.message(F.text == "🖼 Картинки")
+async def start_images_mode(message: Message, state: FSMContext):
+    """Начало режима генерации простых картинок"""
+    await state.clear()
+    await state.set_state(ImageGenerationStates.choosing_model_images)
+    await state.update_data(mode="images")
+    
+    try:
+        models = await api_client.get_image_models()
+    except Exception as exc:
+        logger.warning(f"Не удалось получить список моделей: {exc}")
+        models = {}
+    
+    selected_model_key = None
+    try:
+        user_settings = await api_client.get_user_generation_settings(message.from_user.id)
+        selected_model_key = user_settings.get("selected_model_key")
+    except Exception as exc:
+        logger.warning(f"Не удалось получить настройки пользователя: {exc}")
+    
+    try:
+        profile = await api_client.get_profile(
+            message.from_user.id,
+            username=message.from_user.username,
+            full_name=get_full_name(message.from_user),
+        )
+        balance = profile.get("bonus_balance", 0) if profile else 0
+    except Exception as exc:
+        logger.warning(f"Не удалось получить профиль пользователя: {exc}")
+        balance = 0
+    
+    from bot.keyboards.inline import model_selection_keyboard
+    
+    models_text = "\n".join([
+        f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
+        for key, info in models.items()
+    ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
+    
+    selected_model_text = ""
+    if selected_model_key and selected_model_key in models:
+        selected_model = models[selected_model_key]
+        selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_model_key)}"
+    
+    await message.answer(
+        "🖼 <b>Генерация картинок</b>\n\n"
+        "Выберите модель для генерации:\n\n"
+        f"{models_text}"
+        f"{selected_model_text}\n\n"
+        f"💰 Ваш баланс: <b>{balance} токенов</b>",
+        reply_markup=model_selection_keyboard(models, selected_model_key)
+    )
+
+
+@router.message(F.text == "📊 Инфографика")
+async def start_infographics_mode(message: Message, state: FSMContext):
+    """Начало режима генерации инфографики (с загрузкой фото)"""
+    await state.clear()
+    await state.set_state(ImageGenerationStates.choosing_model_infographics)
+    await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
+    
+    try:
+        models = await api_client.get_image_models()
+    except Exception as exc:
+        logger.warning(f"Не удалось получить список моделей: {exc}")
+        models = {}
+    
+    selected_model_key = None
+    try:
+        user_settings = await api_client.get_user_generation_settings(message.from_user.id)
+        selected_model_key = user_settings.get("selected_model_key")
+    except Exception as exc:
+        logger.warning(f"Не удалось получить настройки пользователя: {exc}")
+    
+    try:
+        profile = await api_client.get_profile(
+            message.from_user.id,
+            username=message.from_user.username,
+            full_name=get_full_name(message.from_user),
+        )
+        balance = profile.get("bonus_balance", 0) if profile else 0
+    except Exception as exc:
+        logger.warning(f"Не удалось получить профиль пользователя: {exc}")
+        balance = 0
+    
+    from bot.keyboards.inline import model_selection_keyboard
+    
+    models_text = "\n".join([
+        f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
+        for key, info in models.items()
+    ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
+    
+    selected_model_text = ""
+    if selected_model_key and selected_model_key in models:
+        selected_model = models[selected_model_key]
+        selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_model_key)}"
+    
+    await message.answer(
+        "📊 <b>Генерация инфографики</b>\n\n"
+        "Выберите модель для генерации:\n\n"
+        f"{models_text}"
+        f"{selected_model_text}\n\n"
+        f"💰 Ваш баланс: <b>{balance} токенов</b>\n\n"
+        "После выбора модели вы сможете загрузить фото товара и референсы.",
+        reply_markup=model_selection_keyboard(models, selected_model_key)
+    )
 
 
 # Обработчик для кнопки "🎨Генерация карточки" удалён - теперь используется inline кнопка из профиля
@@ -130,6 +251,8 @@ async def select_model(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
     model_key = callback.data.split(":")[1]
+    data = await state.get_data()
+    mode = data.get("mode", "infographics")  # По умолчанию инфографика для совместимости
     
     try:
         models = await api_client.get_image_models()
@@ -159,18 +282,47 @@ async def select_model(callback: CallbackQuery, state: FSMContext):
         model_id=model_id
     )
     
-    await state.set_state(ImageGenerationStates.choosing_aspect_ratio)
+    try:
+        profile = await api_client.get_profile(
+            callback.from_user.id,
+            username=callback.from_user.username,
+            full_name=get_full_name(callback.from_user),
+        )
+        balance = profile.get("bonus_balance", 0) if profile else 0
+    except Exception as exc:
+        logger.warning(f"Не удалось получить профиль пользователя: {exc}")
+        balance = 0
     
-    await callback.message.edit_text(
-        f"✅ Выбрана модель: <b>{model_name}</b>\n"
-        f"💰 Стоимость: <b>{model_cost} токенов</b>\n\n"
-        "Выберите формат изображения для вашей площадки:\n\n"
-        f"📦 Доступно фото товара: загрузите до 5 штук.\n"
-        f"🎯 Референсы: до 5 примеров стиля.\n"
-        f"💼 Ваш баланс: <b>{balance} токенов</b>.\n\n"
-        "Токены списываются при запуске генерации.",
-        reply_markup=aspect_ratio_keyboard()
-    )
+    # Разделяем логику для разных режимов
+    if mode == "images":
+        # Режим простых картинок - запрашиваем промпт
+        await state.set_state(ImageGenerationStates.waiting_for_image_prompt)
+        await callback.message.edit_text(
+            f"✅ Выбрана модель: <b>{model_name}</b>\n"
+            f"💰 Стоимость: <b>{model_cost} токенов</b>\n\n"
+            f"💼 Ваш баланс: <b>{balance} токенов</b>\n\n"
+            "📝 Введите текстовый промпт для генерации картинки:\n\n"
+            "Опишите, что вы хотите увидеть на изображении. Например:\n"
+            "• 'Красивый закат над морем'\n"
+            "• 'Кот в космическом костюме'\n"
+            "• 'Современный интерьер гостиной'",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
+            ])
+        )
+    else:
+        # Режим инфографики - продолжаем стандартный поток
+        await state.set_state(ImageGenerationStates.choosing_aspect_ratio)
+        await callback.message.edit_text(
+            f"✅ Выбрана модель: <b>{model_name}</b>\n"
+            f"💰 Стоимость: <b>{model_cost} токенов</b>\n\n"
+            "Выберите формат изображения для вашей площадки:\n\n"
+            f"📦 Доступно фото товара: загрузите до 5 штук.\n"
+            f"🎯 Референсы: до 5 примеров стиля.\n"
+            f"💼 Ваш баланс: <b>{balance} токенов</b>.\n\n"
+            "Токены списываются при запуске генерации.",
+            reply_markup=aspect_ratio_keyboard()
+        )
 
 
 @router.callback_query(F.data.startswith("aspect_"))
@@ -758,6 +910,47 @@ async def edit_prompt_handler(callback: CallbackQuery, state: FSMContext):
         "Или нажмите кнопку ниже для автоматической генерации.",
         reply_markup=prompt_edit_keyboard()
     )
+
+
+@router.message(StateFilter(ImageGenerationStates.waiting_for_image_prompt))
+async def receive_image_prompt(message: Message, state: FSMContext):
+    """Обработка ввода промпта для простых картинок"""
+    prompt = message.text.strip()
+    
+    if len(prompt) < 5:
+        await message.answer("⚠️ Промпт слишком короткий. Опишите детальнее (минимум 5 символов).")
+        return
+    
+    data = await state.get_data()
+    model_name = data.get("model_name", "Nano Banana")
+    model_cost = data.get("model_cost", 5)
+    
+    try:
+        profile = await api_client.get_profile(
+            message.from_user.id,
+            username=message.from_user.username,
+            full_name=get_full_name(message.from_user),
+        )
+        balance = profile.get("bonus_balance", 0) if profile else 0
+    except Exception as exc:
+        logger.warning(f"Не удалось получить профиль пользователя: {exc}")
+        balance = 0
+    
+    if balance < model_cost:
+        await message.answer(
+            f"❌ Недостаточно токенов для генерации.\n"
+            f"💰 Требуется: {model_cost} токенов\n"
+            f"💼 Ваш баланс: {balance} токенов\n\n"
+            "Пополните баланс или обратитесь в поддержку."
+        )
+        await state.clear()
+        return
+    
+    # Сохраняем промпт и переходим к генерации
+    await state.update_data(custom_prompt=prompt, aspect_ratio="3:4")
+    
+    # Генерируем изображение с кастомным промптом
+    await generate_with_custom_prompt(message, state, prompt)
 
 
 @router.message(StateFilter(ImageGenerationStates.waiting_for_custom_prompt))
