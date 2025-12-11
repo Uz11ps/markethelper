@@ -137,65 +137,86 @@ async def approve_request(
     admin: Admin = Depends(get_current_admin),
     group_id: int | None = Form(None),  # ID группы для складчины
 ):
-    req = await Request.get_or_none(id=request_id).prefetch_related("user", "tariff", "duration")
-    if not req:
-        raise HTTPException(status_code=404, detail="Request not found")
+    try:
+        # Загружаем заявку с связанными объектами
+        req = await Request.get_or_none(id=request_id)
+        if not req:
+            raise HTTPException(status_code=404, detail="Request not found")
+        
+        # Загружаем связанные объекты
+        await req.fetch_related("user", "tariff", "duration")
+        
+        if not req.user:
+            raise HTTPException(status_code=400, detail="User not found in request")
+        if not req.tariff:
+            raise HTTPException(status_code=400, detail="Tariff not found in request")
+        if not req.duration:
+            raise HTTPException(status_code=400, detail="Duration not found in request")
 
-    active_status = await get_status(type="subscription", code="ACTIVE")
-    approved_status = await get_status(type="request", code="APPROVED")
-    end_date = datetime.utcnow() + timedelta(days=30 * req.duration.months)
+        active_status = await get_status(type="subscription", code="ACTIVE")
+        approved_status = await get_status(type="request", code="APPROVED")
+        end_date = datetime.utcnow() + timedelta(days=30 * req.duration.months)
 
-    subscription_type = getattr(req, 'subscription_type', 'group')
-    group = None
-    
-    # Для складчины - привязываем группу файлов
-    if subscription_type == "group":
-        if group_id:
-            from backend.models.subscription import AccessGroup
-            group = await AccessGroup.get_or_none(id=group_id)
-            if not group:
-                raise HTTPException(status_code=404, detail="AccessGroup not found")
-        elif req.group_id:
-            # Используем группу из заявки, если она была указана при создании
-            from backend.models.subscription import AccessGroup
-            group = await AccessGroup.get_or_none(id=req.group_id)
-        else:
-            raise HTTPException(status_code=400, detail="Для складчины необходимо указать group_id")
-    # Для индивидуального доступа - группа не привязывается (group остается None)
+        subscription_type = getattr(req, 'subscription_type', 'group')
+        group = None
+        
+        # Для складчины - привязываем группу файлов
+        if subscription_type == "group":
+            if group_id:
+                from backend.models.subscription import AccessGroup
+                group = await AccessGroup.get_or_none(id=group_id)
+                if not group:
+                    raise HTTPException(status_code=404, detail="AccessGroup not found")
+            elif req.group_id:
+                # Используем группу из заявки, если она была указана при создании
+                from backend.models.subscription import AccessGroup
+                group = await AccessGroup.get_or_none(id=req.group_id)
+            else:
+                raise HTTPException(status_code=400, detail="Для складчины необходимо указать group_id")
+        # Для индивидуального доступа - группа не привязывается (group остается None)
 
-    subscription = await Subscription.create(
-        user_id=req.user.id,
-        tariff_id=req.tariff.id,
-        duration_id=req.duration.id,
-        status_id=active_status.id,
-        group=group,  # None для индивидуального доступа
-        start_date=datetime.utcnow(),
-        end_date=end_date,
-    )
-
-    req.status = approved_status
-    await req.save()
-
-    # Создание ожидающего реферального бонуса вместо автоматического начисления
-    referral = await Referral.get_or_none(referred=req.user)
-    if referral and not referral.activated:
-        referral.activated = True
-        await referral.save()
-
-        # Получаем размер бонуса из настроек
-        bonus_amount = await SettingsService.get_referral_bonus()
-        referrer = await referral.referrer
-
-        # Создаем запись о pending bonus вместо автоматического начисления
-        from backend.models.pending_bonus import PendingBonus
-        await PendingBonus.create(
-            referral=referral,
-            referrer=referrer,
-            referred=req.user,
-            bonus_amount=bonus_amount,
-            request=req,
-            status="pending"
+        subscription = await Subscription.create(
+            user_id=req.user.id,
+            tariff_id=req.tariff.id,
+            duration_id=req.duration.id,
+            status_id=active_status.id,
+            group=group,  # None для индивидуального доступа
+            start_date=datetime.utcnow(),
+            end_date=end_date,
         )
+
+        req.status = approved_status
+        await req.save()
+
+        # Создание ожидающего реферального бонуса вместо автоматического начисления
+        referral = await Referral.get_or_none(referred=req.user)
+        if referral and not referral.activated:
+            referral.activated = True
+            await referral.save()
+
+            # Получаем размер бонуса из настроек
+            bonus_amount = await SettingsService.get_referral_bonus()
+            # Загружаем referrer явно
+            await referral.fetch_related("referrer")
+            referrer = referral.referrer
+            
+            if referrer:
+                # Создаем запись о pending bonus вместо автоматического начисления
+                from backend.models.pending_bonus import PendingBonus
+                await PendingBonus.create(
+                    referral=referral,
+                    referrer=referrer,
+                    referred=req.user,
+                    bonus_amount=bonus_amount,
+                    request=req,
+                    status="pending"
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
     subscription_type_name = "Индивидуальный доступ" if subscription_type == "individual" else "Складчина"
