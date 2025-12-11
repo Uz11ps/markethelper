@@ -1246,13 +1246,6 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
         )
         temp_messages.append(msg1.message_id)
         
-        msg1 = await message.answer(
-            f"🎨 Генерирую изображение с вашим промптом через {model_name}...\n\n"
-            f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
-            f"💼 Остаток: <b>{charge['balance']} токенов</b>"
-        )
-        temp_messages.append(msg1.message_id)
-        
         image_urls = await FALService.generate_product_image(
             prompt=custom_prompt,
             product_images=product_photos,
