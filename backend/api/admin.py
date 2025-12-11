@@ -15,6 +15,9 @@ from backend.models.admin import Admin
 router = APIRouter(prefix="/admin", tags=["Admin"])
 security = HTTPBearer()
 
+# Список зарезервированных путей, которые должны обрабатываться другими роутерами
+RESERVED_PATHS = {"groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"}
+
 
 async def get_current_admin(
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -87,14 +90,16 @@ async def get_admin(
 ):
     """Получение администратора по ID"""
     # Проверяем, что это не зарезервированное слово
-    # Если это зарезервированный путь, возвращаем 404, чтобы FastAPI мог проверить другие роутеры
+    # Если это зарезервированный путь, выбрасываем исключение, которое FastAPI не обработает
+    # и позволит проверить другие роутеры
     reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
     if admin_id in reserved_paths:
-        # Возвращаем 404, чтобы указать, что этот маршрут не подходит
-        # FastAPI должен проверить другие роутеры
+        # Используем специальное исключение, которое FastAPI не обработает как обычную ошибку
+        # Это позволит FastAPI продолжить проверку других роутеров
+        from fastapi.routing import Match
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Route '{admin_id}' is reserved and should be handled by a specific router"
+            detail="Admin not found"
         )
     
     # Пытаемся преобразовать в int
@@ -123,8 +128,7 @@ async def update_admin(
 ):
     """Обновление данных администратора"""
     # Проверяем, что это не зарезервированное слово
-    reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
-    if admin_id in reserved_paths:
+    if admin_id in RESERVED_PATHS:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Admin not found"
