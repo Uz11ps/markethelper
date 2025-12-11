@@ -41,12 +41,8 @@ async def show_profile(message: types.Message):
     # Определяем статус пользователя
     tariff_name = data.get('tariff_name')
     if not active_until:
-        if tariff_name:
-            status_text = "Обычный пользователь"
-            active_until_text = "Нет активной подписки"
-        else:
-            status_text = "Тестовый режим"
-            active_until_text = "Бессрочно (тест)"
+        status_text = "Обычный пользователь"
+        active_until_text = "Нет активной подписки"
     else:
         status_text = tariff_name or "Активная подписка"
         active_until_text = _fmt_date(active_until)
