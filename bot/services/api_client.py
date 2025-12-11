@@ -134,6 +134,7 @@ class APIClient:
                 return await resp.json()
             
     async def query_ai(self, question: str, tg_id: int | None = None) -> str:
+        """Запрос к AI с поддержкой выбора модели пользователя"""
         url = f"{self.base_url}/api/ai/query"
         payload = {"question": question}
         if tg_id:
