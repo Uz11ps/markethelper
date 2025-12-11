@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 from backend.api import (
     profile, users, files, referrals, requests,
     mailing, ai, session_updater, settings, tokens,
@@ -8,6 +9,9 @@ from backend.api import (
 from backend.api import admin_subscriptions, admin_groups, admin_bonuses, admin_referral_payouts, user_generation_settings
 from backend.core.db import init_db, close_db
 from backend.services.settings_service import SettingsService
+from backend.models.subscription import AccessGroup
+from backend.models.admin import Admin
+from backend.api.admin import get_current_admin
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -47,8 +51,26 @@ def create_app() -> FastAPI:
     # Специфичные маршруты (например, /admin/groups) должны регистрироваться ПЕРЕД общими маршрутами (например, /admin/{admin_id})
     # FastAPI проверяет маршруты в порядке их регистрации, поэтому специфичные маршруты должны быть первыми
     
-    # 1. Сначала регистрируем роутер с группами (специфичный маршрут /admin/groups)
-    # КРИТИЧНО: Этот роутер должен быть ПЕРВЫМ среди всех админских роутеров
+    # 1. Сначала добавляем маршрут /admin/groups НАПРЯМУЮ в app, чтобы гарантировать его приоритет
+    @app.get("/api/admin/groups", response_model=List[dict])
+    async def list_groups_direct(admin: Admin = Depends(get_current_admin)):
+        """Получить список всех групп доступа (требует аутентификации админа)"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Обработка запроса GET /api/admin/groups через прямой маршрут")
+        groups = await AccessGroup.all()
+        result = [
+            {
+                "id": group.id,
+                "name": group.name,
+                "created_at": group.created_at.isoformat() if group.created_at else None,
+            }
+            for group in groups
+        ]
+        logger.info(f"Возвращено {len(result)} групп через прямой маршрут")
+        return result
+    
+    # 2. Затем регистрируем роутер с группами (для других маршрутов: POST, PUT, DELETE)
     app.include_router(admin_groups.router, prefix="/api/admin")
     
     # 2. Регистрируем другие админские роутеры
