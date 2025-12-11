@@ -161,8 +161,7 @@ async def delete_admin(
 ):
     """Удаление администратора (только для суперадмина)"""
     # Проверяем, что это не зарезервированное слово
-    reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
-    if admin_id in reserved_paths:
+    if admin_id in RESERVED_PATHS:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Admin not found"
