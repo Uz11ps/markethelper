@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Реферальные выплаты</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Навигация -->
+  <nav class="navbar">
+    <a href="/index.html">Новые заявки</a>
+    <a href="/subscription.html">Активные подписки</a>
+    <a href="/ai.html">Нейронка</a>
+    <a href="/files.html">Файлы</a>
+    <a href="/groups.html">Группы</a>
+    <a href="/bonuses.html">Бонусы</a>
+    <a href="/topup.html">Пополнения</a>
+    <a href="/referral_payouts.html" class="active">Реферальные выплаты</a>
+    <a href="/settings.html">Настройки</a>
+    <a href="#" onclick="logout(); return false;" style="float: right; color: #f44336;">Выход</a>
+  </nav>
+
+  <h1>Реферальные выплаты</h1>
+
+  <div id="payouts-container">
+    <table id="payouts-table" class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Пользователь</th>
+          <th>Рефералов</th>
+          <th>Сумма (₽)</th>
+          <th>Статус</th>
+          <th>Дата создания</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="payouts-tbody">
+        <tr>
+          <td colspan="7">Загрузка...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="message" class="message"></div>
+
+  <script src="auth.js"></script>
+  <script src="referral_payouts.js"></script>
+</body>
+</html>
+
