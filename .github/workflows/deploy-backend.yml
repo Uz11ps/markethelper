@@ -1,0 +1,236 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "AgestvoAndNektoBack/**"
+      - "docker-compose.yml"
+      - "docker-compose.deploy.yml"
+      - "Caddyfile"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        if: ${{ env.SSH_KEY != '' && env.SSH_HOST != '' && env.SSH_USER != '' }}
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ env.SSH_KEY }}
+
+      - name: Archive sources
+        run: |
+          tar -czf repo-backend.tar.gz AgestvoAndNektoBack docker-compose.yml docker-compose.deploy.yml Caddyfile
+
+      - name: Build Docker images locally
+        run: |
+          set -e
+          docker build -t idealx-backend:latest ./AgestvoAndNektoBack
+          echo "Saving Docker image to tar file..."
+          # Save image and compress with gzip for more reliable transfer
+          docker save idealx-backend:latest | gzip > images.tar.gz
+          # Also create uncompressed version as fallback
+          docker save idealx-backend:latest -o images.tar
+          # Verify tar file was created and is not empty
+          if [ ! -f images.tar ] || [ ! -s images.tar ]; then
+            echo "ERROR: images.tar file is missing or empty!"
+            exit 1
+          fi
+          TAR_SIZE=$(wc -c < images.tar 2>/dev/null || echo "0")
+          echo "Created images.tar with size: $TAR_SIZE bytes"
+          if [ "$TAR_SIZE" -lt 1000 ]; then
+            echo "ERROR: images.tar file is too small, likely corrupted!"
+            exit 1
+          fi
+          # Check compressed version
+          if [ -f images.tar.gz ] && [ -s images.tar.gz ]; then
+            GZ_SIZE=$(wc -c < images.tar.gz 2>/dev/null || echo "0")
+            echo "Created images.tar.gz with size: $GZ_SIZE bytes"
+          fi
+
+      - name: Upload and deploy on server
+        if: ${{ env.SSH_KEY != '' && env.SSH_HOST != '' && env.SSH_USER != '' }}
+        env:
+          VPS_HOST: ${{ env.SSH_HOST }}
+          VPS_USER: ${{ env.SSH_USER }}
+          VPS_PORT: ${{ env.SSH_PORT }}
+        run: |
+          set -e
+          # Prefer IPv4 (GitHub runners sometimes have IPv6 issues)
+          SSH_HOST="${VPS_HOST}"
+          SSH_USER="${VPS_USER}"
+          SSH_PORT="${VPS_PORT:-22}"
+          SELECTED_PORT=""
+          SSH_TARGET="${SSH_USER}@${SSH_HOST}"
+          
+          echo "=== SSH Connection Configuration ==="
+          echo "SSH_HOST: ${SSH_HOST}"
+          echo "SSH_USER: ${SSH_USER}"
+          echo "SSH_PORT: ${SSH_PORT}"
+          echo "===================================="
+          
+          # Add host to known_hosts
+          echo "Adding ${SSH_HOST} to known_hosts..."
+          ssh-keyscan -p "${SSH_PORT}" -H "${SSH_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Test SSH connection with verbose output
+          echo "Testing SSH connection to ${SSH_TARGET}:${SSH_PORT}..."
+          SSH_TEST_OUTPUT=$(ssh -v -p "${SSH_PORT}" \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 \
+            -o BatchMode=yes \
+            -o TCPKeepAlive=yes \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            "${SSH_TARGET}" "echo Connection test successful" 2>&1)
+          echo "$SSH_TEST_OUTPUT" | tee /tmp/ssh_test.log
+          if echo "$SSH_TEST_OUTPUT" | grep -q "Connection test successful"
+          then
+            SELECTED_PORT="${SSH_PORT}"
+            echo "✓ Successfully connected on port ${SSH_PORT}"
+          else
+            echo "✗ Failed to connect on port ${SSH_PORT}"
+            echo "=== SSH Connection Debug Info ==="
+            echo "Last 20 lines of SSH output:"
+            tail -n 20 /tmp/ssh_test.log 2>/dev/null || echo "No debug log available"
+            echo ""
+            echo "Troubleshooting steps:"
+            echo "1. Verify SSH_HOST is correct and reachable"
+            echo "2. Verify SSH_PORT is correct"
+            echo "3. Verify SSH_USER has access"
+            echo "4. Verify SSH key is added to authorized_keys on server"
+            echo "5. Check server firewall allows connections"
+            echo "6. Check SSH service is running"
+            echo "================================"
+            exit 1
+          fi
+          echo "Using SSH port: $SELECTED_PORT"
+          echo "Uploading files to server..."
+          # Verify source files before upload
+          if [ ! -f images.tar ]
+          then
+            echo "ERROR: images.tar is missing before upload!"
+            exit 1
+          fi
+          if [ ! -s images.tar ]
+          then
+            echo "ERROR: images.tar is empty before upload!"
+            exit 1
+          fi
+          scp -4 -P "$SELECTED_PORT" -o StrictHostKeyChecking=no -o ConnectTimeout=60 repo-backend.tar.gz "${SSH_TARGET}:/opt/repo-backend.tar.gz"
+          # Try uploading compressed version first (smaller and more reliable)
+          if [ -f images.tar.gz ] && [ -s images.tar.gz ]
+          then
+            echo "Uploading compressed Docker image (this may take a while)..."
+            scp -4 -P "$SELECTED_PORT" -o StrictHostKeyChecking=no -o ConnectTimeout=300 images.tar.gz "${SSH_TARGET}:/opt/images.tar.gz"
+            echo "Uploaded images.tar.gz verified successfully"
+          fi
+          if [ ! -f images.tar.gz ]
+          then
+            echo "Uploading uncompressed Docker image (this may take a while)..."
+            scp -4 -P "$SELECTED_PORT" -o StrictHostKeyChecking=no -o ConnectTimeout=300 images.tar "${SSH_TARGET}:/opt/images.tar"
+            echo "Uploaded images.tar verified successfully"
+          fi
+          ssh -4 -p "$SELECTED_PORT" -o StrictHostKeyChecking=no -o ConnectTimeout=60 -o TCPKeepAlive=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=120 "${SSH_TARGET}" << 'REMOTE_SCRIPT'
+            set -e
+            mkdir -p /opt/idealx-repo
+            cd /opt/idealx-repo
+            tar -xzf /opt/repo-backend.tar.gz
+            docker compose stop backend >/dev/null 2>&1 || true
+            docker rm -f idealx-backend >/dev/null 2>&1 || true
+            echo "Loading prebuilt backend image..."
+            if [ -f /opt/images.tar.gz ] && [ -s /opt/images.tar.gz ]; then
+              echo "Loading compressed image..."
+              if ! gunzip -c /opt/images.tar.gz | docker load; then
+                echo "ERROR: Failed to load Docker image from compressed file"
+                exit 1
+              fi
+              echo "Successfully loaded Docker image from compressed file"
+            elif [ -f /opt/images.tar ] && [ -s /opt/images.tar ]; then
+              echo "Loading uncompressed image..."
+              FILE_SIZE=$(wc -c < /opt/images.tar 2>/dev/null || echo "0")
+              echo "Image file size: $FILE_SIZE bytes"
+              if [ "$FILE_SIZE" -lt 1000 ]; then
+                echo "ERROR: Image file is too small, likely corrupted!"
+                exit 1
+              fi
+              if ! docker load -i /opt/images.tar; then
+                echo "ERROR: Failed to load Docker image from /opt/images.tar"
+                echo "Checking file integrity..."
+                file /opt/images.tar || true
+                head -c 100 /opt/images.tar | od -An -tx1 || true
+                exit 1
+              fi
+              echo "Successfully loaded Docker image"
+            else
+              echo "ERROR: No image file found at /opt/images.tar or /opt/images.tar.gz!"
+              exit 1
+            fi
+            echo "Starting docker compose build and deploy..."
+            if [ ! -f docker-compose.deploy.yml ]; then
+              echo "ERROR: docker-compose.deploy.yml not found!"
+              exit 1
+            fi
+            LOGFILE=/tmp/idealx-backend-deploy.log
+            : > "$LOGFILE" || touch "$LOGFILE"
+            docker compose -f docker-compose.deploy.yml down backend >/dev/null 2>&1 || true
+            docker stop idealx-backend >/dev/null 2>&1 || true
+            docker rm -f idealx-backend >/dev/null 2>&1 || true
+            if [ -f docker-compose.yml ]; then
+              docker compose -f docker-compose.yml down backend >/dev/null 2>&1 || true
+            fi
+            LSOF_PIDS=$(lsof -ti:8080 2>/dev/null || true)
+            if [ -n "$LSOF_PIDS" ]; then
+              echo "$LSOF_PIDS" | xargs kill -9 >/dev/null 2>&1 || true
+            fi
+            (fuser -k 8080/tcp 2>/dev/null) >/dev/null 2>&1 || true
+            if command -v netstat >/dev/null 2>&1; then
+              NETSTAT_PIDS=$(netstat -tlnp 2>/dev/null | grep :8080 | awk '{print $7}' | cut -d/ -f1 | grep -v "^$" || true)
+              if [ -n "$NETSTAT_PIDS" ]; then
+                echo "$NETSTAT_PIDS" | xargs kill -9 >/dev/null 2>&1 || true
+              fi
+            fi
+            sleep 3
+            if ! docker compose -f docker-compose.deploy.yml up -d --force-recreate backend >>"$LOGFILE" 2>&1; then
+              echo "Docker compose up failed."
+              if [ -f "$LOGFILE" ] && [ -s "$LOGFILE" ]; then
+                echo "Last 200 lines of the log:"
+                tail -n 200 "$LOGFILE" || true
+              else
+                echo "Log file is empty or does not exist. Showing docker compose output:"
+                docker compose -f docker-compose.deploy.yml up -d --force-recreate backend 2>&1 || true
+              fi
+              exit 1
+            fi
+            echo "Backend deployment completed successfully."
+            echo "Checking backend logs..."
+            sleep 5
+            docker logs idealx-backend --tail 20 || true
+            echo "Verifying backend port configuration..."
+            PORT_MAPPING=$(docker inspect idealx-backend --format='{{range $p, $conf := .NetworkSettings.Ports}}{{$p}}={{$conf}}{{end}}' 2>/dev/null || echo "")
+            if echo "$PORT_MAPPING" | grep -q "8080/tcp.*HostPort"; then
+              echo "ERROR: Port 8080 is still mapped to host! This should not happen."
+              echo "Port mapping: $PORT_MAPPING"
+              exit 1
+            else
+              echo "SUCCESS: Port 8080 is not mapped to host (only exposed internally)"
+              echo "Port configuration: $PORT_MAPPING"
+            fi
+          REMOTE_SCRIPT
+
+      - name: Skip deploy (SSH secrets not configured)
+        if: ${{ !(env.SSH_KEY != '' && env.SSH_HOST != '' && env.SSH_USER != '') }}
+        run: |
+          echo "SSH деплой пропущен: отсутствуют SSH_KEY/SSH_HOST/SSH_USER secrets."
+
