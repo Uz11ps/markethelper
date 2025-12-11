@@ -191,7 +191,7 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         buttons = []
         
         # Кнопки для выбора модели генерации изображений
-        if available_models:
+        if available_models and len(available_models) > 0:
             for key, info in available_models.items():
                 checkmark = "✅" if key == selected_model_key else "⚪"
                 model_name = info.get('name', key)
@@ -202,6 +202,9 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
                         callback_data=f"genset:model:{key}"
                     )
                 ])
+        else:
+            # Если модели не загружены, показываем сообщение
+            logger.warning(f"Модели не загружены для пользователя {callback.from_user.id}, available_models: {available_models}")
         
         # Кнопки для выбора модели ChatGPT
         gpt_models = {
@@ -260,13 +263,17 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         )
 
 @router.callback_query(F.data.startswith("genset:model:"))
-async def select_model_handler(callback: types.CallbackQuery):
+async def select_model_handler(callback: types.CallbackQuery, state: FSMContext):
     """Выбор модели для генерации изображений"""
     await callback.answer()
     
     model_key = callback.data.replace("genset:model:", "")
     
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Выбор модели {model_key} для пользователя {callback.from_user.id}")
+        
         await api.update_user_generation_settings(
             callback.from_user.id,
             selected_model_key=model_key
@@ -284,15 +291,20 @@ async def select_model_handler(callback: types.CallbackQuery):
                 f"Описание: {model_info.get('description', '')}"
             )
         else:
-            await callback.message.answer("✅ Модель выбрана!")
+            await callback.message.answer(f"✅ Модель <b>{model_key}</b> выбрана!")
         
         # Обновляем меню настроек
-        await generation_settings_handler(callback, None)
+        await generation_settings_handler(callback, state)
     except Exception as e:
         import logging
+        import traceback
         logger = logging.getLogger(__name__)
         logger.error(f"Ошибка выбора модели: {e}")
-        await callback.message.answer(f"❌ Ошибка: {str(e)}")
+        traceback.print_exc()
+        await callback.message.answer(
+            f"❌ Ошибка при выборе модели: {str(e)}\n\n"
+            "Попробуйте позже или обратитесь в поддержку."
+        )
 
 @router.callback_query(F.data.startswith("genset:gpt:"))
 async def select_gpt_model_handler(callback: types.CallbackQuery):
