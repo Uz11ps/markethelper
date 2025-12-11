@@ -82,7 +82,9 @@ class APIClient:
             "duration_months": duration_months,
             "subscription_type": subscription_type,
         }
-        if group_id:
+        # Для складчины group_id может быть None - админ назначит группу при одобрении
+        # Включаем group_id в payload только если он явно указан (не None)
+        if group_id is not None:
             payload["group_id"] = group_id
         if user_email:
             payload["user_email"] = user_email
