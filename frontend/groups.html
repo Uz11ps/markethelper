@@ -40,6 +40,7 @@
         <tr>
           <th>ID</th>
           <th>Название</th>
+          <th>Файлы</th>
           <th>Дата создания</th>
           <th>Действия</th>
         </tr>
@@ -59,6 +60,29 @@
         <input type="text" id="editGroupName" required><br><br>
         <button type="submit">💾 Сохранить</button>
         <button type="button" onclick="closeEditModal()">Отмена</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно загрузки файла -->
+  <div id="fileModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeFileModal()">&times;</span>
+      <h2>Загрузить файл для группы</h2>
+      <form id="uploadFileForm">
+        <input type="hidden" id="fileGroupId">
+        <label>Login (email):</label><br>
+        <input type="text" id="fileLogin" required><br><br>
+        <label>Password:</label><br>
+        <input type="password" id="filePassword" required><br><br>
+        <label>Имя файла (например, sf_acc1.txt):</label><br>
+        <input type="text" id="fileFilename"><br><br>
+        <label>
+          <input type="checkbox" id="fileSkipAuth">
+          Пропустить авторизацию (создать пустой файл)
+        </label><br><br>
+        <button type="submit">📁 Загрузить файл</button>
+        <button type="button" onclick="closeFileModal()">Отмена</button>
       </form>
     </div>
   </div>

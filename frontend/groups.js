@@ -57,39 +57,65 @@ async function loadGroups() {
     
     const groups = await res.json();
     console.log("Получено групп:", groups.length, groups);
-    renderGroupsTable(groups);
+    await renderGroupsTable(groups);
   } catch (err) {
     console.error("Ошибка при загрузке групп:", err);
     const tbody = document.querySelector("#groupsTable tbody");
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="4">❌ Ошибка при загрузке групп: ${err.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5">❌ Ошибка при загрузке групп: ${err.message}</td></tr>`;
     }
   }
 }
 
 // Отрисовка таблицы групп
-function renderGroupsTable(groups) {
+async function renderGroupsTable(groups) {
   const tbody = document.querySelector("#groupsTable tbody");
   tbody.innerHTML = "";
 
   if (groups.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4">📭 Групп не найдено</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">📭 Групп не найдено</td></tr>`;
     return;
   }
 
-  groups.forEach(group => {
+  // Загружаем файлы для каждой группы
+  for (const group of groups) {
+    try {
+      const filesRes = await authFetch(`${API_BASE_URL}/admin/files/group/${group.id}`);
+      const files = filesRes.ok ? await filesRes.json() : [];
+      group.files = files || [];
+    } catch (err) {
+      console.error(`Ошибка загрузки файлов для группы ${group.id}:`, err);
+      group.files = [];
+    }
+
     const row = document.createElement("tr");
+    const filesCount = group.files ? group.files.length : 0;
+    const filesList = group.files && group.files.length > 0 
+      ? group.files.map(f => {
+          const filename = f.filename || (f.path ? f.path.split('/').pop() : '—');
+          return filename;
+        }).join(', ')
+      : 'Нет файлов';
+    
+    // Экранируем кавычки в названии группы для безопасного использования в onclick
+    const safeGroupName = (group.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    
     row.innerHTML = `
       <td>${group.id}</td>
-      <td>${group.name}</td>
+      <td><b>${group.name}</b></td>
+      <td>
+        <span style="font-size: 0.9em;">${filesCount} файл(ов)</span><br>
+        <span style="font-size: 0.8em; color: #666;">${filesList}</span>
+      </td>
       <td>${group.created_at ? new Date(group.created_at).toLocaleDateString() : '—'}</td>
       <td>
-        <button onclick="openEditModal(${group.id}, '${group.name}')" class="btn-small btn-primary">✏️ Редактировать</button>
+        <button onclick="openFileModal(${group.id})" class="btn-small btn-secondary">📁 Загрузить файл</button>
+        <button onclick="openEditModal(${group.id}, '${safeGroupName}')" class="btn-small btn-primary">✏️ Редактировать</button>
         <button onclick="deleteGroup(${group.id})" class="btn-small btn-danger">🗑️ Удалить</button>
       </td>
     `;
     tbody.appendChild(row);
-  });
+  }
 }
 
 // Обработчик формы создания группы уже добавлен в DOMContentLoaded
@@ -177,11 +203,80 @@ function showMessage(text, type) {
   }, 3000);
 }
 
+// Открытие модального окна загрузки файла
+function openFileModal(groupId) {
+  document.getElementById("fileGroupId").value = groupId;
+  document.getElementById("fileLogin").value = "";
+  document.getElementById("filePassword").value = "";
+  document.getElementById("fileFilename").value = "";
+  document.getElementById("fileSkipAuth").checked = false;
+  document.getElementById("fileModal").style.display = "block";
+}
+
+// Закрытие модального окна загрузки файла
+function closeFileModal() {
+  document.getElementById("fileModal").style.display = "none";
+  document.getElementById("fileGroupId").value = "";
+  document.getElementById("fileLogin").value = "";
+  document.getElementById("filePassword").value = "";
+  document.getElementById("fileFilename").value = "";
+  document.getElementById("fileSkipAuth").checked = false;
+}
+
+// Обработка загрузки файла
+document.getElementById("uploadFileForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const groupId = parseInt(document.getElementById("fileGroupId").value);
+  const login = document.getElementById("fileLogin").value.trim();
+  const password = document.getElementById("filePassword").value.trim();
+  const filename = document.getElementById("fileFilename").value.trim();
+  const skipAuth = document.getElementById("fileSkipAuth").checked;
+
+  if (!login || !password) {
+    showMessage("Заполните login и password", "error");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("group_id", groupId);
+    formData.append("login", login);
+    formData.append("password", password);
+    if (filename) {
+      formData.append("filename", filename);
+    }
+    if (skipAuth) {
+      formData.append("skip_auth", "true");
+    }
+
+    const res = await authFetch(`${API_BASE_URL}/admin/files/add`, {
+      method: "POST",
+      body: formData
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: await res.text() }));
+      throw new Error(errorData.detail || `Ошибка: ${res.status}`);
+    }
+
+    const result = await res.json();
+    showMessage(`✅ Файл успешно загружен для группы!`, "success");
+    closeFileModal();
+    loadGroups();
+  } catch (err) {
+    showMessage("❌ Ошибка: " + err.message, "error");
+  }
+});
+
 // Закрыть модальное окно при клике вне его
 window.onclick = function(event) {
-  const modal = document.getElementById("editModal");
-  if (event.target === modal) {
+  const editModal = document.getElementById("editModal");
+  const fileModal = document.getElementById("fileModal");
+  if (event.target === editModal) {
     closeEditModal();
+  }
+  if (event.target === fileModal) {
+    closeFileModal();
   }
 }
 

@@ -1,7 +1,7 @@
 # backend/api/files.py
 from datetime import datetime, timezone
 import os
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Form
 from backend.core.config import COOKIE_DIR
 from backend.models.file import AccessFile
 from backend.models.subscription import AccessGroup
@@ -11,6 +11,12 @@ from backend.schemas.file import AccessFileCreate
 from backend.services.file_service import FileService
 
 router = APIRouter(prefix="/files", tags=["Files"])
+
+# Admin endpoints для управления файлами
+admin_router = APIRouter(prefix="/admin/files", tags=["Admin Files"])
+
+# Admin endpoints для управления файлами
+admin_router = APIRouter(prefix="/admin/files", tags=["Admin Files"])
 
 @router.get("/{group_id}/status")
 async def group_file_status(group_id: int):
@@ -59,29 +65,54 @@ async def regen_user_file(tg_id: int, data: dict | None = None):
         "cookies": content, 
     }
 
-@router.post("/add")
-async def add_access_file(data: AccessFileCreate, admin: Admin = Depends(get_current_admin)):
+@admin_router.get("/group/{group_id}")
+async def get_group_files(group_id: int, admin: Admin = Depends(get_current_admin)):
+    """Получить все файлы группы"""
+    group = await AccessGroup.get_or_none(id=group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Группа не найдена")
+    
+    files = await AccessFile.filter(group=group).all()
+    return [
+        {
+            "id": file.id,
+            "path": file.path,
+            "filename": os.path.basename(file.path) if file.path else None,
+            "login": file.login,
+            "last_updated": file.last_updated.isoformat() if file.last_updated else None,
+            "locked_until": file.locked_until.isoformat() if file.locked_until else None,
+        }
+        for file in files
+    ]
 
-    if data.group_id:
-        group = await AccessGroup.get_or_none(id=data.group_id)
-        if not group:
-            group_name = f"Group_{int(datetime.utcnow().timestamp())}"
-            group = await AccessGroup.create(name=group_name)
-    else:
-        group_name = f"Group_{int(datetime.utcnow().timestamp())}"
-        group = await AccessGroup.create(name=group_name)
-    cookie_file_name = data.filename or f"{data.login}_{int(datetime.utcnow().timestamp())}.txt"
+
+@admin_router.post("/add")
+async def add_access_file(
+    group_id: int = Form(...),
+    login: str = Form(...),
+    password: str = Form(...),
+    filename: str = Form(None),
+    skip_auth: bool = Form(False),
+    admin: Admin = Depends(get_current_admin)
+):
+    """Добавить файл доступа (для админки через FormData)"""
+    # Если group_id не указан, создаем новую группу
+    group = await AccessGroup.get_or_none(id=group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail=f"Группа с ID {group_id} не найдена")
+    
+    cookie_file_name = filename or f"{login}_{int(datetime.utcnow().timestamp())}.txt"
     cookie_file_path = os.path.join(COOKIE_DIR, cookie_file_name)
 
     file = await AccessFile.create(
         group=group,
-        login=data.login,
-        password=data.password,
+        login=login,
+        password=password,
         path=cookie_file_path
     )
 
     # Если skip_auth=True, создаем пустой файл без авторизации на внешнем сервисе
-    if data.skip_auth:
+    if skip_auth:
         file = await FileService.create_empty_cookie_file(file, filename=cookie_file_name)
     else:
         try:
@@ -102,6 +133,6 @@ async def add_access_file(data: AccessFileCreate, admin: Admin = Depends(get_cur
         "file_id": file.id,
         "group_id": group.id,
         "path": file.path,
-        "last_updated": file.last_updated,
-        "skip_auth": data.skip_auth,
+        "last_updated": file.last_updated.isoformat() if file.last_updated else None,
+        "skip_auth": skip_auth,
     }
