@@ -33,7 +33,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ detail: await res.text() }));
+          let errorData;
+          try {
+            errorData = await res.json();
+          } catch {
+            const errorText = await res.text();
+            errorData = { detail: errorText };
+          }
           throw new Error(errorData.detail || `Ошибка: ${res.status}`);
         }
 
@@ -194,7 +200,13 @@ document.getElementById("editGroupForm").addEventListener("submit", async (e) =>
     });
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: await res.text() }));
+      let errorData;
+      try {
+        errorData = await res.json();
+      } catch {
+        const errorText = await res.text();
+        errorData = { detail: errorText };
+      }
       throw new Error(errorData.detail || `Ошибка: ${res.status}`);
     }
 
@@ -294,7 +306,13 @@ document.getElementById("uploadFileForm").addEventListener("submit", async (e) =
     });
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: await res.text() }));
+      let errorData;
+      try {
+        errorData = await res.json();
+      } catch {
+        const errorText = await res.text();
+        errorData = { detail: errorText };
+      }
       throw new Error(errorData.detail || `Ошибка: ${res.status}`);
     }
 
