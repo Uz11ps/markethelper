@@ -154,11 +154,22 @@ async function approve(id, subscriptionType) {
     const formData = new FormData();
     // Для складчины group_id обязателен, для индивидуального доступа не передаем
     if (subscriptionType === "group") {
-      if (!groupId) {
+      if (!groupId || isNaN(groupId) || groupId <= 0) {
         alert("Ошибка: для складчины необходимо указать group_id!");
+        console.error(`[approve] Ошибка валидации: subscriptionType=${subscriptionType}, groupId=${groupId}`);
         return;
       }
-      formData.append("group_id", groupId);
+      // FormData передает значения как строки, но бэкенд ожидает int
+      formData.append("group_id", String(groupId));
+      console.log(`[approve] Отправка group_id=${groupId} (тип: ${typeof groupId}) для заявки ${id}`);
+    } else {
+      console.log(`[approve] Индивидуальный доступ, group_id не требуется для заявки ${id}`);
+    }
+
+    // Логируем содержимое FormData для отладки
+    console.log(`[approve] FormData содержимое:`);
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}: ${value} (тип: ${typeof value})`);
     }
 
     const res = await authFetch(`${API_BASE_URL}/admin/requests/${id}/approve`, {

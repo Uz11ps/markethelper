@@ -138,6 +138,10 @@ async def approve_request(
     group_id: int | None = Form(None),  # ID группы для складчины
 ):
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[approve_request] Запрос на одобрение заявки {request_id}, group_id={group_id} (тип: {type(group_id)})")
+        
         # Загружаем заявку с связанными объектами
         req = await Request.get_or_none(id=request_id)
         if not req:
@@ -158,16 +162,20 @@ async def approve_request(
         end_date = datetime.utcnow() + timedelta(days=30 * req.duration.months)
 
         subscription_type = getattr(req, 'subscription_type', 'group')
+        logger.info(f"[approve_request] Тип подписки: {subscription_type}, group_id из формы: {group_id}")
+        
         group = None
         
         # Для складчины - привязываем группу файлов
         if subscription_type == "group":
             # Сначала проверяем переданный group_id из формы
-            if group_id:
+            # FastAPI автоматически конвертирует строку в int, но если значение None или пустая строка, оно останется None
+            if group_id is not None and group_id > 0:
                 from backend.models.subscription import AccessGroup
                 group = await AccessGroup.get_or_none(id=group_id)
                 if not group:
                     raise HTTPException(status_code=404, detail=f"Группа с ID {group_id} не найдена")
+                logger.info(f"[approve_request] Используется группа из формы: {group.name} (ID: {group.id})")
             else:
                 # Используем группу из заявки, если она была указана при создании
                 request_group_id = getattr(req, 'group_id', None)
@@ -176,8 +184,10 @@ async def approve_request(
                     group = await AccessGroup.get_or_none(id=request_group_id)
                     if not group:
                         raise HTTPException(status_code=404, detail=f"Группа с ID {request_group_id} из заявки не найдена")
+                    logger.info(f"[approve_request] Используется группа из заявки: {group.name} (ID: {group.id})")
                 else:
                     # Для складчины group_id обязателен - админ должен выбрать группу при одобрении
+                    logger.error(f"[approve_request] Ошибка: для складчины не указан group_id. group_id из формы: {group_id}, group_id из заявки: {request_group_id}")
                     raise HTTPException(
                         status_code=400, 
                         detail="Для складчины необходимо выбрать группу файлов при одобрении заявки. Пожалуйста, выберите группу в выпадающем списке."
