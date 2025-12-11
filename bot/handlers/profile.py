@@ -29,6 +29,8 @@ async def choose_tariff(message: types.Message):
 @router.message(F.text == "👤Профиль")
 @router.message(F.text == "/profile")
 async def show_profile(message: types.Message):
+    from bot.keyboards.main_menu import main_menu_kb
+    
     tg = message.from_user
     data = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
 
@@ -48,7 +50,18 @@ async def show_profile(message: types.Message):
     
     text += f"💰 <b>Токены:</b> {data.get('bonus_balance') or 0}"
 
-    await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active_sub, has_file_access=has_file_access))
+    from bot.keyboards.main_menu import main_menu_kb
+    
+    # Отправляем профиль с inline клавиатурой
+    await message.answer(
+        text, 
+        reply_markup=profile_menu_kb(has_active_sub=has_active_sub, has_file_access=has_file_access)
+    )
+    # Обновляем главную клавиатуру с кнопкой "Пополнить"
+    await message.answer(
+        "Выберите действие:",
+        reply_markup=main_menu_kb(has_active_sub=has_active_sub)
+    )
 
 @router.callback_query(F.data == "profile:referral")
 async def referral_info(callback: types.CallbackQuery):

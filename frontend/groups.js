@@ -5,20 +5,65 @@ const API_GROUPS = `${API_BASE_URL}/admin/groups`;
 document.addEventListener('DOMContentLoaded', () => {
   if (!requireAuth()) return;
   loadGroups();
+  
+  // Инициализация формы создания группы
+  const createForm = document.getElementById("createGroupForm");
+  if (createForm) {
+    createForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("groupName").value.trim();
+      
+      if (!name) {
+        showMessage("Введите название группы", "error");
+        return;
+      }
+
+      try {
+        const res = await authFetch(API_GROUPS, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: name })
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ detail: await res.text() }));
+          throw new Error(errorData.detail || `Ошибка: ${res.status}`);
+        }
+
+        const result = await res.json();
+        showMessage(`✅ Группа "${result.name}" успешно создана!`, "success");
+        document.getElementById("groupName").value = "";
+        // Обновляем список групп после создания
+        await loadGroups();
+      } catch (err) {
+        showMessage("❌ Ошибка: " + err.message, "error");
+      }
+    });
+  }
 });
 
 // Загрузка списка групп
 async function loadGroups() {
   try {
+    console.log("Загрузка групп из:", API_GROUPS);
     const res = await authFetch(API_GROUPS);
-    if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Ошибка API:", res.status, errorText);
+      throw new Error(`Ошибка: ${res.status} - ${errorText}`);
+    }
     
     const groups = await res.json();
+    console.log("Получено групп:", groups.length, groups);
     renderGroupsTable(groups);
   } catch (err) {
     console.error("Ошибка при загрузке групп:", err);
     const tbody = document.querySelector("#groupsTable tbody");
-    tbody.innerHTML = `<tr><td colspan="4">❌ Ошибка при загрузке групп</td></tr>`;
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="4">❌ Ошибка при загрузке групп: ${err.message}</td></tr>`;
+    }
   }
 }
 
@@ -47,38 +92,7 @@ function renderGroupsTable(groups) {
   });
 }
 
-// Создание группы
-document.getElementById("createGroupForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const name = document.getElementById("groupName").value.trim();
-  
-  if (!name) {
-    showMessage("Введите название группы", "error");
-    return;
-  }
-
-  try {
-    const res = await authFetch(API_GROUPS, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name: name })
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: await res.text() }));
-      throw new Error(errorData.detail || `Ошибка: ${res.status}`);
-    }
-
-    const result = await res.json();
-    showMessage(`✅ Группа "${result.name}" успешно создана!`, "success");
-    document.getElementById("groupName").value = "";
-    loadGroups();
-  } catch (err) {
-    showMessage("❌ Ошибка: " + err.message, "error");
-  }
-});
+// Обработчик формы создания группы уже добавлен в DOMContentLoaded
 
 // Открытие модального окна редактирования
 function openEditModal(groupId, groupName) {
