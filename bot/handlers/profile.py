@@ -245,13 +245,24 @@ async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
         selected_model = gpt_models[selected_gpt_model]
         selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_gpt_model)}"
     
-    await callback.message.answer(
-        "🤖 <b>Выберите модель ChatGPT</b>\n\n"
-        "Выберите модель для использования в чате:\n\n"
-        f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>"
-        f"{selected_model_text}",
-        reply_markup=keyboard
-    )
+    # Пытаемся отредактировать исходное сообщение, если не получается - отправляем новое
+    try:
+        await callback.message.edit_text(
+            "🤖 <b>Выберите модель ChatGPT</b>\n\n"
+            "Выберите модель для использования в чате:\n\n"
+            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>"
+            f"{selected_model_text}",
+            reply_markup=keyboard
+        )
+    except Exception:
+        # Если не удалось отредактировать, отправляем новое сообщение
+        await callback.message.answer(
+            "🤖 <b>Выберите модель ChatGPT</b>\n\n"
+            "Выберите модель для использования в чате:\n\n"
+            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>"
+            f"{selected_model_text}",
+            reply_markup=keyboard
+        )
 
 
 @router.callback_query(F.data.startswith("chatgpt:select_model:"))
@@ -293,14 +304,30 @@ async def select_chatgpt_model_handler(callback: types.CallbackQuery, state: FSM
     
     await state.set_state(AIChatStates.chatting)
     
-    await callback.message.edit_text(
-        f"🤖 <b>Режим ChatGPT активирован!</b>\n\n"
-        f"✅ Выбрана модель: <b>{model_name}</b>\n\n"
-        "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
-        f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
-        "Для выхода нажмите кнопку ниже 👇",
-        reply_markup=chatgpt_kb()
-    )
+    # Пытаемся отредактировать сообщение, если не получается - отправляем новое
+    try:
+        await callback.message.edit_text(
+            f"🤖 <b>Режим ChatGPT активирован!</b>\n\n"
+            f"✅ Выбрана модель: <b>{model_name}</b>\n\n"
+            "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
+            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
+            "Для выхода нажмите кнопку ниже 👇",
+            reply_markup=chatgpt_kb()
+        )
+    except Exception:
+        # Если не удалось отредактировать (сообщение было отправлено через answer), отправляем новое
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await callback.message.answer(
+            f"🤖 <b>Режим ChatGPT активирован!</b>\n\n"
+            f"✅ Выбрана модель: <b>{model_name}</b>\n\n"
+            "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
+            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
+            "Для выхода нажмите кнопку ниже 👇",
+            reply_markup=chatgpt_kb()
+        )
 
 @router.callback_query(F.data == "profile:generate")
 async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
