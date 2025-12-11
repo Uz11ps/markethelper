@@ -23,11 +23,25 @@ class APIClient:
             try:
                 data = json.loads(text)
                 detail = data.get("detail") or data
+                # Если detail - это строка, используем её, иначе пытаемся извлечь сообщение
+                if isinstance(detail, dict):
+                    detail = detail.get("message") or str(detail)
             except Exception:
                 detail = text
+            
+            # Улучшаем сообщения об ошибках для пользователя
             if resp.status == 402:
                 raise InsufficientTokensError(detail)
-            raise APIClientError(detail)
+            elif resp.status == 404:
+                raise APIClientError(f"Не найдено: {detail}")
+            elif resp.status == 500:
+                # Для 500 ошибок показываем более понятное сообщение
+                error_msg = "Внутренняя ошибка сервера"
+                if detail and "detail" in detail.lower():
+                    error_msg = detail
+                raise APIClientError(f"{error_msg}")
+            else:
+                raise APIClientError(f"Ошибка {resp.status}: {detail}")
         try:
             return json.loads(text) if text else {}
         except Exception:
