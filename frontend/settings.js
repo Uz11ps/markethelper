@@ -32,6 +32,31 @@ async function loadSettings() {
       document.getElementById('channelUsername').value = channelData.channel_username || '';
       document.getElementById('channelBonus').value = channelData.channel_bonus || '';
     }
+    
+    // Загружаем настройки пополнения
+    const topupResponse = await authFetch(`${API_BASE_URL}/admin/settings/topup`);
+    if (topupResponse.ok) {
+      const topupData = await topupResponse.json();
+      document.getElementById('tokenPrice').value = topupData.token_price || '';
+      
+      const options = topupData.topup_options || [];
+      if (options.length > 0) {
+        document.getElementById('topupTokens1').value = options[0]?.tokens || '';
+        document.getElementById('topupPrice1').value = options[0]?.price || '';
+      }
+      if (options.length > 1) {
+        document.getElementById('topupTokens2').value = options[1]?.tokens || '';
+        document.getElementById('topupPrice2').value = options[1]?.price || '';
+      }
+      if (options.length > 2) {
+        document.getElementById('topupTokens3').value = options[2]?.tokens || '';
+        document.getElementById('topupPrice3').value = options[2]?.price || '';
+      }
+      if (options.length > 3) {
+        document.getElementById('topupTokens4').value = options[3]?.tokens || '';
+        document.getElementById('topupPrice4').value = options[3]?.price || '';
+      }
+    }
   } catch (error) {
     showMessage('Ошибка загрузки настроек: ' + error.message, 'error');
   }
@@ -120,6 +145,33 @@ async function saveSettings() {
       await authFetch(`${API_BASE_URL}/admin/settings/`, {
         method: 'POST',
         body: JSON.stringify(setting),
+      });
+    }
+    
+    // Сохраняем настройки пополнения
+    const tokenPrice = parseFloat(document.getElementById('tokenPrice').value);
+    if (!isNaN(tokenPrice) && tokenPrice >= 0) {
+      await authFetch(`${API_BASE_URL}/admin/settings/topup/price`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price: tokenPrice }),
+      });
+    }
+    
+    const topupOptions = [];
+    for (let i = 1; i <= 4; i++) {
+      const tokens = parseInt(document.getElementById(`topupTokens${i}`).value);
+      const price = parseFloat(document.getElementById(`topupPrice${i}`).value);
+      if (!isNaN(tokens) && !isNaN(price) && tokens > 0 && price > 0) {
+        topupOptions.push({ tokens, price });
+      }
+    }
+    
+    if (topupOptions.length > 0) {
+      await authFetch(`${API_BASE_URL}/admin/settings/topup/options`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ options: topupOptions }),
       });
     }
 

@@ -25,6 +25,15 @@ class SettingsService:
     DEFAULT_IMAGE_MODEL_COST = 5  # nano-banana
     DEFAULT_IMAGE_MODEL_PRO_COST = 10  # FLUX Pro Ultra
     DEFAULT_IMAGE_MODEL_SD_COST = 3  # FLUX Pro
+    
+    # Цены пополнения и стоимость токена
+    DEFAULT_TOKEN_PRICE = 1.0  # Стоимость 1 токена в рублях
+    DEFAULT_TOPUP_OPTIONS = [
+        {"tokens": 100, "price": 100},
+        {"tokens": 250, "price": 225},
+        {"tokens": 500, "price": 400},
+        {"tokens": 1000, "price": 700},
+    ]
 
     DEFAULT_PROMPT_GENERATOR_PROMPT = """Ты — 'Деконструктор-Синтезатор Промтов' (Prompt Deconstructor & Synthesizer), ИИ-аналитик, специализирующийся на слиянии контента и стиля для генеративных моделей.
 
@@ -245,6 +254,33 @@ class SettingsService:
                 "description": "Базовое качество, низкая стоимость"
             }
         }
+    
+    @classmethod
+    async def get_token_price(cls) -> float:
+        """Получить стоимость 1 токена в рублях"""
+        value = await cls.get_setting("token_price", str(cls.DEFAULT_TOKEN_PRICE))
+        return float(value)
+    
+    @classmethod
+    async def set_token_price(cls, price: float) -> Settings:
+        """Установить стоимость 1 токена в рублях"""
+        return await cls.set_setting("token_price", str(price))
+    
+    @classmethod
+    async def get_topup_options(cls) -> list:
+        """Получить варианты пополнения баланса"""
+        import json
+        value = await cls.get_setting("topup_options", json.dumps(cls.DEFAULT_TOPUP_OPTIONS))
+        try:
+            return json.loads(value)
+        except:
+            return cls.DEFAULT_TOPUP_OPTIONS
+    
+    @classmethod
+    async def set_topup_options(cls, options: list) -> Settings:
+        """Установить варианты пополнения баланса"""
+        import json
+        return await cls.set_setting("topup_options", json.dumps(options))
 
     @classmethod
     async def get_referral_referrer_bonus(cls) -> int:
@@ -334,6 +370,13 @@ class SettingsService:
 
         if not await Settings.filter(key="referral_referred_tokens").exists():
             await cls.set_referral_referred_tokens(10)
+        
+        # Инициализация цен пополнения
+        if not await Settings.filter(key="token_price").exists():
+            await cls.set_token_price(cls.DEFAULT_TOKEN_PRICE)
+        
+        if not await Settings.filter(key="topup_options").exists():
+            await cls.set_topup_options(cls.DEFAULT_TOPUP_OPTIONS)
         
         if not await Settings.filter(key="channel_bonus").exists():
             await cls.set_channel_bonus(cls.DEFAULT_CHANNEL_BONUS)

@@ -206,3 +206,10 @@ class APIClient:
                 "cost": float(cost)
             }) as resp:
                 return await self._handle_response(resp)
+    
+    async def get_topup_settings(self):
+        """Получить настройки пополнения баланса"""
+        url = f"{self.base_url}/api/tokens/topup-settings"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await self._handle_response(resp)

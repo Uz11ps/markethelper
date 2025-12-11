@@ -274,3 +274,42 @@ async def update_channel_username(
     """Обновление username канала"""
     await SettingsService.set_channel_username(data.username)
     return {"message": f"Username канала обновлен: {data.username}"}
+
+
+class TokenPriceUpdate(BaseModel):
+    """Схема обновления стоимости токена"""
+    price: float
+
+
+class TopupOptionsUpdate(BaseModel):
+    """Схема обновления вариантов пополнения"""
+    options: list  # [{"tokens": 100, "price": 100}, ...]
+
+
+@router.get("/topup")
+async def get_topup_settings(_: Admin = Depends(get_current_admin)):
+    """Получение настроек пополнения баланса"""
+    return {
+        "token_price": await SettingsService.get_token_price(),
+        "topup_options": await SettingsService.get_topup_options()
+    }
+
+
+@router.put("/topup/price")
+async def update_token_price(
+    data: TokenPriceUpdate,
+    _: Admin = Depends(get_current_admin)
+):
+    """Обновление стоимости 1 токена"""
+    await SettingsService.set_token_price(data.price)
+    return {"message": f"Стоимость токена обновлена: {data.price}₽"}
+
+
+@router.put("/topup/options")
+async def update_topup_options(
+    data: TopupOptionsUpdate,
+    _: Admin = Depends(get_current_admin)
+):
+    """Обновление вариантов пополнения"""
+    await SettingsService.set_topup_options(data.options)
+    return {"message": "Варианты пополнения обновлены"}

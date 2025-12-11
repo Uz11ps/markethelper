@@ -73,6 +73,46 @@
       </div>
     </div>
 
+    <div class="settings-section">
+      <h2>Цены пополнения баланса</h2>
+      <p class="settings-description">
+        Настройте варианты пополнения баланса и стоимость 1 токена в рублях.
+      </p>
+      <div class="input-group">
+        <label for="tokenPrice">Стоимость 1 токена (₽):</label>
+        <input type="number" id="tokenPrice" min="0" step="0.01" placeholder="1.00">
+        <span class="input-suffix">рублей</span>
+      </div>
+      <div class="input-group">
+        <label for="topupOption1">Вариант 1 (токены:цена):</label>
+        <input type="number" id="topupTokens1" min="0" placeholder="100" style="width: 45%; display: inline-block;">
+        <span style="margin: 0 5px;">:</span>
+        <input type="number" id="topupPrice1" min="0" placeholder="100" style="width: 45%; display: inline-block;">
+        <span class="input-suffix">₽</span>
+      </div>
+      <div class="input-group">
+        <label for="topupOption2">Вариант 2 (токены:цена):</label>
+        <input type="number" id="topupTokens2" min="0" placeholder="250" style="width: 45%; display: inline-block;">
+        <span style="margin: 0 5px;">:</span>
+        <input type="number" id="topupPrice2" min="0" placeholder="225" style="width: 45%; display: inline-block;">
+        <span class="input-suffix">₽</span>
+      </div>
+      <div class="input-group">
+        <label for="topupOption3">Вариант 3 (токены:цена):</label>
+        <input type="number" id="topupTokens3" min="0" placeholder="500" style="width: 45%; display: inline-block;">
+        <span style="margin: 0 5px;">:</span>
+        <input type="number" id="topupPrice3" min="0" placeholder="400" style="width: 45%; display: inline-block;">
+        <span class="input-suffix">₽</span>
+      </div>
+      <div class="input-group">
+        <label for="topupOption4">Вариант 4 (токены:цена):</label>
+        <input type="number" id="topupTokens4" min="0" placeholder="1000" style="width: 45%; display: inline-block;">
+        <span style="margin: 0 5px;">:</span>
+        <input type="number" id="topupPrice4" min="0" placeholder="700" style="width: 45%; display: inline-block;">
+        <span class="input-suffix">₽</span>
+      </div>
+    </div>
+
     <!-- Реферальный бонус -->
     <div class="settings-section">
       <h2>Модели ИИ</h2>

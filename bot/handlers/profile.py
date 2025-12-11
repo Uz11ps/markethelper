@@ -101,8 +101,15 @@ async def topup_from_profile(callback: types.CallbackQuery):
     
     # Создаем объект Message из callback для совместимости
     # Используем callback.message как основу
-    message = callback.message
-    if message:
+    if callback.message:
+        # Создаем Message объект из CallbackQuery.message
+        message = Message(
+            message_id=callback.message.message_id,
+            date=callback.message.date,
+            chat=callback.message.chat,
+            from_user=callback.from_user,
+            text="💰 Пополнить"
+        )
         await show_topup_menu(message)
     else:
         await callback.message.answer("❌ Ошибка: не удалось обработать запрос")

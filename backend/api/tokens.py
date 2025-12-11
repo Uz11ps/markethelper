@@ -69,3 +69,14 @@ async def create_token_purchase_request(data: TokenPurchaseRequestCreate):
         id=purchase.id,
         message="Заявка на пополнение создана"
     )
+
+
+@router.get("/topup-settings")
+async def get_topup_settings():
+    """Получить настройки пополнения баланса (для пользователей бота)"""
+    token_price = await SettingsService.get_token_price()
+    topup_options = await SettingsService.get_topup_options()
+    return {
+        "token_price": token_price,
+        "topup_options": topup_options
+    }

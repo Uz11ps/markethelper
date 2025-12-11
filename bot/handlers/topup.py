@@ -9,23 +9,29 @@ router = Router()
 api = APIClient()
 logger = logging.getLogger(__name__)
 
-# Варианты пополнения (токены: стоимость в рублях)
-TOPUP_OPTIONS = [
-    {"tokens": 100, "price": 100, "label": "100 токенов - 100₽"},
-    {"tokens": 250, "price": 225, "label": "250 токенов - 225₽ (скидка 10%)"},
-    {"tokens": 500, "price": 400, "label": "500 токенов - 400₽ (скидка 20%)"},
-    {"tokens": 1000, "price": 700, "label": "1000 токенов - 700₽ (скидка 30%)"},
-]
+def format_topup_label(tokens: int, price: float) -> str:
+    """Форматирует метку для варианта пополнения"""
+    discount = ""
+    if tokens >= 1000:
+        discount = " (скидка 30%)"
+    elif tokens >= 500:
+        discount = " (скидка 20%)"
+    elif tokens >= 250:
+        discount = " (скидка 10%)"
+    return f"{tokens} токенов - {price:.0f}₽{discount}"
 
 
-def topup_amounts_kb():
-    """Клавиатура выбора суммы пополнения"""
+def topup_amounts_kb(options: list):
+    """Создает клавиатуру с вариантами пополнения"""
     buttons = []
-    for option in TOPUP_OPTIONS:
+    for option in options:
+        tokens = option.get("tokens", 0)
+        price = option.get("price", 0)
+        label = format_topup_label(tokens, price)
         buttons.append([
             InlineKeyboardButton(
-                text=option["label"],
-                callback_data=f"topup:{option['tokens']}:{option['price']}"
+                text=label,
+                callback_data=f"topup:{tokens}:{price}"
             )
         ])
     buttons.append([InlineKeyboardButton(text="❌ Отмена", callback_data="topup:cancel")])
@@ -44,18 +50,30 @@ async def show_topup_menu(message: Message):
         logger.error(f"Ошибка получения профиля: {e}")
         balance = 0
     
+    # Получаем настройки пополнения из базы данных
+    try:
+        topup_settings = await api.get_topup_settings()
+        topup_options = topup_settings.get("topup_options", [])
+        token_price = topup_settings.get("token_price", 1.0)
+    except Exception as e:
+        logger.error(f"Ошибка получения настроек пополнения: {e}")
+        # Используем значения по умолчанию
+        topup_options = [
+            {"tokens": 100, "price": 100},
+            {"tokens": 250, "price": 225},
+            {"tokens": 500, "price": 400},
+            {"tokens": 1000, "price": 700},
+        ]
+        token_price = 1.0
+    
     text = (
         "💰 <b>Пополнение баланса</b>\n\n"
-        f"💼 Ваш текущий баланс: <b>{balance} токенов</b>\n\n"
-        "Выберите сумму пополнения:\n\n"
+        f"💼 Ваш текущий баланс: <b>{balance} токенов</b>\n"
+        f"💵 Стоимость 1 токена: <b>{token_price:.2f}₽</b>\n\n"
+        "Выберите сумму для пополнения:"
     )
     
-    for option in TOPUP_OPTIONS:
-        text += f"• {option['label']}\n"
-    
-    text += "\nПосле выбора суммы с вами свяжется администратор для подтверждения оплаты."
-    
-    await message.answer(text, reply_markup=topup_amounts_kb())
+    await message.answer(text, reply_markup=topup_amounts_kb(topup_options))
 
 
 @router.callback_query(F.data.startswith("topup:"))
