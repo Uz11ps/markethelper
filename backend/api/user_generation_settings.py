@@ -26,9 +26,11 @@ async def get_user_generation_settings(tg_id: int):
     
     # Получаем доступные модели из админки
     try:
-        image_models = await SettingsService.get_image_models()
+        image_models = await SettingsService.get_available_image_models()
     except Exception as e:
-        logger.warning(f"Не удалось получить модели из настроек: {e}")
+        logger.error(f"Не удалось получить модели из настроек: {e}")
+        import traceback
+        traceback.print_exc()
         image_models = {}
     
     # Получаем системный промпт
@@ -57,12 +59,17 @@ async def update_user_generation_settings(tg_id: int, data: GenerationSettingsUp
     # Проверяем что модель существует
     if data.selected_model_key:
         try:
-            image_models = await SettingsService.get_image_models()
+            image_models = await SettingsService.get_available_image_models()
             if data.selected_model_key not in image_models:
+                logger.warning(f"Модель {data.selected_model_key} не найдена в списке доступных: {list(image_models.keys())}")
                 raise HTTPException(status_code=400, detail=f"Model {data.selected_model_key} not found")
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.warning(f"Ошибка проверки модели: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid model key: {e}")
+            logger.error(f"Ошибка проверки модели: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=400, detail=f"Invalid model key: {str(e)}")
     
     settings, created = await UserGenerationSettings.get_or_create(
         user=user,
