@@ -15,6 +15,8 @@ from backend.models.admin import Admin
 router = APIRouter(prefix="/admin", tags=["Admin"])
 # Отдельный роутер для маршрутов с параметрами, чтобы они регистрировались последними
 admin_param_router = APIRouter(prefix="/admin", tags=["Admin"])
+# Отдельный роутер для маршрутов с параметрами, чтобы они регистрировались последними
+admin_param_router = APIRouter(prefix="/admin", tags=["Admin"])
 security = HTTPBearer()
 
 # Список зарезервированных путей, которые должны обрабатываться другими роутерами
@@ -120,7 +122,7 @@ async def get_admin(
     return admin
 
 
-@router.put("/{admin_id}", response_model=AdminResponse)
+@admin_param_router.put("/{admin_id}", response_model=AdminResponse)
 async def update_admin(
     admin_id: str,
     data: AdminUpdate,
@@ -154,7 +156,7 @@ async def update_admin(
     return admin
 
 
-@router.delete("/{admin_id}")
+@admin_param_router.delete("/{admin_id}")
 async def delete_admin(
     admin_id: str,
     _: Admin = Depends(require_super_admin)
