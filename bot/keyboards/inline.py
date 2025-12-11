@@ -79,16 +79,17 @@ def skip_text_keyboard():
     return keyboard
 
 
-def model_selection_keyboard(models: dict):
+def model_selection_keyboard(models: dict, selected_model_key: str = None):
     """Клавиатура выбора модели генерации"""
     buttons = []
     for model_key, model_info in models.items():
         name = model_info.get("name", model_key)
         cost = model_info.get("cost", 0)
         description = model_info.get("description", "")
+        checkmark = "✅" if model_key == selected_model_key else "⚪"
         buttons.append([
             InlineKeyboardButton(
-                text=f"{name} ({cost} токенов)",
+                text=f"{checkmark} {name} ({cost} токенов)",
                 callback_data=f"select_model:{model_key}"
             )
         ])

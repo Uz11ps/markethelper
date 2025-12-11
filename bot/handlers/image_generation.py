@@ -79,6 +79,14 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
         logger.warning(f"Не удалось получить список моделей: {exc}")
         models = {}
     
+    # Получаем сохраненную модель пользователя
+    selected_model_key = None
+    try:
+        user_settings = await api_client.get_user_generation_settings(callback.from_user.id)
+        selected_model_key = user_settings.get("selected_model_key")
+    except Exception as exc:
+        logger.warning(f"Не удалось получить настройки пользователя: {exc}")
+    
     try:
         profile = await api_client.get_profile(
             callback.from_user.id,
@@ -92,17 +100,27 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
 
     from bot.keyboards.inline import model_selection_keyboard
     
-    models_text = "\n".join([
-        f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
-        for key, info in models.items()
-    ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
+    # Формируем текст с информацией о моделях
+    if models:
+        models_text = "\n".join([
+            f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
+            for key, info in models.items()
+        ])
+    else:
+        models_text = "• Nano Banana: 5 токенов - Быстрая генерация"
+    
+    selected_model_text = ""
+    if selected_model_key and selected_model_key in models:
+        selected_model = models[selected_model_key]
+        selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_model_key)}"
 
     await callback.message.answer(
         "🎨 <b>Генерация карточки товара</b>\n\n"
         "Выберите модель для генерации:\n\n"
-        f"{models_text}\n\n"
+        f"{models_text}"
+        f"{selected_model_text}\n\n"
         f"💰 Ваш баланс: <b>{balance} токенов</b>",
-        reply_markup=model_selection_keyboard(models)
+        reply_markup=model_selection_keyboard(models, selected_model_key)
     )
 
 
