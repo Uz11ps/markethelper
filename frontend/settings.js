@@ -22,6 +22,7 @@ async function loadSettings() {
     const settingsData = await settingsResponse.json();
 
     document.getElementById('referralBonus').value = settingsData.referral_bonus?.value || '';
+    document.getElementById('referralRubPerReferral').value = settingsData.referral_rub_per_referral?.value || '';
     document.getElementById('imageCost').value = settingsData.image_generation_cost?.value || '';
     document.getElementById('gptCost').value = settingsData.gpt_request_cost?.value || '';
     
@@ -65,9 +66,10 @@ async function loadSettings() {
 async function saveSettings() {
   const aiPrompt = document.getElementById('aiPrompt').value;
   const imagePrompt = document.getElementById('imagePrompt').value;
-  const referralBonus = parseInt(document.getElementById('referralBonus').value);
-  const referralReferrerBonus = parseInt(document.getElementById('referralReferrerBonus').value);
-  const referralReferredTokens = parseInt(document.getElementById('referralReferredTokens').value);
+    const referralBonus = parseInt(document.getElementById('referralBonus').value);
+    const referralReferrerBonus = parseInt(document.getElementById('referralReferrerBonus').value);
+    const referralReferredTokens = parseInt(document.getElementById('referralReferredTokens').value);
+    const referralRubPerReferral = parseFloat(document.getElementById('referralRubPerReferral').value);
   const imageCost = parseInt(document.getElementById('imageCost').value);
   const gptCost = parseInt(document.getElementById('gptCost').value);
   const gptModel = document.getElementById('gptModel').value;
@@ -135,6 +137,7 @@ async function saveSettings() {
       { key: 'referral_bonus', value: referralBonus.toString(), description: 'Реферальный бонус за регистрацию' },
       { key: 'referral_referrer_bonus', value: referralReferrerBonus.toString(), description: 'Минимальный бонус реферера' },
       { key: 'referral_referred_tokens', value: referralReferredTokens.toString(), description: 'Токены для реферала при регистрации' },
+      { key: 'referral_rub_per_referral', value: referralRubPerReferral.toString(), description: 'Рублей за одного реферала' },
       { key: 'image_generation_cost', value: imageCost.toString(), description: 'Стоимость генерации изображения в токенах' },
       { key: 'gpt_request_cost', value: gptCost.toString(), description: 'Стоимость запроса к GPT в токенах' },
       { key: 'gpt_model', value: gptModel, description: 'Модель GPT для запросов' },

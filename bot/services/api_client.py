@@ -117,6 +117,13 @@ class APIClient:
             r.raise_for_status()
             return r.json()
     
+    async def create_referral_payout(self, tg_id: int, referral_count: int):
+        """Создать заявку на выплату рублей за рефералов"""
+        url = f"{self.base_url}/api/referrals/{tg_id}/payout"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json={"referral_count": referral_count}) as resp:
+                return await self._handle_response(resp)
+    
     async def bind_referral(self, referred_tg: int, referrer_tg: int):
         url = f"{self.base_url}/api/referrals/bind"
         async with aiohttp.ClientSession() as session:

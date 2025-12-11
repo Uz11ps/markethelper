@@ -10,6 +10,7 @@ class SettingsService:
 Отвечай профессионально, используя предоставленный контекст из базы знаний."""
 
     DEFAULT_REFERRAL_BONUS = 100
+    DEFAULT_REFERRAL_RUB_PER_REFERRAL = 50.0  # Рублей за одного реферала
     DEFAULT_CHANNEL_BONUS = 50  # Бонус за подписку на канал
     DEFAULT_CHANNEL_USERNAME = ""  # Username канала (например, "@channel" или "channel")
     DEFAULT_IMAGE_GENERATION_COST = 5
@@ -123,6 +124,17 @@ class SettingsService:
     async def set_referral_bonus(cls, bonus: int) -> Settings:
         """Установить размер реферального бонуса"""
         return await cls.set_setting("referral_bonus", str(bonus))
+    
+    @classmethod
+    async def get_referral_rub_per_referral(cls) -> float:
+        """Получить стоимость одного реферала в рублях"""
+        value = await cls.get_setting("referral_rub_per_referral", str(cls.DEFAULT_REFERRAL_RUB_PER_REFERRAL))
+        return float(value)
+    
+    @classmethod
+    async def set_referral_rub_per_referral(cls, rub: float) -> Settings:
+        """Установить стоимость одного реферала в рублях"""
+        return await cls.set_setting("referral_rub_per_referral", str(rub))
 
     @classmethod
     async def get_image_generation_cost(cls) -> int:
@@ -370,6 +382,9 @@ class SettingsService:
 
         if not await Settings.filter(key="referral_referred_tokens").exists():
             await cls.set_referral_referred_tokens(10)
+        
+        if not await Settings.filter(key="referral_rub_per_referral").exists():
+            await cls.set_referral_rub_per_referral(cls.DEFAULT_REFERRAL_RUB_PER_REFERRAL)
         
         # Инициализация цен пополнения
         if not await Settings.filter(key="token_price").exists():

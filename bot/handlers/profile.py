@@ -70,17 +70,88 @@ async def referral_info(callback: types.CallbackQuery):
     except Exception as e:
         await callback.message.answer(f"error {str(e)}")
         print(f"[ERROR referral_info] {e}")
+        await callback.answer()
         return
 
-    link = data.get("ref_link")
-    count = data.get("ref_count", 0)
+    ref_link = data.get("ref_link", "")
+    ref_count = data.get("ref_count", 0)
+    rub_per_referral = data.get("rub_per_referral", 0)
+    total_rub = data.get("total_rub", 0)
+    pending_rub = data.get("pending_rub", 0)
+    approved_rub = data.get("approved_rub", 0)
+    available_rub = data.get("available_rub", 0)
 
-    await callback.message.answer(
-        f"🎁 Ваша реферальная ссылка:\n"
-        f"<code>{link}</code>\n\n"
-        f"👥 Количество рефералов: <b>{count}</b>"
+    text = (
+        f"🎁 <b>Реферальная программа</b>\n\n"
+        f"🔗 <b>Ваша реферальная ссылка:</b>\n"
+        f"<code>{ref_link}</code>\n\n"
+        f"👥 <b>Приглашено пользователей:</b> {ref_count}\n\n"
+        f"💰 <b>Финансовая информация:</b>\n"
+        f"• За одного реферала: <b>{rub_per_referral:.2f}₽</b>\n"
+        f"• Всего заработано: <b>{total_rub:.2f}₽</b>\n"
+        f"• Ожидает подтверждения: <b>{pending_rub:.2f}₽</b>\n"
+        f"• Уже выплачено: <b>{approved_rub:.2f}₽</b>\n"
+        f"• Доступно к выводу: <b>{available_rub:.2f}₽</b>\n\n"
+        f"💡 Поделитесь ссылкой с друзьями и получайте деньги за каждого приглашенного!"
     )
+
+    # Добавляем кнопку для создания заявки на выплату если есть доступные средства
+    keyboard = None
+    if available_rub > 0:
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=f"💵 Запросить выплату ({available_rub:.2f}₽)",
+                callback_data="referral:request_payout"
+            )]
+        ])
+
+    await callback.message.answer(text, reply_markup=keyboard)
     await callback.answer()
+
+
+@router.callback_query(F.data == "referral:request_payout")
+async def request_referral_payout(callback: types.CallbackQuery):
+    """Создание заявки на выплату рублей за рефералов"""
+    await callback.answer()
+    
+    tg_id = callback.from_user.id
+    
+    try:
+        # Получаем информацию о рефералах
+        data = await api.get_referral_info(tg_id)
+        available_rub = data.get("available_rub", 0)
+        ref_count = data.get("ref_count", 0)
+        
+        if available_rub <= 0:
+            await callback.message.answer("❌ У вас нет доступных средств для вывода.")
+            return
+        
+        # Создаем заявку на выплату всех доступных рефералов
+        # Вычисляем количество рефералов для выплаты
+        rub_per_referral = data.get("rub_per_referral", 0)
+        if rub_per_referral <= 0:
+            await callback.message.answer("❌ Ошибка: не установлена стоимость реферала.")
+            return
+        
+        # Вычисляем сколько рефералов можно выплатить
+        referral_count = int(available_rub / rub_per_referral)
+        
+        result = await api.create_referral_payout(tg_id, referral_count)
+        
+        await callback.message.answer(
+            f"✅ <b>Заявка на выплату создана!</b>\n\n"
+            f"💰 Сумма: <b>{result.get('amount_rub', 0):.2f}₽</b>\n"
+            f"👥 Рефералов: <b>{result.get('referral_count', 0)}</b>\n"
+            f"📋 Номер заявки: <b>#{result.get('id', 'N/A')}</b>\n\n"
+            f"⏳ Ожидайте подтверждения администратора."
+        )
+    except Exception as e:
+        logger.error(f"Ошибка создания заявки на выплату: {e}")
+        await callback.message.answer(
+            f"❌ Ошибка при создании заявки: {str(e)}\n\n"
+            f"Попробуйте позже или обратитесь к администратору."
+        )
     
 @router.callback_query(F.data == "profile:support")
 async def support_handler(callback: types.CallbackQuery):
