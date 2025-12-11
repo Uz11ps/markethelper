@@ -15,28 +15,37 @@ async def migrate_user_generation_settings():
         
         # Проверяем существование колонки через PRAGMA table_info
         # В SQLite PRAGMA table_info возвращает: (cid, name, type, notnull, dflt_value, pk)
-        result = await conn.execute_query("PRAGMA table_info(user_generation_settings)")
-        
-        columns = []
-        if result:
-            for row in result:
-                if isinstance(row, (list, tuple)) and len(row) > 1:
-                    columns.append(row[1])  # name - второй элемент
-                elif isinstance(row, dict):
-                    columns.append(row.get('name', ''))
-        
-        if "selected_gpt_model" not in columns:
-            logger.info("Добавляем колонку selected_gpt_model в таблицу user_generation_settings")
-            await conn.execute_query(
-                "ALTER TABLE user_generation_settings ADD COLUMN selected_gpt_model VARCHAR(255) NULL"
-            )
-            logger.info("✅ Колонка selected_gpt_model успешно добавлена")
-        else:
-            logger.debug("Колонка selected_gpt_model уже существует")
+        try:
+            result = await conn.execute_query("PRAGMA table_info(user_generation_settings)")
+            
+            columns = []
+            if result:
+                for row in result:
+                    if isinstance(row, (list, tuple)) and len(row) > 1:
+                        columns.append(row[1])  # name - второй элемент
+                    elif isinstance(row, dict):
+                        columns.append(row.get('name', ''))
+            
+            if "selected_gpt_model" not in columns:
+                logger.info("Добавляем колонку selected_gpt_model в таблицу user_generation_settings")
+                await conn.execute_query(
+                    "ALTER TABLE user_generation_settings ADD COLUMN selected_gpt_model VARCHAR(255) NULL"
+                )
+                logger.info("✅ Колонка selected_gpt_model успешно добавлена")
+            else:
+                logger.debug("Колонка selected_gpt_model уже существует")
+        except OperationalError as e:
+            # Если таблица не существует, это нормально - она будет создана автоматически
+            if "no such table" in str(e).lower():
+                logger.debug(f"Таблица user_generation_settings еще не создана: {e}")
+            elif "duplicate column" in str(e).lower():
+                logger.info("Колонка selected_gpt_model уже существует (обнаружено через ошибку)")
+            else:
+                raise
     except OperationalError as e:
-        # Если таблица не существует, это нормально - она будет создана автоматически
-        if "no such table" in str(e).lower():
-            logger.debug(f"Таблица user_generation_settings еще не создана: {e}")
+        # Если колонка уже существует (duplicate column), это нормально
+        if "duplicate column" in str(e).lower():
+            logger.info("Колонка selected_gpt_model уже существует (обнаружено через ошибку)")
         else:
             logger.error(f"Ошибка при миграции user_generation_settings: {e}")
             import traceback
