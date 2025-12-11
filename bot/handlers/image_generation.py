@@ -1271,12 +1271,16 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
         # Удаляем все временные сообщения
         await delete_messages(message.chat.id, temp_messages)
 
+        # Определяем текст подписи в зависимости от режима
+        mode = data.get("mode", "infographics")
+        caption_text = "Ваша карточка товара успешно сгенерирована!" if mode == "infographics" else "Ваша картинка успешно сгенерирована!"
+
         # Отправляем результат с кнопками
         await message.answer_photo(
             photo=image_urls[0],
             caption=(
-                "✨ <b>Готово!</b>\n\n"
-                "Ваша карточка товара успешно сгенерирована!\n\n"
+                f"✨ <b>Готово!</b>\n\n"
+                f"{caption_text}\n\n"
                 "Выберите действие:"
             ),
             reply_markup=result_keyboard()
