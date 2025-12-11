@@ -211,27 +211,26 @@ async def approve_request(
                     request=req,
                     status="pending"
                 )
+        
+        subscription_type_name = "Индивидуальный доступ" if subscription_type == "individual" else "Складчина"
+        message = f"✅ Ваша заявка #{req.id} на тариф {req.tariff.name} ({subscription_type_name}) одобрена!\nИспользуйте /start еще раз для перехода в профиль и использования бота!"
+        if group:
+            message += f"\nГруппа файлов: {group.name} привязана к вашей подписке."
+        background_tasks.add_task(notify_user, req.user.tg_id, message)
+
+        return {
+            "message": f"Request {request_id} approved",
+            "subscription_id": subscription.id,
+            "subscription_type": subscription_type,
+            "group": group.name if group else None,
+            "group_id": group.id if group else None,
+        }
     except HTTPException:
         raise
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-    subscription_type_name = "Индивидуальный доступ" if subscription_type == "individual" else "Складчина"
-    message = f"✅ Ваша заявка #{req.id} на тариф {req.tariff.name} ({subscription_type_name}) одобрена!\nИспользуйте /start еще раз для перехода в профиль и использования бота!"
-    if group:
-        message += f"\nГруппа файлов: {group.name} привязана к вашей подписке."
-    background_tasks.add_task(notify_user, req.user.tg_id, message)
-
-    return {
-        "message": f"Request {request_id} approved",
-        "subscription_id": subscription.id,
-        "subscription_type": subscription_type,
-        "group": group.name if group else None,
-        "group_id": group.id if group else None,
-    }
 
 @router.post("/{request_id}/reject")
 async def reject_request(
