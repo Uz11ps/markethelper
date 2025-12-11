@@ -53,6 +53,21 @@ async def get_users_stats(_: Admin = Depends(get_current_admin)):
     }
 
 
+@router.get("/by_tg/{tg_id}", response_model=UserResponse)
+async def get_user_by_tg(
+    tg_id: int
+):
+    """Получение пользователя по Telegram ID (публичный endpoint для бота)"""
+    user = await User.get_or_none(tg_id=tg_id)
+    if not user:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return user
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_details(
     user_id: int,

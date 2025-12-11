@@ -76,7 +76,7 @@ class APIClient:
     
     async def get_groups(self):
         """Получить список групп доступа"""
-        url = f"{self.base_url}/api/admin/groups/"
+        url = f"{self.base_url}/api/groups/"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)

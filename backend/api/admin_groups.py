@@ -19,7 +19,24 @@ class GroupUpdate(BaseModel):
 
 @router.get("/", response_model=List[dict])
 async def list_groups(admin: Admin = Depends(get_current_admin)):
-    """Получить список всех групп доступа"""
+    """Получить список всех групп доступа (требует аутентификации админа)"""
+    groups = await AccessGroup.all()
+    return [
+        {
+            "id": group.id,
+            "name": group.name,
+            "created_at": group.created_at.isoformat() if group.created_at else None,
+        }
+        for group in groups
+    ]
+
+
+# Публичный endpoint для бота (без аутентификации)
+public_router = APIRouter(prefix="/groups", tags=["Groups"])
+
+@public_router.get("/", response_model=List[dict])
+async def list_groups_public():
+    """Получить список всех групп доступа (публичный endpoint для бота)"""
     groups = await AccessGroup.all()
     return [
         {

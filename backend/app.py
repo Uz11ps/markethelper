@@ -53,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_bonuses.router, prefix="/api")
     app.include_router(admin_referral_payouts.router, prefix="/api")
     app.include_router(files.admin_router, prefix="/api")
+    app.include_router(admin_groups.public_router, prefix="/api")
 
 
     @app.on_event("startup")
