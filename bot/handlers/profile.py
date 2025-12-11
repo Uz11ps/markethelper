@@ -50,8 +50,6 @@ async def show_profile(message: types.Message):
     
     text += f"💰 <b>Токены:</b> {data.get('bonus_balance') or 0}"
 
-    from bot.keyboards.main_menu import main_menu_kb
-    
     # Отправляем профиль с inline клавиатурой
     await message.answer(
         text, 
