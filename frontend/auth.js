@@ -73,7 +73,6 @@ function getAuthHeaders() {
   }
   return {
     'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
   };
 }
 
@@ -121,10 +120,20 @@ async function getCurrentAdmin() {
  * Обертка для fetch с автоматической обработкой ошибок аутентификации
  */
 async function authFetch(url, options = {}) {
+  const authHeaders = getAuthHeaders();
   const headers = {
-    ...getAuthHeaders(),
+    ...authHeaders,
     ...options.headers,
   };
+  
+  // Если body является FormData, не устанавливаем Content-Type
+  // Браузер автоматически установит multipart/form-data с boundary
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  } else if (!headers['Content-Type']) {
+    // Для JSON запросов устанавливаем Content-Type, если он не указан
+    headers['Content-Type'] = 'application/json';
+  }
 
   const response = await fetch(url, {
     ...options,
