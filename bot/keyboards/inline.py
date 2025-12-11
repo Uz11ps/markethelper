@@ -18,15 +18,19 @@ def skip_keyboard(callback_data: str):
     return keyboard
 
 
-def result_keyboard():
+def result_keyboard(image_url: str = None):
     """Клавиатура после генерации изображения"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    # URL может быть длинным, поэтому используем короткий callback_data
+    # Сохраняем только первые 100 символов URL в callback_data, остальное берем из state
+    download_callback = f"download_image:{image_url[:100]}" if image_url else "download_image"
+    buttons = [
+        [InlineKeyboardButton(text="📥 Получить файлом", callback_data=download_callback)],
         [InlineKeyboardButton(text="✏️ Редактировать промпт", callback_data="edit_prompt")],
         [InlineKeyboardButton(text="🔄 Внести правки в изображение", callback_data="refine_image")],
         [InlineKeyboardButton(text="🎨 Создать новое изображение", callback_data="generate_image")],
         [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
-    ])
-    return keyboard
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def prompt_edit_keyboard():

@@ -70,21 +70,31 @@ class PromptGeneratorService:
     _system_prompt_cache: str | None = None
 
     @classmethod
-    async def _get_system_prompt(cls) -> str:
-        if cls._system_prompt_cache:
+    async def _get_system_prompt(cls, force_refresh: bool = False) -> str:
+        """Получить системный промпт из админки или использовать дефолтный"""
+        if cls._system_prompt_cache and not force_refresh:
             return cls._system_prompt_cache
 
         try:
             data = await settings_api.get_admin_settings()
             prompt = data.get("prompt_generator_prompt")
-            if prompt:
+            if prompt and prompt.strip():
+                logger.info(f"Используется промпт из админки (длина: {len(prompt)} символов)")
                 cls._system_prompt_cache = prompt
                 return prompt
+            else:
+                logger.warning("Промпт из админки пустой или отсутствует, используется дефолтный")
         except Exception as exc:
             logger.warning(f"Не удалось получить промпт генератора из админки: {exc}")
 
         cls._system_prompt_cache = SYSTEM_PROMPT
         return SYSTEM_PROMPT
+    
+    @classmethod
+    def clear_cache(cls):
+        """Очистить кэш промпта для принудительного обновления"""
+        cls._system_prompt_cache = None
+        logger.info("Кэш промпта очищен")
 
     @classmethod
     async def generate_prompt_from_images(
@@ -149,7 +159,8 @@ class PromptGeneratorService:
                 })
 
             # Запрос к GPT-4o
-            system_prompt = await cls._get_system_prompt()
+            system_prompt = await cls._get_system_prompt(force_refresh=False)
+            logger.info(f"Используется системный промпт (длина: {len(system_prompt)} символов, первые 200 символов: {system_prompt[:200]}...)")
 
             logger.info("Отправка запроса к GPT-4o для генерации промпта...")
             response = await client.chat.completions.create(

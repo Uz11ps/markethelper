@@ -891,7 +891,7 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
                 "Ваша карточка товара успешно сгенерирована!\n\n"
                 "Выберите действие:"
             ),
-            reply_markup=result_keyboard()
+            reply_markup=result_keyboard(image_url=image_urls[0])
         )
         
         logger.info(f"Пользователь успешно сгенерировал изображение")
@@ -1183,7 +1183,7 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
                 "Ваша карточка товара успешно сгенерирована!\n\n"
                 "Выберите действие:"
             ),
-            reply_markup=result_keyboard()
+            reply_markup=result_keyboard(image_url=image_urls[0])
         )
 
         logger.info(f"Пользователь успешно сгенерировал изображение")
@@ -1283,7 +1283,7 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
                 f"{caption_text}\n\n"
                 "Выберите действие:"
             ),
-            reply_markup=result_keyboard()
+            reply_markup=result_keyboard(image_url=image_urls[0])
         )
 
         logger.info(f"Пользователь успешно сгенерировал изображение с кастомным промптом")
@@ -1440,3 +1440,52 @@ async def cancel_generation(callback: CallbackQuery, state: FSMContext):
         "❌ Генерация отменена.\n\n"
         "Используйте /menu для просмотра доступных команд."
     )
+
+
+@router.callback_query(F.data.startswith("download_image"))
+async def download_image_handler(callback: CallbackQuery, state: FSMContext):
+    """Скачивание изображения как файл"""
+    await callback.answer("Загружаю файл...")
+    
+    try:
+        # Получаем URL из callback_data или из state
+        image_url = None
+        if ":" in callback.data:
+            image_url = callback.data.split(":", 1)[1]
+        
+        # Если URL не в callback_data, берем из state
+        if not image_url:
+            data = await state.get_data()
+            image_url = data.get("last_generated_image")
+        
+        if not image_url:
+            await callback.message.answer("❌ Не удалось найти изображение для скачивания.")
+            return
+        
+        # Скачиваем изображение
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get(image_url) as resp:
+                if resp.status != 200:
+                    await callback.message.answer("❌ Не удалось загрузить изображение.")
+                    return
+                
+                image_data = await resp.read()
+                from aiogram.types import BufferedInputFile
+                
+                # Определяем расширение файла
+                import os
+                from urllib.parse import urlparse
+                parsed_url = urlparse(image_url)
+                file_ext = os.path.splitext(parsed_url.path)[1] or ".jpg"
+                filename = f"generated_image{file_ext}"
+                
+                file = BufferedInputFile(image_data, filename=filename)
+                await callback.message.answer_document(
+                    document=file,
+                    caption="📥 Ваше изображение готово!"
+                )
+                
+    except Exception as e:
+        logger.error(f"Ошибка при скачивании изображения: {e}")
+        await callback.message.answer(f"❌ Ошибка при скачивании: {str(e)}")

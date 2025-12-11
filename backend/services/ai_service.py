@@ -93,6 +93,7 @@ async def query_ai(question: str, tg_id: int = None) -> str:
 
     # Получаем кастомный промпт из настроек
     system_prompt = await SettingsService.get_ai_prompt()
+    logger.info(f"[query_ai] Используется системный промпт из админки (длина: {len(system_prompt)} символов, первые 200 символов: {system_prompt[:200]}...)")
 
     prompt = f"""
 {system_prompt}
