@@ -16,11 +16,32 @@ class TokenService:
 
     @classmethod
     async def get_cost_for_action(cls, action: str) -> int:
-        if action == cls.ACTION_IMAGE_GENERATION:
-            return await SettingsService.get_image_generation_cost()
-        if action == cls.ACTION_GPT:
-            return await SettingsService.get_gpt_request_cost()
-        raise HTTPException(status_code=400, detail="Неизвестный тип действия для списания токенов")
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            if action == cls.ACTION_IMAGE_GENERATION:
+                cost = await SettingsService.get_image_generation_cost()
+                logger.debug(f"[TokenService.get_cost_for_action] Стоимость генерации изображения: {cost}")
+                return cost
+            if action == cls.ACTION_GPT:
+                cost = await SettingsService.get_gpt_request_cost()
+                logger.debug(f"[TokenService.get_cost_for_action] Стоимость запроса GPT: {cost}")
+                return cost
+            logger.error(f"[TokenService.get_cost_for_action] Неизвестный тип действия: {action}")
+            raise HTTPException(status_code=400, detail="Неизвестный тип действия для списания токенов")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"[TokenService.get_cost_for_action] Ошибка при получении стоимости: {e}", exc_info=True)
+            # Возвращаем значения по умолчанию в случае ошибки
+            if action == cls.ACTION_IMAGE_GENERATION:
+                logger.warning(f"[TokenService.get_cost_for_action] Используется значение по умолчанию: {SettingsService.DEFAULT_IMAGE_GENERATION_COST}")
+                return SettingsService.DEFAULT_IMAGE_GENERATION_COST
+            if action == cls.ACTION_GPT:
+                logger.warning(f"[TokenService.get_cost_for_action] Используется значение по умолчанию: {SettingsService.DEFAULT_GPT_REQUEST_COST}")
+                return SettingsService.DEFAULT_GPT_REQUEST_COST
+            raise HTTPException(status_code=500, detail=f"Ошибка при получении стоимости действия: {str(e)}")
 
     @classmethod
     async def charge(cls, tg_id: int, action: str) -> dict:
