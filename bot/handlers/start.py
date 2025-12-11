@@ -107,8 +107,9 @@ async def cmd_start(message: types.Message):
 
 
 @router.message(F.text == "/menu")
+@router.message(F.text == "/start")
 async def cmd_menu(message: types.Message, state: FSMContext):
-    """Возврат в главное меню"""
+    """Возврат в главное меню (также обрабатывает /start для обновления клавиатуры)"""
     await state.clear()
 
     tg = message.from_user
@@ -117,6 +118,7 @@ async def cmd_menu(message: types.Message, state: FSMContext):
     has_active = active_until is not None
     has_file_access = bool(profile.get("access_file_path"))  # Файл есть только у складчины
 
+    # Обновляем главную клавиатуру с кнопкой "Пополнить"
     await message.answer(
         "🏠 <b>Главное меню</b>\n\n"
         "Выберите действие на клавиатуре ниже.",

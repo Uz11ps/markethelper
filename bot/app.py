@@ -3,6 +3,7 @@ import uvicorn
 from aiogram import Dispatcher
 from bot.loader import bot, dp
 from bot.handlers import files, start, subscription, profile, ai, image_generation, topup
+from bot.handlers import keyboard_update
 from bot.api import app as fastapi_app
 
 
@@ -14,6 +15,7 @@ async def run_bot():
     dp.include_router(files.router)
     dp.include_router(image_generation.router)
     dp.include_router(topup.router)
+    dp.include_router(keyboard_update.router)
     # dp.include_router(referral.router)
     # dp.include_router(faq.router)
     # dp.include_router(access_file.router)
