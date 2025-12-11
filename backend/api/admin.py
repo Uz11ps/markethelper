@@ -113,27 +113,61 @@ async def get_admin(
 
 @router.put("/{admin_id}", response_model=AdminResponse)
 async def update_admin(
-    admin_id: int,
+    admin_id: str,
     data: AdminUpdate,
     current_admin: Admin = Depends(get_current_admin)
 ):
     """Обновление данных администратора"""
+    # Проверяем, что это не зарезервированное слово
+    reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
+    if admin_id in reserved_paths:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    # Пытаемся преобразовать в int
+    try:
+        admin_id_int = int(admin_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
     # Админ может редактировать только себя, суперадмин - всех
-    if admin_id != current_admin.id and not current_admin.is_super_admin:
+    if admin_id_int != current_admin.id and not current_admin.is_super_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
         )
 
-    admin = await AdminService.update_admin(admin_id, data)
+    admin = await AdminService.update_admin(admin_id_int, data)
     return admin
 
 
 @router.delete("/{admin_id}")
 async def delete_admin(
-    admin_id: int,
+    admin_id: str,
     _: Admin = Depends(require_super_admin)
 ):
     """Удаление администратора (только для суперадмина)"""
-    await AdminService.delete_admin(admin_id)
+    # Проверяем, что это не зарезервированное слово
+    reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
+    if admin_id in reserved_paths:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    # Пытаемся преобразовать в int
+    try:
+        admin_id_int = int(admin_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    await AdminService.delete_admin(admin_id_int)
     return {"message": "Admin deleted successfully"}
