@@ -1207,9 +1207,17 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
 async def generate_with_custom_prompt(message: Message, state: FSMContext, custom_prompt: str):
     """Генерация с кастомным промптом"""
     data = await state.get_data()
-    product_photos = data.get("product_photos", [])
-    reference_photos = data.get("reference_photos", [])
-    aspect_ratio = data.get("aspect_ratio", "3:4")
+    mode = data.get("mode", "infographics")  # По умолчанию инфографика для совместимости
+    
+    # Для режима простых картинок не требуются фото товара
+    if mode == "images":
+        product_photos = []
+        reference_photos = []
+    else:
+        product_photos = data.get("product_photos", [])
+        reference_photos = data.get("reference_photos", [])
+    
+    aspect_ratio = data.get("aspect_ratio", "1:1" if mode == "images" else "3:4")
     card_text = data.get("card_text")
 
     await state.set_state(ImageGenerationStates.generating)

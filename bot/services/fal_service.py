@@ -48,14 +48,38 @@ class FALService:
 
             # Основное изображение товара (первое из списка)
             main_product_image = product_images[0] if product_images else None
-
-            if not main_product_image:
-                raise ValueError("Необходимо хотя бы одно изображение товара")
-
             # Главный референс для стиля
             main_reference = reference_images[0] if reference_images else None
 
-            if main_reference:
+            # Если нет фото товара - это режим простых картинок, генерируем только по промпту
+            if not main_product_image:
+                logger.info("Режим простых картинок - генерация только по промпту без фото товара")
+                
+                # Используем указанную модель или модель по умолчанию
+                if model_id:
+                    model = model_id
+                else:
+                    model = "fal-ai/flux-pro/v1.1-ultra"
+                
+                # Определяем размер изображения на основе aspect_ratio
+                if aspect_ratio == "1:1":
+                    image_size = "square_hd"
+                elif aspect_ratio == "16:9":
+                    image_size = "landscape_4_3"
+                elif aspect_ratio == "9:16":
+                    image_size = "portrait_4_3"
+                else:
+                    image_size = "square_hd"  # По умолчанию
+                
+                arguments = {
+                    "prompt": prompt,
+                    "num_images": num_images,
+                    "image_size": image_size,
+                    "num_inference_steps": 40,
+                    "guidance_scale": 7.5,
+                    "enable_safety_checker": True,
+                }
+            elif main_reference:
                 # Используем Nano Banana для применения стиля референса к товару
                 logger.info("Используется Nano Banana для применения стиля референса к товару")
 
@@ -77,10 +101,10 @@ class FALService:
                     "output_format": "jpeg",
                 }
 
-                model = "fal-ai/nano-banana"
+                model = model_id if model_id else "fal-ai/nano-banana"
             else:
-                # Без референса - обычная генерация
-                logger.info("Генерация без референса - используется FLUX Pro Ultra")
+                # Без референса, но с фото товара - обычная генерация
+                logger.info("Генерация с фото товара без референса - используется FLUX Pro Ultra")
 
                 arguments = {
                     "prompt": prompt,
@@ -91,7 +115,7 @@ class FALService:
                     "enable_safety_checker": True,
                 }
 
-                model = "fal-ai/flux-pro/v1.1-ultra"
+                model = model_id if model_id else "fal-ai/flux-pro/v1.1-ultra"
 
             logger.info(f"Используется модель: {model}")
             logger.info(f"Параметры: {arguments}")
