@@ -5,7 +5,7 @@ from backend.api import (
     mailing, ai, session_updater, settings, tokens,
     admin, admin_users, admin_broadcast, admin_settings, admin_tokens
 )
-from backend.api import admin_subscriptions, admin_groups, admin_bonuses, admin_referral_payouts
+from backend.api import admin_subscriptions, admin_groups, admin_bonuses, admin_referral_payouts, user_generation_settings
 from backend.core.db import init_db, close_db
 from backend.services.settings_service import SettingsService
 
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(tokens.router, prefix="/api")
     from backend.api import channel
     app.include_router(channel.router, prefix="/api")
+    app.include_router(user_generation_settings.router, prefix="/api")
 
     # Админ роуты
     app.include_router(admin.router, prefix="/api")

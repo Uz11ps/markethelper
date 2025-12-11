@@ -38,10 +38,20 @@ async def show_profile(message: types.Message):
     has_active_sub = active_until is not None
     has_file_access = bool(data.get("access_file_path"))  # Файл есть только у складчины
 
+    # Определяем статус пользователя
+    tariff_name = data.get('tariff_name')
+    if not active_until:
+        if tariff_name:
+            status_text = "Обычный пользователь"
+        else:
+            status_text = "Тестовый режим"
+    else:
+        status_text = tariff_name or "Активная подписка"
+    
     text = (
         f"👤 <b>Пользователь:</b> @{data.get('username') or tg.username or '—'}\n"
-        f"⭐️ <b>Тариф:</b> {data.get('tariff_name') or 'Тестовый режим'}\n"
-        f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Бессрочно (тест)'}\n"
+        f"⭐️ <b>Тариф:</b> {status_text}\n"
+        f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Нет активной подписки'}\n"
     )
     
     # Показываем файл только для складчины
@@ -162,42 +172,133 @@ async def support_handler(callback: types.CallbackQuery):
     await callback.answer()
 
 @router.callback_query(F.data == "profile:generation_settings")
-async def generation_settings_handler(callback: types.CallbackQuery):
+async def generation_settings_handler(callback: types.CallbackQuery, state: FSMContext):
     """Показать настройки промптов и моделей для генерации"""
     await callback.answer()
     
     try:
-        # Получаем список моделей
-        models = await api.get_image_models()
+        # Получаем настройки пользователя
+        settings_data = await api.get_user_generation_settings(callback.from_user.id)
         
-        # Получаем информацию о промпте генератора
-        from bot.services.prompt_generator import PromptGeneratorService
-        prompt_info = await PromptGeneratorService._get_system_prompt()
-        prompt_preview = prompt_info[:150] + "..." if len(prompt_info) > 150 else prompt_info
+        available_models = settings_data.get("available_models", {})
+        system_prompt = settings_data.get("system_prompt", "")
+        selected_model_key = settings_data.get("selected_model_key")
+        custom_prompt = settings_data.get("custom_prompt")
         
-        models_text = "\n".join([
-            f"• <b>{info.get('name', key)}</b>\n"
-            f"  └ Модель: <code>{info.get('model_id', 'N/A')}</code>\n"
-            f"  └ Стоимость: {info.get('cost', 0)} токенов\n"
-            f"  └ Описание: {info.get('description', '')}"
-            for key, info in models.items()
-        ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
+        # Формируем текст с моделями
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        
+        buttons = []
+        for key, info in available_models.items():
+            checkmark = "✅" if key == selected_model_key else ""
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"{checkmark} {info.get('name', key)} ({info.get('cost', 0)} токенов)",
+                    callback_data=f"genset:model:{key}"
+                )
+            ])
+        
+        buttons.append([
+            InlineKeyboardButton(text="📝 Изменить промпт", callback_data="genset:prompt:edit"),
+            InlineKeyboardButton(text="🔄 Сбросить промпт", callback_data="genset:prompt:reset")
+        ])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+        
+        # Текущий промпт
+        current_prompt = custom_prompt if custom_prompt else system_prompt
+        prompt_preview = current_prompt[:200] + "..." if len(current_prompt) > 200 else current_prompt
+        
+        selected_model_name = "Не выбрана"
+        if selected_model_key and selected_model_key in available_models:
+            selected_model_name = available_models[selected_model_key].get("name", selected_model_key)
         
         text = (
             "⚙️ <b>Настройки генерации</b>\n\n"
-            "📝 <b>Текущий промпт генератора:</b>\n"
+            f"🎨 <b>Выбранная модель:</b> {selected_model_name}\n\n"
+            "📝 <b>Текущий промпт:</b>\n"
             f"<code>{prompt_preview}</code>\n\n"
-            "🎨 <b>Доступные модели:</b>\n\n"
-            f"{models_text}\n\n"
-            "💡 <i>Промпт и модели настраиваются администратором в админ-панели.</i>"
+            "Выберите модель для генерации или измените промпт:"
         )
         
-        await callback.message.answer(text)
+        await callback.message.answer(text, reply_markup=keyboard)
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
         logger.error(f"Ошибка получения настроек генерации: {e}")
         await callback.message.answer(
             f"❌ Ошибка при получении настроек: {str(e)}"
         )
+
+@router.callback_query(F.data.startswith("genset:model:"))
+async def select_model_handler(callback: types.CallbackQuery):
+    """Выбор модели для генерации"""
+    await callback.answer()
+    
+    model_key = callback.data.replace("genset:model:", "")
+    
+    try:
+        await api.update_user_generation_settings(
+            callback.from_user.id,
+            selected_model_key=model_key
+        )
+        
+        # Получаем информацию о модели
+        settings_data = await api.get_user_generation_settings(callback.from_user.id)
+        available_models = settings_data.get("available_models", {})
+        
+        if model_key in available_models:
+            model_info = available_models[model_key]
+            await callback.message.answer(
+                f"✅ Модель <b>{model_info.get('name', model_key)}</b> выбрана!\n\n"
+                f"Стоимость: {model_info.get('cost', 0)} токенов\n"
+                f"Описание: {model_info.get('description', '')}"
+            )
+        else:
+            await callback.message.answer("✅ Модель выбрана!")
+        
+        # Обновляем меню настроек
+        await generation_settings_handler(callback, None)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Ошибка выбора модели: {e}")
+        await callback.message.answer(f"❌ Ошибка: {str(e)}")
+
+@router.callback_query(F.data == "genset:prompt:edit")
+async def edit_prompt_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Редактирование промпта"""
+    await callback.answer()
+    
+    from bot.states.image_generation import ImageGenerationStates
+    await state.set_state(ImageGenerationStates.waiting_for_custom_prompt)
+    await state.update_data(editing_generation_prompt=True)
+    
+    await callback.message.answer(
+        "✏️ <b>Введите новый промпт для генерации</b>\n\n"
+        "Этот промпт будет использоваться вместо системного промпта.\n"
+        "Отправьте текст промпта или /cancel для отмены."
+    )
+
+@router.callback_query(F.data == "genset:prompt:reset")
+async def reset_prompt_handler(callback: types.CallbackQuery):
+    """Сброс промпта к системному"""
+    await callback.answer()
+    
+    try:
+        await api.update_user_generation_settings(
+            callback.from_user.id,
+            custom_prompt=None
+        )
+        await callback.message.answer("✅ Промпт сброшен к системному значению!")
+        
+        # Обновляем меню настроек
+        await generation_settings_handler(callback, None)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Ошибка сброса промпта: {e}")
+        await callback.message.answer(f"❌ Ошибка: {str(e)}")
 
 @router.callback_query(F.data == "profile:topup")
 async def topup_from_profile(callback: types.CallbackQuery):

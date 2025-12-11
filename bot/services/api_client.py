@@ -170,6 +170,26 @@ class APIClient:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
     
+    async def get_user_generation_settings(self, tg_id: int):
+        """Получить настройки генерации пользователя"""
+        url = f"{self.base_url}/api/users/{tg_id}/generation-settings"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await self._handle_response(resp)
+    
+    async def update_user_generation_settings(self, tg_id: int, selected_model_key: str | None = None, custom_prompt: str | None = None):
+        """Обновить настройки генерации пользователя"""
+        url = f"{self.base_url}/api/users/{tg_id}/generation-settings"
+        payload = {}
+        if selected_model_key is not None:
+            payload["selected_model_key"] = selected_model_key
+        if custom_prompt is not None:
+            payload["custom_prompt"] = custom_prompt
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, json=payload) as resp:
+                return await self._handle_response(resp)
+    
     async def get_channel_settings(self):
         """Получить настройки канала"""
         url = f"{self.base_url}/api/admin/settings/channel"

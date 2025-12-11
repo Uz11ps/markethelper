@@ -26,11 +26,14 @@ async def extend_subscription(
         if data.days <= 0:
             raise HTTPException(status_code=400, detail="Количество дней должно быть больше 0")
         
-        subscription = await Subscription.filter(id=subscription_id).prefetch_related("user").first()
+        subscription = await Subscription.filter(id=subscription_id).first()
 
         if not subscription:
             print(f"[EXTEND_SUBSCRIPTION] Подписка {subscription_id} не найдена")
             raise HTTPException(status_code=404, detail="Подписка не найдена")
+        
+        # Загружаем пользователя отдельно если нужно
+        user = await subscription.user
 
         # Получаем статус ACTIVE
         from backend.models import Status
@@ -111,7 +114,7 @@ async def revoke_subscription(
     await notify_user(
         user.tg_id,
         "⚠️ Ваша подписка была отозвана администратором.\n"
-        "Ваш профиль переведен в тестовый режим.\n"
+        "Вы стали обычным пользователем без подписки.\n"
         "Для возобновления доступа обратитесь в поддержку."
     )
 

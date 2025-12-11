@@ -97,23 +97,11 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
         for key, info in models.items()
     ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
 
-    # Получаем информацию о промпте генератора
-    try:
-        from bot.services.prompt_generator import PromptGeneratorService
-        prompt_info = await PromptGeneratorService._get_system_prompt()
-        prompt_preview = prompt_info[:200] + "..." if len(prompt_info) > 200 else prompt_info
-    except Exception as exc:
-        logger.warning(f"Не удалось получить промпт генератора: {exc}")
-        prompt_preview = "Используется стандартный промпт"
-    
     await callback.message.answer(
         "🎨 <b>Генерация карточки товара</b>\n\n"
         "Выберите модель для генерации:\n\n"
         f"{models_text}\n\n"
-        f"💰 Ваш баланс: <b>{balance} токенов</b>\n\n"
-        f"📝 <b>Текущий промпт генератора:</b>\n"
-        f"<code>{prompt_preview}</code>\n\n"
-        f"💡 Промпт настраивается администратором и влияет на качество генерации.",
+        f"💰 Ваш баланс: <b>{balance} токенов</b>",
         reply_markup=model_selection_keyboard(models)
     )
 
@@ -131,6 +119,15 @@ async def select_model(callback: CallbackQuery, state: FSMContext):
         model_name = selected_model.get("name", model_key)
         model_cost = selected_model.get("cost", 5)
         model_id = selected_model.get("model_id", "fal-ai/nano-banana")
+        
+        # Сохраняем выбранную модель в настройках пользователя
+        try:
+            await api_client.update_user_generation_settings(
+                callback.from_user.id,
+                selected_model_key=model_key
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось сохранить модель в настройках: {e}")
     except Exception as exc:
         logger.warning(f"Не удалось получить информацию о модели: {exc}")
         model_name = model_key
@@ -745,14 +742,36 @@ async def edit_prompt_handler(callback: CallbackQuery, state: FSMContext):
     )
 
 
-@router.message(
-    StateFilter(
-        ImageGenerationStates.waiting_for_custom_prompt,
-        ImageGenerationStates.confirming_custom_prompt
-    )
-)
+@router.message(StateFilter(ImageGenerationStates.waiting_for_custom_prompt))
 async def receive_custom_prompt(message: Message, state: FSMContext):
-    """Получение кастомного промпта от пользователя"""
+    """Получение кастомного промпта от пользователя (для генерации или настроек)"""
+    data = await state.get_data()
+    
+    # Проверяем, редактируем ли мы промпт в настройках
+    if data.get("editing_generation_prompt"):
+        # Сохраняем промпт в настройках пользователя
+        custom_prompt = message.text.strip()
+        if len(custom_prompt) < 10:
+            await message.answer("⚠️ Промпт слишком короткий. Опишите детальнее (минимум 10 символов).")
+            return
+        
+        try:
+            await api_client.update_user_generation_settings(
+                message.from_user.id,
+                custom_prompt=custom_prompt
+            )
+            await message.answer(
+                "✅ Промпт успешно сохранен!\n\n"
+                "Теперь этот промпт будет использоваться для генерации вместо системного."
+            )
+            await state.clear()
+            return
+        except Exception as e:
+            logger.error(f"Ошибка сохранения промпта: {e}")
+            await message.answer(f"❌ Ошибка сохранения промпта: {str(e)}")
+            return
+    
+    # Обычная логика для генерации
     custom_prompt = message.text.strip()
 
     if len(custom_prompt) < 10:

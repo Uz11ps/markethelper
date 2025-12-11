@@ -8,6 +8,7 @@ from .admin import Admin
 from .token_purchase import TokenPurchaseRequest
 from .pending_bonus import PendingBonus
 from .referral_payout import ReferralPayout
+from .user_generation_settings import UserGenerationSettings
 from .enums import (
     Tariff, Status, Duration, Audience
 )
@@ -26,6 +27,7 @@ __all__ = [
     "TokenPurchaseRequest",
     "PendingBonus",
     "ReferralPayout",
+    "UserGenerationSettings",
     "Tariff",
     "Status",
     "Duration",
