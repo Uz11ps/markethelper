@@ -182,3 +182,57 @@ async def migrate_tariff_name():
         traceback.print_exc()
         # Не прерываем запуск приложения, если миграция не удалась
 
+
+async def migrate_users_table():
+    """Добавить колонку email в таблицу users если её нет"""
+    try:
+        conn = connections.get("default")
+        
+        # Проверяем существование колонки через PRAGMA table_info
+        try:
+            result = await conn.execute_query("PRAGMA table_info(users)")
+            
+            columns = []
+            if result:
+                for row in result:
+                    if isinstance(row, (list, tuple)) and len(row) > 1:
+                        columns.append(row[1])  # name - второй элемент
+                    elif isinstance(row, dict):
+                        columns.append(row.get('name', ''))
+            
+            # Добавляем email если его нет
+            if "email" not in columns:
+                logger.info("Добавляем колонку email в таблицу users")
+                try:
+                    await conn.execute_query(
+                        "ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL"
+                    )
+                    logger.info("✅ Колонка email успешно добавлена в таблицу users")
+                except OperationalError as alter_error:
+                    if "duplicate column" in str(alter_error).lower():
+                        logger.info("Колонка email уже существует")
+                    else:
+                        raise
+            else:
+                logger.debug("Колонка email уже существует в таблице users")
+        except OperationalError as e:
+            # Если таблица не существует, это нормально - она будет создана автоматически
+            if "no such table" in str(e).lower():
+                logger.debug(f"Таблица users еще не создана: {e}")
+            elif "duplicate column" in str(e).lower():
+                logger.info("Колонка email уже существует (обнаружено через ошибку)")
+            else:
+                raise
+    except OperationalError as e:
+        if "duplicate column" in str(e).lower():
+            logger.info("Колонка email уже существует (обнаружено через ошибку)")
+        else:
+            logger.error(f"Ошибка при миграции users_table: {e}")
+            import traceback
+            traceback.print_exc()
+    except Exception as e:
+        logger.error(f"Ошибка при миграции users_table: {e}")
+        import traceback
+        traceback.print_exc()
+        # Не прерываем запуск приложения, если миграция не удалась
+
