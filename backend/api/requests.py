@@ -94,17 +94,16 @@ async def create_request(data: dict):
             raise HTTPException(status_code=400, detail="Invalid duration")
 
         subscription_type = data.get("subscription_type", "group")  # По умолчанию складчина
-        group_id = data.get("group_id")
+        group_id = data.get("group_id")  # Может быть None для складчины - админ назначит группу при одобрении
         user_email = data.get("user_email")
         
         # Валидация в зависимости от типа подписки
-        if subscription_type == "group" and not group_id:
-            raise HTTPException(status_code=400, detail="Для складчины необходимо указать group_id")
-        elif subscription_type == "individual":
-            # Для индивидуального доступа сохраняем email, если был указан
+        # Для складчины group_id может быть None - админ назначит группу при одобрении заявки
+        # Для индивидуального доступа сохраняем email, если был указан
+        if subscription_type == "individual":
             if user_email:
                 user.email = user_email
-                await user.save()
+                await user.save(update_fields=['email'])
 
         status = await get_status(type="request", code="PENDING")
         print(f"[CREATE_REQUEST] Status: {status.name} (id={status.id})")
