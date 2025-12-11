@@ -6,7 +6,9 @@ from backend.models.subscription import AccessGroup
 from backend.models.admin import Admin
 from backend.api.admin import get_current_admin
 
-router = APIRouter(prefix="/admin/groups", tags=["Admin Groups"])
+# Используем префикс без /admin, чтобы избежать конфликта с /admin/{admin_id}
+# В app.py этот роутер регистрируется с prefix="/api/admin"
+router = APIRouter(prefix="/groups", tags=["Admin Groups"])
 
 
 class GroupCreate(BaseModel):
