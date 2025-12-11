@@ -167,12 +167,16 @@ async def approve_request(
                 group = await AccessGroup.get_or_none(id=group_id)
                 if not group:
                     raise HTTPException(status_code=404, detail="AccessGroup not found")
-            elif req.group_id:
-                # Используем группу из заявки, если она была указана при создании
-                from backend.models.subscription import AccessGroup
-                group = await AccessGroup.get_or_none(id=req.group_id)
             else:
-                raise HTTPException(status_code=400, detail="Для складчины необходимо указать group_id")
+                # Используем группу из заявки, если она была указана при создании
+                request_group_id = getattr(req, 'group_id', None)
+                if request_group_id:
+                    from backend.models.subscription import AccessGroup
+                    group = await AccessGroup.get_or_none(id=request_group_id)
+                    if not group:
+                        raise HTTPException(status_code=404, detail="AccessGroup from request not found")
+                else:
+                    raise HTTPException(status_code=400, detail="Для складчины необходимо указать group_id")
         # Для индивидуального доступа - группа не привязывается (group остается None)
 
         subscription = await Subscription.create(
