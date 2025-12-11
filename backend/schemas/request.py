@@ -55,12 +55,15 @@ class RequestOut(BaseModel):
         subscription_type = None
         if hasattr(obj, 'subscription_type'):
             subscription_type = obj.subscription_type
-        # Если subscription_type не установлен, пытаемся определить по tariff_code
-        if not subscription_type:
+        
+        # Если subscription_type пустой или None, пытаемся определить по tariff_code
+        if not subscription_type or subscription_type == "group":
+            # Если tariff_code INDIVIDUAL, то это индивидуальный доступ
             if tariff.code == "INDIVIDUAL":
                 subscription_type = "individual"
-            else:
-                subscription_type = "group"  # По умолчанию складчина
+            # Иначе оставляем как есть (group) или устанавливаем group если было None
+            elif not subscription_type:
+                subscription_type = "group"
 
         return cls(
             id=obj.id,
