@@ -824,6 +824,23 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
     reference_photos = data.get("reference_photos", [])
     aspect_ratio = data.get("aspect_ratio", "3:4")
     card_text = data.get("card_text")
+    
+    # Получаем сохраненные настройки пользователя
+    try:
+        user_settings = await api_client.get_user_generation_settings(message.from_user.id)
+        # Используем сохраненную модель, если она не выбрана в текущей сессии
+        if not data.get("selected_model") and user_settings.get("selected_model_key"):
+            models = await api_client.get_image_models()
+            selected_model_key = user_settings.get("selected_model_key")
+            if selected_model_key in models:
+                selected_model = models[selected_model_key]
+                data["selected_model"] = selected_model_key
+                data["model_name"] = selected_model.get("name", selected_model_key)
+                data["model_cost"] = selected_model.get("cost", 5)
+                data["model_id"] = selected_model.get("model_id", "fal-ai/nano-banana")
+                await state.update_data(**data)
+    except Exception as e:
+        logger.warning(f"Не удалось получить настройки пользователя: {e}")
 
     await state.set_state(ImageGenerationStates.generating)
 
@@ -840,17 +857,37 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
     temp_messages.append(msg1.message_id)
 
     try:
-        # Шаг 1: Генерация промпта через GPT-4o
-        msg2 = await message.answer("🤖 Анализирую товар и создаю промпт...")
-        temp_messages.append(msg2.message_id)
+        # Проверяем, есть ли сохраненный кастомный промпт пользователя
+        user_custom_prompt = None
+        try:
+            user_settings = await api_client.get_user_generation_settings(message.from_user.id)
+            user_custom_prompt = user_settings.get("custom_prompt")
+        except Exception as e:
+            logger.warning(f"Не удалось получить настройки пользователя: {e}")
+        
+        # Если есть кастомный промпт, используем его вместо генерации
+        if user_custom_prompt:
+            msg2 = await message.answer("📝 Использую ваш сохраненный промпт...")
+            temp_messages.append(msg2.message_id)
+            generated_prompt = user_custom_prompt
+            analysis = {
+                "product_identified": "Используется кастомный промпт",
+                "style_source": "Из настроек пользователя",
+                "layout_source": "Из настроек пользователя",
+                "palette_source": "Из настроек пользователя"
+            }
+        else:
+            # Шаг 1: Генерация промпта через GPT-4o
+            msg2 = await message.answer("🤖 Анализирую товар и создаю промпт...")
+            temp_messages.append(msg2.message_id)
 
-        prompt_data = await PromptGeneratorService.generate_prompt_from_images(
-            product_image_urls=product_photos,
-            reference_image_urls=reference_photos
-        )
+            prompt_data = await PromptGeneratorService.generate_prompt_from_images(
+                product_image_urls=product_photos,
+                reference_image_urls=reference_photos
+            )
 
-        generated_prompt = prompt_data["generated_text_prompt"]
-        analysis = prompt_data["deconstruction_analysis"]
+            generated_prompt = prompt_data["generated_text_prompt"]
+            analysis = prompt_data["deconstruction_analysis"]
 
         # Если указан текст на карточке, добавляем его в промпт
         if card_text:
