@@ -245,7 +245,11 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
     )
 
 
-@router.callback_query(F.data.startswith("select_model:"))
+@router.callback_query(F.data.startswith("select_model:"), StateFilter(
+    ImageGenerationStates.choosing_model | 
+    ImageGenerationStates.choosing_model_images | 
+    ImageGenerationStates.choosing_model_infographics
+))
 async def select_model(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора модели генерации"""
     await callback.answer()

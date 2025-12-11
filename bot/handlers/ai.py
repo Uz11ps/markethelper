@@ -35,6 +35,19 @@ async def gpt_chat(message: types.Message, state: FSMContext):
     thinking_msg = await message.answer("⌛ Думаю...")
     tg_id = message.from_user.id
 
+    # Получаем выбранную модель GPT из state или настроек пользователя
+    data = await state.get_data()
+    selected_gpt_model = data.get("selected_gpt_model")
+    
+    if not selected_gpt_model:
+        # Если модель не выбрана в state, получаем из настроек пользователя
+        try:
+            user_settings = await api.get_user_generation_settings(tg_id)
+            selected_gpt_model = user_settings.get("selected_gpt_model")
+        except Exception as e:
+            logger.warning(f"Не удалось получить настройки пользователя: {e}")
+            selected_gpt_model = None
+
     try:
         charge = await api.charge_tokens(tg_id, "ai_chat")
         await thinking_msg.edit_text(
@@ -56,7 +69,8 @@ async def gpt_chat(message: types.Message, state: FSMContext):
         return
 
     try:
-        answer = await api.query_ai(question, tg_id=tg_id)
+        # Передаем выбранную модель GPT в запрос
+        answer = await api.query_ai(question, tg_id=tg_id, gpt_model=selected_gpt_model)
         await thinking_msg.delete()
         await message.answer(answer, parse_mode="Markdown")
     except Exception as e:

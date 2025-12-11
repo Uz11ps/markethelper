@@ -10,9 +10,11 @@ from bot.keyboards.profile_menu import profile_menu_kb
 from bot.keyboards import subscription
 from aiogram.types import CallbackQuery, BufferedInputFile
 from bot.utils import get_full_name
+import logging
 
 router = Router()
 api = APIClient()
+logger = logging.getLogger(__name__)
 
 def _fmt_date(dt_iso: str | None) -> str:
     if not dt_iso:
@@ -170,235 +172,6 @@ async def support_handler(callback: types.CallbackQuery):
     )
     await callback.answer()
 
-@router.callback_query(F.data == "profile:generation_settings")
-async def generation_settings_handler(callback: types.CallbackQuery, state: FSMContext = None):
-    """Показать настройки промптов и моделей для генерации"""
-    await callback.answer()
-    
-    try:
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        # Получаем настройки пользователя
-        settings_data = await api.get_user_generation_settings(callback.from_user.id)
-        logger.info(f"Получены настройки для пользователя {callback.from_user.id}")
-        
-        available_models = settings_data.get("available_models", {})
-        system_prompt = settings_data.get("system_prompt", "")
-        selected_model_key = settings_data.get("selected_model_key")
-        custom_prompt = settings_data.get("custom_prompt")
-        selected_gpt_model = settings_data.get("selected_gpt_model")
-        
-        logger.info(f"Доступные модели: {list(available_models.keys()) if available_models else 'нет'}, количество: {len(available_models) if available_models else 0}")
-        
-        # Формируем текст с моделями
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-        
-        buttons = []
-        
-        # Кнопки для выбора модели генерации изображений
-        if available_models and len(available_models) > 0:
-            logger.info(f"Создаем кнопки для {len(available_models)} моделей")
-            for key, info in available_models.items():
-                checkmark = "✅" if key == selected_model_key else "⚪"
-                model_name = info.get('name', key)
-                model_cost = info.get('cost', 0)
-                buttons.append([
-                    InlineKeyboardButton(
-                        text=f"{checkmark} {model_name} ({model_cost} токенов)",
-                        callback_data=f"genset:model:{key}"
-                    )
-                ])
-        else:
-            # Если модели не загружены, показываем сообщение
-            logger.warning(f"Модели не загружены для пользователя {callback.from_user.id}, available_models: {available_models}")
-            buttons.append([
-                InlineKeyboardButton(
-                    text="⚠️ Модели не загружены",
-                    callback_data="genset:header:error"
-                )
-            ])
-        
-        # Кнопки для выбора модели ChatGPT
-        gpt_models = {
-            "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная"},
-            "gpt-4o-mini": {"name": "GPT 5 NANO MINI", "description": "Быстрая и экономичная"},
-            "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
-        }
-        
-        for model_key, model_info in gpt_models.items():
-            checkmark = "✅" if model_key == selected_gpt_model else "⚪"
-            buttons.append([
-                InlineKeyboardButton(
-                    text=f"{checkmark} 🤖 {model_info['name']} - {model_info['description']}",
-                    callback_data=f"genset:gpt:{model_key}"
-                )
-            ])
-        
-        # Кнопки для работы с промптом
-        buttons.append([
-            InlineKeyboardButton(text="📝 Изменить промпт", callback_data="genset:prompt:edit"),
-            InlineKeyboardButton(text="🔄 Сбросить промпт", callback_data="genset:prompt:reset")
-        ])
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-        
-        # Текущий промпт
-        current_prompt = custom_prompt if custom_prompt else system_prompt
-        prompt_preview = current_prompt[:200] + "..." if len(current_prompt) > 200 else current_prompt
-        
-        selected_model_name = "Не выбрана"
-        if selected_model_key and selected_model_key in available_models:
-            selected_model_name = available_models[selected_model_key].get("name", selected_model_key)
-        
-        selected_gpt_model_name = "Не выбрана (используется системная)"
-        if selected_gpt_model:
-            selected_gpt_model_name = gpt_models.get(selected_gpt_model, {}).get("name", selected_gpt_model)
-        
-        text = (
-            "⚙️ <b>Настройки генерации</b>\n\n"
-            f"🎨 <b>Модель для изображений:</b> {selected_model_name}\n"
-            f"🤖 <b>Модель для ChatGPT:</b> {selected_gpt_model_name}\n\n"
-            "📝 <b>Текущий промпт:</b>\n"
-            f"<code>{prompt_preview}</code>\n\n"
-            "Выберите модель или измените промпт:"
-        )
-        
-        await callback.message.answer(text, reply_markup=keyboard)
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Ошибка получения настроек генерации: {e}")
-        import traceback
-        traceback.print_exc()
-        await callback.message.answer(
-            f"❌ Ошибка при получении настроек: {str(e)}"
-        )
-
-@router.callback_query(F.data.startswith("genset:model:"))
-async def select_model_handler(callback: types.CallbackQuery, state: FSMContext):
-    """Выбор модели для генерации изображений"""
-    await callback.answer()
-    
-    model_key = callback.data.replace("genset:model:", "")
-    
-    try:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Выбор модели {model_key} для пользователя {callback.from_user.id}")
-        
-        await api.update_user_generation_settings(
-            callback.from_user.id,
-            selected_model_key=model_key
-        )
-        
-        # Получаем информацию о модели
-        settings_data = await api.get_user_generation_settings(callback.from_user.id)
-        available_models = settings_data.get("available_models", {})
-        
-        if model_key in available_models:
-            model_info = available_models[model_key]
-            await callback.message.answer(
-                f"✅ Модель <b>{model_info.get('name', model_key)}</b> выбрана для генерации изображений!\n\n"
-                f"Стоимость: {model_info.get('cost', 0)} токенов\n"
-                f"Описание: {model_info.get('description', '')}"
-            )
-        else:
-            await callback.message.answer(f"✅ Модель <b>{model_key}</b> выбрана!")
-        
-        # Обновляем меню настроек - редактируем сообщение
-        try:
-            await callback.message.edit_reply_markup(reply_markup=None)  # Убираем старую клавиатуру
-            await generation_settings_handler(callback, state)
-        except Exception as e2:
-            logger.error(f"Ошибка обновления меню настроек: {e2}")
-            import traceback
-            traceback.print_exc()
-            # Если не удалось обновить, просто показываем успешное сообщение
-            pass
-    except Exception as e:
-        import logging
-        import traceback
-        logger = logging.getLogger(__name__)
-        logger.error(f"Ошибка выбора модели: {e}")
-        traceback.print_exc()
-        await callback.message.answer(
-            f"❌ Ошибка при выборе модели: {str(e)}\n\n"
-            "Попробуйте позже или обратитесь в поддержку."
-        )
-
-@router.callback_query(F.data.startswith("genset:gpt:"))
-async def select_gpt_model_handler(callback: types.CallbackQuery):
-    """Выбор модели для ChatGPT"""
-    await callback.answer()
-    
-    gpt_model = callback.data.replace("genset:gpt:", "")
-    
-    try:
-        await api.update_user_generation_settings(
-            callback.from_user.id,
-            selected_gpt_model=gpt_model
-        )
-        
-        gpt_models = {
-            "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная модель"},
-            "gpt-4o-mini": {"name": "GPT 5 NANO MINI", "description": "Быстрая и экономичная"},
-            "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
-        }
-        
-        model_info = gpt_models.get(gpt_model, {})
-        await callback.message.answer(
-            f"✅ Модель <b>{model_info.get('name', gpt_model)}</b> выбрана для ChatGPT!\n\n"
-            f"Описание: {model_info.get('description', '')}"
-        )
-        
-        # Обновляем меню настроек
-        await generation_settings_handler(callback, None)
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Ошибка выбора модели GPT: {e}")
-        await callback.message.answer(f"❌ Ошибка: {str(e)}")
-
-@router.callback_query(F.data.startswith("genset:header:"))
-async def header_handler(callback: types.CallbackQuery):
-    """Обработка заголовков (неактивные кнопки)"""
-    await callback.answer("Это заголовок раздела", show_alert=False)
-
-@router.callback_query(F.data == "genset:prompt:edit")
-async def edit_prompt_handler(callback: types.CallbackQuery, state: FSMContext):
-    """Редактирование промпта"""
-    await callback.answer()
-    
-    from bot.states.image_generation import ImageGenerationStates
-    await state.set_state(ImageGenerationStates.waiting_for_custom_prompt)
-    await state.update_data(editing_generation_prompt=True)
-    
-    await callback.message.answer(
-        "✏️ <b>Введите новый промпт для генерации</b>\n\n"
-        "Этот промпт будет использоваться вместо системного промпта.\n"
-        "Отправьте текст промпта или /cancel для отмены."
-    )
-
-@router.callback_query(F.data == "genset:prompt:reset")
-async def reset_prompt_handler(callback: types.CallbackQuery):
-    """Сброс промпта к системному"""
-    await callback.answer()
-    
-    try:
-        await api.update_user_generation_settings(
-            callback.from_user.id,
-            custom_prompt=None
-        )
-        await callback.message.answer("✅ Промпт сброшен к системному значению!")
-        
-        # Обновляем меню настроек
-        await generation_settings_handler(callback, None)
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Ошибка сброса промпта: {e}")
-        await callback.message.answer(f"❌ Ошибка: {str(e)}")
 
 @router.callback_query(F.data == "profile:topup")
 async def topup_from_profile(callback: types.CallbackQuery):
@@ -426,40 +199,187 @@ async def topup_from_profile(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "profile:chatgpt")
 async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
-    """Переход в режим ChatGPT из профиля"""
+    """Переход в режим ChatGPT из профиля - сначала выбор модели"""
+    from bot.states.ai_states import AIChatStates
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    await callback.answer()
+    
+    # Получаем сохраненную модель пользователя
+    selected_gpt_model = None
+    try:
+        user_settings = await api.get_user_generation_settings(callback.from_user.id)
+        selected_gpt_model = user_settings.get("selected_gpt_model")
+    except Exception as exc:
+        logger.warning(f"Не удалось получить настройки пользователя: {exc}")
+    
+    # Список доступных моделей GPT
+    gpt_models = {
+        "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная"},
+        "gpt-4o-mini": {"name": "GPT 5 NANO MINI", "description": "Быстрая и экономичная"},
+        "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
+    }
+    
+    # Формируем клавиатуру выбора модели
+    buttons = []
+    for model_key, model_info in gpt_models.items():
+        checkmark = "✅" if model_key == selected_gpt_model else "⚪"
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{checkmark} {model_info['name']} - {model_info['description']}",
+                callback_data=f"chatgpt:select_model:{model_key}"
+            )
+        ])
+    buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_profile")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    
+    try:
+        pricing = await api.get_token_pricing()
+        gpt_cost = pricing.get("gpt_request_cost", 0) if pricing else 0
+    except Exception:
+        gpt_cost = 1
+    
+    selected_model_text = ""
+    if selected_gpt_model and selected_gpt_model in gpt_models:
+        selected_model = gpt_models[selected_gpt_model]
+        selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_gpt_model)}"
+    
+    await callback.message.answer(
+        "🤖 <b>Выберите модель ChatGPT</b>\n\n"
+        "Выберите модель для использования в чате:\n\n"
+        f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>"
+        f"{selected_model_text}",
+        reply_markup=keyboard
+    )
+
+
+@router.callback_query(F.data.startswith("chatgpt:select_model:"))
+async def select_chatgpt_model_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Обработка выбора модели GPT для ChatGPT"""
     from bot.states.ai_states import AIChatStates
     from bot.keyboards.exit_ai import chatgpt_kb
-
-    pricing = await api.get_token_pricing()
-    gpt_cost = pricing.get("gpt_request_cost", 0) if pricing else 0
-
+    
+    await callback.answer()
+    
+    model_key = callback.data.replace("chatgpt:select_model:", "")
+    
+    # Сохраняем выбранную модель в настройках пользователя
+    try:
+        await api.update_user_generation_settings(
+            callback.from_user.id,
+            selected_gpt_model=model_key
+        )
+    except Exception as e:
+        logger.warning(f"Не удалось сохранить модель GPT в настройках: {e}")
+    
+    # Сохраняем модель в state для текущей сессии
+    await state.update_data(selected_gpt_model=model_key)
+    
+    gpt_models = {
+        "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная"},
+        "gpt-4o-mini": {"name": "GPT 5 NANO MINI", "description": "Быстрая и экономичная"},
+        "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
+    }
+    
+    model_info = gpt_models.get(model_key, {})
+    model_name = model_info.get("name", model_key)
+    
+    try:
+        pricing = await api.get_token_pricing()
+        gpt_cost = pricing.get("gpt_request_cost", 0) if pricing else 0
+    except Exception:
+        gpt_cost = 1
+    
     await state.set_state(AIChatStates.chatting)
-
-    await callback.message.answer(
-        "🤖 <b>Режим ChatGPT активирован!</b>\n\n"
+    
+    await callback.message.edit_text(
+        f"🤖 <b>Режим ChatGPT активирован!</b>\n\n"
+        f"✅ Выбрана модель: <b>{model_name}</b>\n\n"
         "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
         f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
         "Для выхода нажмите кнопку ниже 👇",
         reply_markup=chatgpt_kb()
     )
-    await callback.answer()
 
 @router.callback_query(F.data == "profile:generate")
 async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
-    """Переход к генерации изображений из профиля"""
-    from bot.states.image_generation import ImageGenerationStates
-    from bot.keyboards.inline import skip_keyboard
-
+    """Переход к генерации изображений из профиля - выбор режима"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    await callback.answer()
+    
     await state.clear()
-    await state.set_state(ImageGenerationStates.waiting_for_product_photos)
-    await state.update_data(product_photos=[], reference_photos=[])
-
+    
+    # Показываем выбор режима генерации
+    buttons = [
+        [InlineKeyboardButton(text="🖼 Картинки", callback_data="generate:mode:images")],
+        [InlineKeyboardButton(text="📊 Инфографика", callback_data="generate:mode:infographics")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_profile")]
+    ]
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    
     try:
-        pricing = await api.get_token_pricing()
+        profile = await api.get_profile(
+            callback.from_user.id,
+            username=callback.from_user.username,
+            full_name=get_full_name(callback.from_user),
+        )
+        balance = profile.get("bonus_balance", 0) if profile else 0
     except Exception:
-        pricing = {}
-    await state.update_data(token_pricing=pricing)
+        balance = 0
+    
+    await callback.message.answer(
+        "🎨 <b>Генерация изображений</b>\n\n"
+        "Выберите режим генерации:\n\n"
+        "🖼 <b>Картинки</b> - простая генерация по текстовому промпту\n"
+        "📊 <b>Инфографика</b> - генерация с загрузкой фото товара и референсов\n\n"
+        f"💼 Ваш баланс: <b>{balance} токенов</b>",
+        reply_markup=keyboard
+    )
 
+
+@router.callback_query(F.data.startswith("generate:mode:"))
+async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Обработка выбора режима генерации"""
+    await callback.answer()
+    
+    mode = callback.data.replace("generate:mode:", "")
+    
+    # Перенаправляем на соответствующий обработчик
+    if mode == "images":
+        # Имитируем нажатие кнопки "🖼 Картинки"
+        from aiogram.types import Message
+        message = Message(
+            message_id=callback.message.message_id,
+            date=callback.message.date,
+            chat=callback.message.chat,
+            from_user=callback.from_user,
+            text="🖼 Картинки"
+        )
+        from bot.handlers.image_generation import start_images_mode
+        await start_images_mode(message, state)
+    elif mode == "infographics":
+        # Имитируем нажатие кнопки "📊 Инфографика"
+        from aiogram.types import Message
+        message = Message(
+            message_id=callback.message.message_id,
+            date=callback.message.date,
+            chat=callback.message.chat,
+            from_user=callback.from_user,
+            text="📊 Инфографика"
+        )
+        from bot.handlers.image_generation import start_infographics_mode
+        await start_infographics_mode(message, state)
+
+
+@router.callback_query(F.data == "back_to_profile")
+async def back_to_profile_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Возврат к профилю"""
+    await callback.answer()
+    await state.clear()
+    
     try:
         profile = await api.get_profile(
             callback.from_user.id,
@@ -468,19 +388,25 @@ async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
         )
     except Exception:
         profile = {}
-    balance = profile.get("bonus_balance", 0) if profile else 0
-    image_cost = pricing.get("image_generation_cost", 0) if pricing else 0
-
-    await callback.message.answer(
-        "🎨 <b>Генерация карточки товара</b>\n\n"
-        "Отправьте от 1 до 5 фотографий вашего товара.\n"
-        "После отправки всех фото нажмите кнопку 'Готово'.\n\n"
-        f"💰 Стоимость генерации: <b>{image_cost} токенов</b>.\n"
-        f"💼 Ваш баланс: <b>{balance} токенов</b>.\n"
-        "Токены списываются при запуске генерации.",
-        reply_markup=skip_keyboard("product_photos_done")
+    
+    active_until = profile.get("active_until")
+    has_active = active_until is not None
+    has_file_access = bool(profile.get("access_file_path"))
+    
+    from bot.keyboards.profile_menu import profile_menu_kb
+    
+    text = (
+        f"👤 <b>Пользователь:</b> @{profile.get('username') or callback.from_user.username or '—'}\n"
+        f"⭐️ <b>Тариф:</b> {profile.get('tariff_name') or 'Обычный пользователь'}\n"
+        f"🗓️ <b>Активен до:</b> {active_until if active_until else 'Нет активной подписки'}\n"
     )
-    await callback.answer()
+    
+    if has_file_access:
+        text += f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
+    
+    text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
+    
+    await callback.message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, has_file_access=has_file_access))
 
 @router.callback_query(F.data == "profile:renew")
 async def renew_subscription(callback: types.CallbackQuery):

@@ -133,12 +133,14 @@ class APIClient:
             }) as resp:
                 return await resp.json()
             
-    async def query_ai(self, question: str, tg_id: int | None = None) -> str:
+    async def query_ai(self, question: str, tg_id: int | None = None, gpt_model: str | None = None) -> str:
         """Запрос к AI с поддержкой выбора модели пользователя"""
         url = f"{self.base_url}/api/ai/query"
         payload = {"question": question}
         if tg_id:
             payload["tg_id"] = tg_id
+        if gpt_model:
+            payload["gpt_model"] = gpt_model
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload) as resp:
                 data = await self._handle_response(resp)
