@@ -171,19 +171,25 @@ async def support_handler(callback: types.CallbackQuery):
     await callback.answer()
 
 @router.callback_query(F.data == "profile:generation_settings")
-async def generation_settings_handler(callback: types.CallbackQuery, state: FSMContext):
+async def generation_settings_handler(callback: types.CallbackQuery, state: FSMContext = None):
     """Показать настройки промптов и моделей для генерации"""
     await callback.answer()
     
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Получаем настройки пользователя
         settings_data = await api.get_user_generation_settings(callback.from_user.id)
+        logger.info(f"Получены настройки для пользователя {callback.from_user.id}")
         
         available_models = settings_data.get("available_models", {})
         system_prompt = settings_data.get("system_prompt", "")
         selected_model_key = settings_data.get("selected_model_key")
         custom_prompt = settings_data.get("custom_prompt")
         selected_gpt_model = settings_data.get("selected_gpt_model")
+        
+        logger.info(f"Доступные модели: {list(available_models.keys()) if available_models else 'нет'}, количество: {len(available_models) if available_models else 0}")
         
         # Формируем текст с моделями
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -192,6 +198,7 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         
         # Кнопки для выбора модели генерации изображений
         if available_models and len(available_models) > 0:
+            logger.info(f"Создаем кнопки для {len(available_models)} моделей")
             for key, info in available_models.items():
                 checkmark = "✅" if key == selected_model_key else "⚪"
                 model_name = info.get('name', key)
@@ -205,6 +212,12 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         else:
             # Если модели не загружены, показываем сообщение
             logger.warning(f"Модели не загружены для пользователя {callback.from_user.id}, available_models: {available_models}")
+            buttons.append([
+                InlineKeyboardButton(
+                    text="⚠️ Модели не загружены",
+                    callback_data="genset:header:error"
+                )
+            ])
         
         # Кнопки для выбора модели ChatGPT
         gpt_models = {
@@ -293,8 +306,16 @@ async def select_model_handler(callback: types.CallbackQuery, state: FSMContext)
         else:
             await callback.message.answer(f"✅ Модель <b>{model_key}</b> выбрана!")
         
-        # Обновляем меню настроек
-        await generation_settings_handler(callback, state)
+        # Обновляем меню настроек - редактируем сообщение
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)  # Убираем старую клавиатуру
+            await generation_settings_handler(callback, state)
+        except Exception as e2:
+            logger.error(f"Ошибка обновления меню настроек: {e2}")
+            import traceback
+            traceback.print_exc()
+            # Если не удалось обновить, просто показываем успешное сообщение
+            pass
     except Exception as e:
         import logging
         import traceback
