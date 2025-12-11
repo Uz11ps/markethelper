@@ -90,13 +90,8 @@ async def get_admin(
 ):
     """Получение администратора по ID"""
     # Проверяем, что это не зарезервированное слово
-    # Если это зарезервированный путь, выбрасываем исключение, которое FastAPI не обработает
-    # и позволит проверить другие роутеры
-    reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
-    if admin_id in reserved_paths:
-        # Используем специальное исключение, которое FastAPI не обработает как обычную ошибку
-        # Это позволит FastAPI продолжить проверку других роутеров
-        from fastapi.routing import Match
+    # Если это зарезервированный путь, возвращаем 404
+    if admin_id in RESERVED_PATHS:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Admin not found"
