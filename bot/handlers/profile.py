@@ -161,6 +161,44 @@ async def support_handler(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+@router.callback_query(F.data == "profile:generation_settings")
+async def generation_settings_handler(callback: types.CallbackQuery):
+    """Показать настройки промптов и моделей для генерации"""
+    await callback.answer()
+    
+    try:
+        # Получаем список моделей
+        models = await api.get_image_models()
+        
+        # Получаем информацию о промпте генератора
+        from bot.services.prompt_generator import PromptGeneratorService
+        prompt_info = await PromptGeneratorService._get_system_prompt()
+        prompt_preview = prompt_info[:150] + "..." if len(prompt_info) > 150 else prompt_info
+        
+        models_text = "\n".join([
+            f"• <b>{info.get('name', key)}</b>\n"
+            f"  └ Модель: <code>{info.get('model_id', 'N/A')}</code>\n"
+            f"  └ Стоимость: {info.get('cost', 0)} токенов\n"
+            f"  └ Описание: {info.get('description', '')}"
+            for key, info in models.items()
+        ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
+        
+        text = (
+            "⚙️ <b>Настройки генерации</b>\n\n"
+            "📝 <b>Текущий промпт генератора:</b>\n"
+            f"<code>{prompt_preview}</code>\n\n"
+            "🎨 <b>Доступные модели:</b>\n\n"
+            f"{models_text}\n\n"
+            "💡 <i>Промпт и модели настраиваются администратором в админ-панели.</i>"
+        )
+        
+        await callback.message.answer(text)
+    except Exception as e:
+        logger.error(f"Ошибка получения настроек генерации: {e}")
+        await callback.message.answer(
+            f"❌ Ошибка при получении настроек: {str(e)}"
+        )
+
 @router.callback_query(F.data == "profile:topup")
 async def topup_from_profile(callback: types.CallbackQuery):
     """Обработка кнопки пополнения из профиля"""
