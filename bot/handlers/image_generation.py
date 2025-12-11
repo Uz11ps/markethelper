@@ -68,10 +68,25 @@ async def charge_image_generation(message: Message, state: FSMContext, user_id: 
             "Пополните баланс или обратитесь в поддержку."
         )
         await state.set_state(None)
+        return None
     except APIClientError as exc:
-        await message.answer(f"⚠️ Не удалось списать токены: {exc}")
+        error_msg = str(exc)
+        logger.error(f"[charge_image_generation] Ошибка API при списании токенов: {error_msg}")
+        await message.answer(
+            f"⚠️ Не удалось списать токены!\n\n"
+            f"Ошибка: {error_msg}\n\n"
+            f"Пожалуйста, попробуйте позже или обратитесь в поддержку."
+        )
         await state.set_state(None)
-    return None
+        return None
+    except Exception as exc:
+        logger.error(f"[charge_image_generation] Неожиданная ошибка при списании токенов: {exc}", exc_info=True)
+        await message.answer(
+            "⚠️ Произошла ошибка при списании токенов.\n"
+            "Пожалуйста, попробуйте позже или обратитесь в поддержку."
+        )
+        await state.set_state(None)
+        return None
 
 
 # Обработчики для кнопок "🖼 Картинки" и "📊 Инфографика"
