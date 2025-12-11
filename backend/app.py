@@ -46,7 +46,10 @@ def create_app() -> FastAPI:
     # ВАЖНО: Специфичные маршруты должны регистрироваться ПЕРЕД общими маршрутами
     # (например, /admin/groups должен быть ПЕРЕД /admin/{admin_id})
     # Роутер admin_groups имеет prefix="/groups", поэтому регистрируем с "/api/admin"
+    # Это создает маршрут /api/admin/groups
     app.include_router(admin_groups.router, prefix="/api/admin")
+    
+    # Регистрируем другие админские роутеры
     app.include_router(admin_users.router, prefix="/api")
     app.include_router(admin_broadcast.router, prefix="/api")
     app.include_router(admin_settings.router, prefix="/api")
@@ -55,8 +58,11 @@ def create_app() -> FastAPI:
     app.include_router(admin_bonuses.router, prefix="/api")
     app.include_router(admin_referral_payouts.router, prefix="/api")
     app.include_router(files.admin_router, prefix="/api")
+    
     # Общий роутер admin должен быть ПОСЛЕДНИМ, так как содержит /{admin_id}
+    # Этот роутер создает маршруты /api/admin/{admin_id}, /api/admin/me, /api/admin/all и т.д.
     app.include_router(admin.router, prefix="/api")
+    
     # Публичные роуты
     app.include_router(admin_groups.public_router, prefix="/api")
 
