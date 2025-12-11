@@ -79,6 +79,7 @@ async def get_all_admins(_: Admin = Depends(require_super_admin)):
 # (например, /admin/groups не должен попадать в /admin/{admin_id})
 # Но порядок регистрации роутеров в app.py также важен!
 # Используем str для проверки зарезервированных путей
+# ВАЖНО: Этот маршрут должен быть ПОСЛЕДНИМ в роутере, чтобы не перехватывать специфичные маршруты
 @router.get("/{admin_id}", response_model=AdminResponse)
 async def get_admin(
     admin_id: str,
@@ -86,11 +87,14 @@ async def get_admin(
 ):
     """Получение администратора по ID"""
     # Проверяем, что это не зарезервированное слово
+    # Если это зарезервированный путь, возвращаем 404, чтобы FastAPI мог проверить другие роутеры
     reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
     if admin_id in reserved_paths:
+        # Возвращаем 404, чтобы указать, что этот маршрут не подходит
+        # FastAPI должен проверить другие роутеры
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
+            detail=f"Route '{admin_id}' is reserved and should be handled by a specific router"
         )
     
     # Пытаемся преобразовать в int
