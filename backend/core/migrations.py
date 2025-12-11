@@ -184,11 +184,11 @@ async def migrate_tariff_name():
 
 
 async def migrate_users_table():
-    """Добавить колонку email в таблицу users если её нет"""
+    """Добавить недостающие колонки в таблицу users если их нет"""
     try:
         conn = connections.get("default")
         
-        # Проверяем существование колонки через PRAGMA table_info
+        # Проверяем существование колонок через PRAGMA table_info
         try:
             result = await conn.execute_query("PRAGMA table_info(users)")
             
@@ -200,32 +200,39 @@ async def migrate_users_table():
                     elif isinstance(row, dict):
                         columns.append(row.get('name', ''))
             
-            # Добавляем email если его нет
-            if "email" not in columns:
-                logger.info("Добавляем колонку email в таблицу users")
-                try:
-                    await conn.execute_query(
-                        "ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL"
-                    )
-                    logger.info("✅ Колонка email успешно добавлена в таблицу users")
-                except OperationalError as alter_error:
-                    if "duplicate column" in str(alter_error).lower():
-                        logger.info("Колонка email уже существует")
-                    else:
-                        raise
-            else:
-                logger.debug("Колонка email уже существует в таблице users")
+            # Список колонок, которые нужно добавить
+            columns_to_add = [
+                ("email", "VARCHAR(255) NULL", "Email для индивидуальных подписок"),
+                ("channel_bonus_given", "BOOLEAN DEFAULT 0", "Был ли начислен бонус за подписку на канал"),
+            ]
+            
+            for column_name, column_type, description in columns_to_add:
+                if column_name not in columns:
+                    logger.info(f"Добавляем колонку {column_name} в таблицу users ({description})")
+                    try:
+                        await conn.execute_query(
+                            f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"
+                        )
+                        logger.info(f"✅ Колонка {column_name} успешно добавлена в таблицу users")
+                    except OperationalError as alter_error:
+                        if "duplicate column" in str(alter_error).lower():
+                            logger.info(f"Колонка {column_name} уже существует")
+                        else:
+                            logger.error(f"Ошибка при добавлении колонки {column_name}: {alter_error}")
+                            raise
+                else:
+                    logger.debug(f"Колонка {column_name} уже существует в таблице users")
         except OperationalError as e:
             # Если таблица не существует, это нормально - она будет создана автоматически
             if "no such table" in str(e).lower():
                 logger.debug(f"Таблица users еще не создана: {e}")
             elif "duplicate column" in str(e).lower():
-                logger.info("Колонка email уже существует (обнаружено через ошибку)")
+                logger.info("Колонки уже существуют (обнаружено через ошибку)")
             else:
                 raise
     except OperationalError as e:
         if "duplicate column" in str(e).lower():
-            logger.info("Колонка email уже существует (обнаружено через ошибку)")
+            logger.info("Колонки уже существуют (обнаружено через ошибку)")
         else:
             logger.error(f"Ошибка при миграции users_table: {e}")
             import traceback
