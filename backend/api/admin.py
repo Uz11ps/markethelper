@@ -78,13 +78,31 @@ async def get_all_admins(_: Admin = Depends(require_super_admin)):
 # чтобы не перехватывать специфичные маршруты из других роутеров
 # (например, /admin/groups не должен попадать в /admin/{admin_id})
 # Но порядок регистрации роутеров в app.py также важен!
+# Используем str для проверки зарезервированных путей
 @router.get("/{admin_id}", response_model=AdminResponse)
 async def get_admin(
-    admin_id: int,
+    admin_id: str,
     _: Admin = Depends(get_current_admin)
 ):
     """Получение администратора по ID"""
-    admin = await AdminService.get_admin_by_id(admin_id)
+    # Проверяем, что это не зарезервированное слово
+    reserved_paths = ["groups", "users", "settings", "tokens", "subscriptions", "bonuses", "requests", "files", "me", "all", "login", "register"]
+    if admin_id in reserved_paths:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    # Пытаемся преобразовать в int
+    try:
+        admin_id_int = int(admin_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    admin = await AdminService.get_admin_by_id(admin_id_int)
     if not admin:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
