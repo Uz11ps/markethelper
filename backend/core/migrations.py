@@ -28,10 +28,17 @@ async def migrate_user_generation_settings():
             
             if "selected_gpt_model" not in columns:
                 logger.info("Добавляем колонку selected_gpt_model в таблицу user_generation_settings")
-                await conn.execute_query(
-                    "ALTER TABLE user_generation_settings ADD COLUMN selected_gpt_model VARCHAR(255) NULL"
-                )
-                logger.info("✅ Колонка selected_gpt_model успешно добавлена")
+                try:
+                    await conn.execute_query(
+                        "ALTER TABLE user_generation_settings ADD COLUMN selected_gpt_model VARCHAR(255) NULL"
+                    )
+                    logger.info("✅ Колонка selected_gpt_model успешно добавлена")
+                except OperationalError as alter_error:
+                    # Если колонка уже существует (возможно была добавлена между проверкой и добавлением)
+                    if "duplicate column" in str(alter_error).lower():
+                        logger.info("Колонка selected_gpt_model уже существует (обнаружено при добавлении)")
+                    else:
+                        raise
             else:
                 logger.debug("Колонка selected_gpt_model уже существует")
         except OperationalError as e:
