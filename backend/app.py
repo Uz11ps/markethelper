@@ -43,13 +43,14 @@ def create_app() -> FastAPI:
     app.include_router(user_generation_settings.router, prefix="/api")
 
     # Админ роуты
-    # ВАЖНО: Специфичные маршруты должны регистрироваться ПЕРЕД общими маршрутами
-    # (например, /admin/groups должен быть ПЕРЕД /admin/{admin_id})
-    # Роутер admin_groups имеет prefix="/groups", поэтому регистрируем с "/api/admin"
-    # Это создает маршрут /api/admin/groups
+    # ВАЖНО: Порядок регистрации роутеров критичен!
+    # Специфичные маршруты (например, /admin/groups) должны регистрироваться ПЕРЕД общими маршрутами (например, /admin/{admin_id})
+    # FastAPI проверяет маршруты в порядке их регистрации, поэтому специфичные маршруты должны быть первыми
+    
+    # 1. Сначала регистрируем роутер с группами (специфичный маршрут /admin/groups)
     app.include_router(admin_groups.router, prefix="/api/admin")
     
-    # Регистрируем другие админские роутеры
+    # 2. Регистрируем другие админские роутеры
     app.include_router(admin_users.router, prefix="/api")
     app.include_router(admin_broadcast.router, prefix="/api")
     app.include_router(admin_settings.router, prefix="/api")
@@ -59,12 +60,12 @@ def create_app() -> FastAPI:
     app.include_router(admin_referral_payouts.router, prefix="/api")
     app.include_router(files.admin_router, prefix="/api")
     
-    # Общий роутер admin должен быть ПОСЛЕДНИМ, так как содержит /{admin_id}
-    # Этот роутер создает маршруты /api/admin/me, /api/admin/all и т.д.
+    # 3. Регистрируем основной роутер admin (маршруты /api/admin/me, /api/admin/all и т.д.)
+    # ВАЖНО: Этот роутер НЕ содержит маршрут /{admin_id}, он только в admin_param_router
     app.include_router(admin.router, prefix="/api")
     
-    # Маршруты с параметрами регистрируются ОТДЕЛЬНО и ПОСЛЕДНИМИ
-    # Это гарантирует, что они не будут перехватывать специфичные маршруты
+    # 4. В ПОСЛЕДНЮЮ ОЧЕРЕДЬ регистрируем роутер с параметрами /{admin_id}
+    # Это гарантирует, что FastAPI сначала проверит все специфичные маршруты
     app.include_router(admin.admin_param_router, prefix="/api")
     
     # Публичные роуты
