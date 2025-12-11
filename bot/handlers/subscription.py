@@ -206,6 +206,8 @@ async def create_request_final(
     try:
         tg_id = message_or_callback.from_user.id
         
+        print(f"[create_request_final] Создание заявки: tg_id={tg_id}, tariff_code={tariff_code}, months={months}, subscription_type={subscription_type}, group_id={group_id}, user_email={user_email}")
+        
         result = await api.create_request(
             tg_id=tg_id,
             tariff_code=tariff_code,

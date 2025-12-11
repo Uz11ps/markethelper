@@ -93,7 +93,16 @@ async def create_request(data: dict):
             print(f"[CREATE_REQUEST] Invalid duration: {data['duration_months']}")
             raise HTTPException(status_code=400, detail="Invalid duration")
 
-        subscription_type = data.get("subscription_type", "group")  # По умолчанию складчина
+        subscription_type = data.get("subscription_type")
+        # Если subscription_type не передан, определяем по tariff_code
+        if not subscription_type:
+            if tariff.code == "INDIVIDUAL":
+                subscription_type = "individual"
+            else:
+                subscription_type = "group"  # По умолчанию складчина
+        
+        print(f"[CREATE_REQUEST] subscription_type из данных: {data.get('subscription_type')}, определенный: {subscription_type}, tariff_code: {tariff.code}")
+        
         group_id = data.get("group_id")  # Может быть None для складчины - админ назначит группу при одобрении
         user_email = data.get("user_email")
         
@@ -118,7 +127,7 @@ async def create_request(data: dict):
             user_email=user_email,
         )
 
-        print(f"[CREATE_REQUEST] Request created successfully: id={req.id}, user={user.tg_id}, tariff={tariff.code}, duration={duration.months}, type={subscription_type}")
+        print(f"[CREATE_REQUEST] Request created successfully: id={req.id}, user={user.tg_id}, tariff={tariff.code}, duration={duration.months}, type={subscription_type}, saved_subscription_type={req.subscription_type}")
         
         return {"received_data": data, "id": req.id, "message": "Request created"}
     except HTTPException:
