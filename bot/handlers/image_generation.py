@@ -97,11 +97,23 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
         for key, info in models.items()
     ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
 
+    # Получаем информацию о промпте генератора
+    try:
+        from bot.services.prompt_generator import PromptGeneratorService
+        prompt_info = await PromptGeneratorService._get_system_prompt()
+        prompt_preview = prompt_info[:200] + "..." if len(prompt_info) > 200 else prompt_info
+    except Exception as exc:
+        logger.warning(f"Не удалось получить промпт генератора: {exc}")
+        prompt_preview = "Используется стандартный промпт"
+    
     await callback.message.answer(
         "🎨 <b>Генерация карточки товара</b>\n\n"
         "Выберите модель для генерации:\n\n"
         f"{models_text}\n\n"
-        f"💰 Ваш баланс: <b>{balance} токенов</b>",
+        f"💰 Ваш баланс: <b>{balance} токенов</b>\n\n"
+        f"📝 <b>Текущий промпт генератора:</b>\n"
+        f"<code>{prompt_preview}</code>\n\n"
+        f"💡 Промпт настраивается администратором и влияет на качество генерации.",
         reply_markup=model_selection_keyboard(models)
     )
 
