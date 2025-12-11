@@ -114,15 +114,29 @@ async function approve(id, subscriptionType) {
     
     if (subscriptionType === "group") {
       const select = document.querySelector(`#group-${id}`);
-      if (!select || !select.value) {
+      if (!select) {
+        alert("Ошибка: не найден элемент выбора группы!");
+        return;
+      }
+      const selectedValue = select.value;
+      if (!selectedValue || selectedValue === "") {
         alert("Для складчины необходимо выбрать группу файлов!");
         return;
       }
-      groupId = parseInt(select.value);
+      groupId = parseInt(selectedValue);
+      if (isNaN(groupId) || groupId <= 0) {
+        alert("Ошибка: выбранная группа имеет недопустимый ID!");
+        return;
+      }
     }
 
     const formData = new FormData();
-    if (groupId) {
+    // Для складчины group_id обязателен, для индивидуального доступа не передаем
+    if (subscriptionType === "group") {
+      if (!groupId) {
+        alert("Ошибка: для складчины необходимо указать group_id!");
+        return;
+      }
       formData.append("group_id", groupId);
     }
 
