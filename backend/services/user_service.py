@@ -58,6 +58,7 @@ class UserService:
         await user.save()
         return {"message": f"Пользователь {user_id} деактивирован"}
     
+    @staticmethod
     async def get_profile_by_tg(tg_id: int) -> ProfileOut:
         user = await UserService.get_by_tg(tg_id)
 

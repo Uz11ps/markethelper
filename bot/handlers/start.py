@@ -86,7 +86,10 @@ async def cmd_start(message: types.Message):
     try:
         profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         print(f"[ERROR get_profile] {e}")
+        print(f"[ERROR get_profile] Traceback: {error_details}")
         # Если не удалось получить профиль, создаем базовый ответ
         await message.answer(
             "👋 Добро пожаловать в <b>MarketHelper</b>!\n\n"
