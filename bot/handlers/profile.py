@@ -93,10 +93,19 @@ async def support_handler(callback: types.CallbackQuery):
 @router.callback_query(F.data == "profile:topup")
 async def topup_from_profile(callback: types.CallbackQuery):
     """Обработка кнопки пополнения из профиля"""
-    from bot.handlers.topup import show_topup_menu
     await callback.answer()
-    # Вызываем обработчик пополнения
-    await show_topup_menu(callback.message)
+    
+    # Импортируем функцию и вызываем её
+    from bot.handlers.topup import show_topup_menu
+    from aiogram.types import Message
+    
+    # Создаем объект Message из callback для совместимости
+    # Используем callback.message как основу
+    message = callback.message
+    if message:
+        await show_topup_menu(message)
+    else:
+        await callback.message.answer("❌ Ошибка: не удалось обработать запрос")
 
 @router.callback_query(F.data == "profile:chatgpt")
 async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
