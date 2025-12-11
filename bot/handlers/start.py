@@ -41,9 +41,14 @@ async def cmd_start(message: types.Message):
         )
     except Exception as e:
         print(f"[ERROR create_user] {e}")
+        # Продолжаем работу даже если создание пользователя не удалось
+        # Возможно, пользователь уже существует
 
     if referrer_id and referrer_id != tg.id:
-        await api.bind_referral(referred_tg=tg.id, referrer_tg=referrer_id)
+        try:
+            await api.bind_referral(referred_tg=tg.id, referrer_tg=referrer_id)
+        except Exception as e:
+            print(f"[WARNING] Не удалось привязать реферала: {e}")
 
     # Проверка подписки на канал и начисление бонуса
     # Получаем username канала из настроек через API
@@ -78,7 +83,18 @@ async def cmd_start(message: types.Message):
             print(f"[WARNING] Не удалось проверить подписку на канал: {e}")
 
     # Получаем профиль пользователя
-    profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
+    try:
+        profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
+    except Exception as e:
+        print(f"[ERROR get_profile] {e}")
+        # Если не удалось получить профиль, создаем базовый ответ
+        await message.answer(
+            "👋 Добро пожаловать в <b>MarketHelper</b>!\n\n"
+            "⚠️ Не удалось загрузить ваш профиль. Пожалуйста, попробуйте еще раз через несколько секунд.\n\n"
+            "Если проблема повторяется, обратитесь к администратору.",
+            reply_markup=main_menu_kb(has_active_sub=False)
+        )
+        return
 
     active_until = profile.get("active_until") if profile else None
     has_active = active_until is not None
@@ -88,30 +104,42 @@ async def cmd_start(message: types.Message):
     # Отправляем приветствие с обновленной клавиатурой (с кнопкой Пополнить)
     # Важно: отправляем клавиатуру ПЕРВЫМ сообщением для гарантии обновления
     keyboard = main_menu_kb(has_active_sub=has_active)
-    await message.answer(
-        "👋 Добро пожаловать в <b>MarketHelper</b>!\n\n"
-        "💡 Используйте кнопки ниже для навигации.\n\n"
-        "📌 Доступные кнопки:\n"
-        "• 👤Профиль\n"
-        "• 💰 Пополнить\n"
-        "• ❓FAQ",
-        reply_markup=keyboard
-    )
+    try:
+        await message.answer(
+            "👋 Добро пожаловать в <b>MarketHelper</b>!\n\n"
+            "💡 Используйте кнопки ниже для навигации.\n\n"
+            "📌 Доступные кнопки:\n"
+            "• 👤Профиль\n"
+            "• 💰 Пополнить\n"
+            "• ❓FAQ",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        print(f"[ERROR sending welcome message] {e}")
 
     # Показываем профиль
-    text = (
-        f"👤 <b>Пользователь:</b> @{profile.get('username') or tg.username or '—'}\n"
-        f"⭐️ <b>Тариф:</b> {profile.get('tariff_name') or 'Тестовый режим'}\n"
-        f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Бессрочно (тест)'}\n"
-    )
-    
-    # Показываем файл только для складчины
-    if is_group_subscription and profile.get("access_file_path"):
-        text += f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
-    
-    text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
+    try:
+        text = (
+            f"👤 <b>Пользователь:</b> @{profile.get('username') or tg.username or '—'}\n"
+            f"⭐️ <b>Тариф:</b> {profile.get('tariff_name') or 'Обычный пользователь'}\n"
+            f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Нет активной подписки'}\n"
+        )
+        
+        # Показываем файл только для складчины
+        if is_group_subscription and profile.get("access_file_path"):
+            text += f"📁 <b>Файл:</b> {(profile.get('access_file_path') or '').rsplit('/', 1)[-1] or '—'}\n"
+        
+        text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
 
-    await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, is_group_subscription=is_group_subscription))
+        await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, is_group_subscription=is_group_subscription))
+    except Exception as e:
+        print(f"[ERROR sending profile] {e}")
+        # Отправляем базовое сообщение если не удалось отправить профиль
+        await message.answer(
+            f"👤 <b>Пользователь:</b> @{tg.username or '—'}\n"
+            f"💰 <b>Токены:</b> {profile.get('bonus_balance', 0) if profile else 0}",
+            reply_markup=profile_menu_kb(has_active_sub=False, is_group_subscription=False)
+        )
 
 
 @router.message(F.text == "/menu")
