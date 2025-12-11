@@ -5,9 +5,11 @@ from bot.keyboards.main_menu import main_menu_kb
 from bot.services.api_client import APIClient, InsufficientTokensError, APIClientError
 from bot.states.ai_states import AIChatStates
 from bot.utils import get_full_name
+import logging
 
 router = Router()
 api = APIClient()
+logger = logging.getLogger(__name__)
 
 # Обработчик для кнопки "🤖ChatGPT" удалён - теперь используется inline кнопка из профиля
 

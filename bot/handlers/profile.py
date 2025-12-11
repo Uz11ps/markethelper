@@ -347,31 +347,75 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
     
     mode = callback.data.replace("generate:mode:", "")
     
-    # Перенаправляем на соответствующий обработчик
+    # Вызываем логику выбора модели напрямую, без создания Message объекта
+    from bot.states.image_generation import ImageGenerationStates
+    from bot.keyboards.inline import model_selection_keyboard
+    
+    await state.clear()
+    
     if mode == "images":
-        # Имитируем нажатие кнопки "🖼 Картинки"
-        from aiogram.types import Message
-        message = Message(
-            message_id=callback.message.message_id,
-            date=callback.message.date,
-            chat=callback.message.chat,
-            from_user=callback.from_user,
-            text="🖼 Картинки"
-        )
-        from bot.handlers.image_generation import start_images_mode
-        await start_images_mode(message, state)
+        await state.set_state(ImageGenerationStates.choosing_model_images)
+        await state.update_data(mode="images")
     elif mode == "infographics":
-        # Имитируем нажатие кнопки "📊 Инфографика"
-        from aiogram.types import Message
-        message = Message(
-            message_id=callback.message.message_id,
-            date=callback.message.date,
-            chat=callback.message.chat,
-            from_user=callback.from_user,
-            text="📊 Инфографика"
+        await state.set_state(ImageGenerationStates.choosing_model_infographics)
+        await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
+    
+    try:
+        models = await api.get_image_models()
+    except Exception as exc:
+        logger.warning(f"Не удалось получить список моделей: {exc}")
+        models = {}
+    
+    selected_model_key = None
+    try:
+        user_settings = await api.get_user_generation_settings(callback.from_user.id)
+        selected_model_key = user_settings.get("selected_model_key")
+    except Exception as exc:
+        logger.warning(f"Не удалось получить настройки пользователя: {exc}")
+    
+    try:
+        profile = await api.get_profile(
+            callback.from_user.id,
+            username=callback.from_user.username,
+            full_name=get_full_name(callback.from_user),
         )
-        from bot.handlers.image_generation import start_infographics_mode
-        await start_infographics_mode(message, state)
+        balance = profile.get("bonus_balance", 0) if profile else 0
+    except Exception as exc:
+        logger.warning(f"Не удалось получить профиль пользователя: {exc}")
+        balance = 0
+    
+    models_text = "\n".join([
+        f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
+        for key, info in models.items()
+    ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
+    
+    selected_model_text = ""
+    if selected_model_key and selected_model_key in models:
+        selected_model = models[selected_model_key]
+        selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_model_key)}"
+    
+    if mode == "images":
+        text = (
+            "🖼 <b>Генерация картинок</b>\n\n"
+            "Выберите модель для генерации:\n\n"
+            f"{models_text}"
+            f"{selected_model_text}\n\n"
+            f"💰 Ваш баланс: <b>{balance} токенов</b>"
+        )
+    else:
+        text = (
+            "📊 <b>Генерация инфографики</b>\n\n"
+            "Выберите модель для генерации:\n\n"
+            f"{models_text}"
+            f"{selected_model_text}\n\n"
+            f"💰 Ваш баланс: <b>{balance} токенов</b>\n\n"
+            "После выбора модели вы сможете загрузить фото товара и референсы."
+        )
+    
+    await callback.message.answer(
+        text,
+        reply_markup=model_selection_keyboard(models, selected_model_key)
+    )
 
 
 @router.callback_query(F.data == "back_to_profile")
