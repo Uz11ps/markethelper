@@ -16,6 +16,13 @@ async function loadGroups() {
     const res = await authFetch(`${API_BASE_URL}/admin/groups/`);
     if (res.ok) {
       groupsList = await res.json();
+      console.log(`[loadGroups] Загружено групп: ${groupsList.length}`);
+      if (groupsList.length === 0) {
+        console.warn("[loadGroups] Список групп пуст! Создайте группы в разделе 'Группы'");
+      }
+    } else {
+      const errorText = await res.text();
+      console.error(`[loadGroups] Ошибка API: ${res.status} - ${errorText}`);
     }
   } catch (err) {
     console.error("Ошибка при загрузке групп:", err);
@@ -67,12 +74,20 @@ async function loadRequests() {
       // Для складчины показываем выбор группы, для индивидуального - не показываем
       let groupSelect = '';
       if (subscriptionType === "group") {
-        groupSelect = `
-          <select id="group-${req.id}" style="margin-bottom: 5px; width: 100%;">
-            <option value="">Выберите группу</option>
-            ${groupsList.map(g => `<option value="${g.id}" ${g.id === req.group_id ? 'selected' : ''}>${g.name}</option>`).join('')}
-          </select>
-        `;
+        if (groupsList.length === 0) {
+          groupSelect = `
+            <div style="color: red; font-size: 0.9em; margin-bottom: 5px;">
+              ⚠️ Нет доступных групп! Создайте группы в разделе "Группы"
+            </div>
+          `;
+        } else {
+          groupSelect = `
+            <select id="group-${req.id}" style="margin-bottom: 5px; width: 100%;" required>
+              <option value="">-- Выберите группу --</option>
+              ${groupsList.map(g => `<option value="${g.id}" ${g.id === req.group_id ? 'selected' : ''}>${g.name}</option>`).join('')}
+            </select>
+          `;
+        }
       } else {
         groupSelect = `<span style="color: gray;">Индивидуальный доступ</span>`;
       }
@@ -113,19 +128,25 @@ async function approve(id, subscriptionType) {
     let groupId = null;
     
     if (subscriptionType === "group") {
+      // Проверяем, что есть доступные группы
+      if (groupsList.length === 0) {
+        alert("Ошибка: нет доступных групп! Пожалуйста, создайте группы в разделе 'Группы' перед одобрением заявки.");
+        return;
+      }
+      
       const select = document.querySelector(`#group-${id}`);
       if (!select) {
-        alert("Ошибка: не найден элемент выбора группы!");
+        alert("Ошибка: не найден элемент выбора группы! Обновите страницу и попробуйте снова.");
         return;
       }
       const selectedValue = select.value;
       if (!selectedValue || selectedValue === "") {
-        alert("Для складчины необходимо выбрать группу файлов!");
+        alert("Для складчины необходимо выбрать группу файлов из выпадающего списка!");
         return;
       }
       groupId = parseInt(selectedValue);
       if (isNaN(groupId) || groupId <= 0) {
-        alert("Ошибка: выбранная группа имеет недопустимый ID!");
+        alert("Ошибка: выбранная группа имеет недопустимый ID! Обновите страницу и попробуйте снова.");
         return;
       }
     }
