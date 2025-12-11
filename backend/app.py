@@ -60,8 +60,12 @@ def create_app() -> FastAPI:
     app.include_router(files.admin_router, prefix="/api")
     
     # Общий роутер admin должен быть ПОСЛЕДНИМ, так как содержит /{admin_id}
-    # Этот роутер создает маршруты /api/admin/{admin_id}, /api/admin/me, /api/admin/all и т.д.
+    # Этот роутер создает маршруты /api/admin/me, /api/admin/all и т.д.
     app.include_router(admin.router, prefix="/api")
+    
+    # Маршруты с параметрами регистрируются ОТДЕЛЬНО и ПОСЛЕДНИМИ
+    # Это гарантирует, что они не будут перехватывать специфичные маршруты
+    app.include_router(admin.admin_param_router, prefix="/api")
     
     # Публичные роуты
     app.include_router(admin_groups.public_router, prefix="/api")

@@ -13,6 +13,8 @@ from backend.services.admin_service import AdminService
 from backend.models.admin import Admin
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+# Отдельный роутер для маршрутов с параметрами, чтобы они регистрировались последними
+admin_param_router = APIRouter(prefix="/admin", tags=["Admin"])
 security = HTTPBearer()
 
 # Список зарезервированных путей, которые должны обрабатываться другими роутерами
@@ -84,11 +86,8 @@ async def get_all_admins(_: Admin = Depends(require_super_admin)):
 # Используем str для проверки зарезервированных путей
 # ВАЖНО: Этот маршрут должен быть ПОСЛЕДНИМ в роутере, чтобы не перехватывать специфичные маршруты
 # Проблема: FastAPI все еще может проверять этот маршрут раньше специфичных маршрутов
-# Решение: Проверяем зарезервированные пути и возвращаем 404
-# Примечание: Если admin_id является зарезервированным путем, это означает, что маршрут
-# должен обрабатываться другим роутером. Но FastAPI уже проверил этот роутер и не нашел совпадения,
-# поэтому возвращаем 404.
-@router.get("/{admin_id}", response_model=AdminResponse)
+# Решение: Перемещаем маршруты с параметрами в отдельный роутер, который регистрируется последним
+@admin_param_router.get("/{admin_id}", response_model=AdminResponse)
 async def get_admin(
     admin_id: str,
     _: Admin = Depends(get_current_admin)
