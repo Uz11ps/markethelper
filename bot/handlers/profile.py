@@ -183,20 +183,43 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         system_prompt = settings_data.get("system_prompt", "")
         selected_model_key = settings_data.get("selected_model_key")
         custom_prompt = settings_data.get("custom_prompt")
+        selected_gpt_model = settings_data.get("selected_gpt_model")
         
         # Формируем текст с моделями
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
         buttons = []
-        for key, info in available_models.items():
-            checkmark = "✅" if key == selected_model_key else ""
+        
+        # Кнопки для выбора модели генерации изображений
+        if available_models:
+            for key, info in available_models.items():
+                checkmark = "✅" if key == selected_model_key else "⚪"
+                model_name = info.get('name', key)
+                model_cost = info.get('cost', 0)
+                buttons.append([
+                    InlineKeyboardButton(
+                        text=f"{checkmark} {model_name} ({model_cost} токенов)",
+                        callback_data=f"genset:model:{key}"
+                    )
+                ])
+        
+        # Кнопки для выбора модели ChatGPT
+        gpt_models = {
+            "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная"},
+            "gpt-4o-mini": {"name": "GPT-4o Mini", "description": "Быстрая и экономичная"},
+            "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
+        }
+        
+        for model_key, model_info in gpt_models.items():
+            checkmark = "✅" if model_key == selected_gpt_model else "⚪"
             buttons.append([
                 InlineKeyboardButton(
-                    text=f"{checkmark} {info.get('name', key)} ({info.get('cost', 0)} токенов)",
-                    callback_data=f"genset:model:{key}"
+                    text=f"{checkmark} 🤖 {model_info['name']} - {model_info['description']}",
+                    callback_data=f"genset:gpt:{model_key}"
                 )
             ])
         
+        # Кнопки для работы с промптом
         buttons.append([
             InlineKeyboardButton(text="📝 Изменить промпт", callback_data="genset:prompt:edit"),
             InlineKeyboardButton(text="🔄 Сбросить промпт", callback_data="genset:prompt:reset")
@@ -212,12 +235,17 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         if selected_model_key and selected_model_key in available_models:
             selected_model_name = available_models[selected_model_key].get("name", selected_model_key)
         
+        selected_gpt_model_name = "Не выбрана (используется системная)"
+        if selected_gpt_model:
+            selected_gpt_model_name = gpt_models.get(selected_gpt_model, {}).get("name", selected_gpt_model)
+        
         text = (
             "⚙️ <b>Настройки генерации</b>\n\n"
-            f"🎨 <b>Выбранная модель:</b> {selected_model_name}\n\n"
+            f"🎨 <b>Модель для изображений:</b> {selected_model_name}\n"
+            f"🤖 <b>Модель для ChatGPT:</b> {selected_gpt_model_name}\n\n"
             "📝 <b>Текущий промпт:</b>\n"
             f"<code>{prompt_preview}</code>\n\n"
-            "Выберите модель для генерации или измените промпт:"
+            "Выберите модель или измените промпт:"
         )
         
         await callback.message.answer(text, reply_markup=keyboard)
@@ -225,6 +253,8 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Ошибка получения настроек генерации: {e}")
+        import traceback
+        traceback.print_exc()
         await callback.message.answer(
             f"❌ Ошибка при получении настроек: {str(e)}"
         )
