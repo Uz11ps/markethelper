@@ -177,12 +177,14 @@ class APIClient:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
     
-    async def update_user_generation_settings(self, tg_id: int, selected_model_key: str | None = None, custom_prompt: str | None = None):
+    async def update_user_generation_settings(self, tg_id: int, selected_model_key: str | None = None, selected_gpt_model: str | None = None, custom_prompt: str | None = None):
         """Обновить настройки генерации пользователя"""
         url = f"{self.base_url}/api/users/{tg_id}/generation-settings"
         payload = {}
         if selected_model_key is not None:
             payload["selected_model_key"] = selected_model_key
+        if selected_gpt_model is not None:
+            payload["selected_gpt_model"] = selected_gpt_model
         if custom_prompt is not None:
             payload["custom_prompt"] = custom_prompt
         

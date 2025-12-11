@@ -77,7 +77,7 @@ async def list_texts():
         logger.error(f"Ошибка при получении текстов: {e}")
         return []
 
-async def query_ai(question: str) -> str:
+async def query_ai(question: str, tg_id: int = None) -> str:
     logger.info(f"Запрос AI: {question}")
 
     context = ""
@@ -109,18 +109,41 @@ async def query_ai(question: str) -> str:
     if not client_openai:
         logger.error("OpenAI client not initialized. Check OPENAI_API_KEY.")
         return "❌ Сервис ИИ недоступен. Проверьте настройки."
+    
+    # Определяем модель для использования
+    model_to_use = "gpt-4o-mini"  # По умолчанию
+    if tg_id:
+        try:
+            from backend.models.user import User
+            from backend.models.user_generation_settings import UserGenerationSettings
+            user = await User.get_or_none(tg_id=tg_id)
+            if user:
+                settings = await UserGenerationSettings.get_or_none(user=user)
+                if settings and settings.selected_gpt_model:
+                    model_to_use = settings.selected_gpt_model
+                    logger.info(f"Используется модель пользователя: {model_to_use}")
+        except Exception as e:
+            logger.warning(f"Не удалось получить модель пользователя: {e}")
+    
+    # Если модель не выбрана пользователем, используем системную
+    if model_to_use == "gpt-4o-mini":
+        try:
+            model_to_use = await SettingsService.get_gpt_model()
+        except Exception as e:
+            logger.warning(f"Не удалось получить системную модель GPT: {e}")
+    
     try:
         # Увеличенный таймаут для OpenAI запросов
         response = await asyncio.wait_for(
             client_openai.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model_to_use,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
             ),
             timeout=240.0  # 4 минуты таймаут
         )
         answer = response.choices[0].message.content
-        logger.info("Ответ от OpenAI получен")
+        logger.info(f"Ответ от OpenAI получен (модель: {model_to_use})")
         return answer
     except Exception as e:
         logger.error(f"Ошибка при запросе к OpenAI: {e}")

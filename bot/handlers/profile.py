@@ -43,15 +43,18 @@ async def show_profile(message: types.Message):
     if not active_until:
         if tariff_name:
             status_text = "Обычный пользователь"
+            active_until_text = "Нет активной подписки"
         else:
             status_text = "Тестовый режим"
+            active_until_text = "Бессрочно (тест)"
     else:
         status_text = tariff_name or "Активная подписка"
+        active_until_text = _fmt_date(active_until)
     
     text = (
         f"👤 <b>Пользователь:</b> @{data.get('username') or tg.username or '—'}\n"
         f"⭐️ <b>Тариф:</b> {status_text}\n"
-        f"🗓️ <b>Активен до:</b> {_fmt_date(active_until) if active_until else 'Нет активной подписки'}\n"
+        f"🗓️ <b>Активен до:</b> {active_until_text}\n"
     )
     
     # Показываем файл только для складчины
@@ -232,7 +235,7 @@ async def generation_settings_handler(callback: types.CallbackQuery, state: FSMC
 
 @router.callback_query(F.data.startswith("genset:model:"))
 async def select_model_handler(callback: types.CallbackQuery):
-    """Выбор модели для генерации"""
+    """Выбор модели для генерации изображений"""
     await callback.answer()
     
     model_key = callback.data.replace("genset:model:", "")
@@ -250,7 +253,7 @@ async def select_model_handler(callback: types.CallbackQuery):
         if model_key in available_models:
             model_info = available_models[model_key]
             await callback.message.answer(
-                f"✅ Модель <b>{model_info.get('name', model_key)}</b> выбрана!\n\n"
+                f"✅ Модель <b>{model_info.get('name', model_key)}</b> выбрана для генерации изображений!\n\n"
                 f"Стоимость: {model_info.get('cost', 0)} токенов\n"
                 f"Описание: {model_info.get('description', '')}"
             )
@@ -264,6 +267,44 @@ async def select_model_handler(callback: types.CallbackQuery):
         logger = logging.getLogger(__name__)
         logger.error(f"Ошибка выбора модели: {e}")
         await callback.message.answer(f"❌ Ошибка: {str(e)}")
+
+@router.callback_query(F.data.startswith("genset:gpt:"))
+async def select_gpt_model_handler(callback: types.CallbackQuery):
+    """Выбор модели для ChatGPT"""
+    await callback.answer()
+    
+    gpt_model = callback.data.replace("genset:gpt:", "")
+    
+    try:
+        await api.update_user_generation_settings(
+            callback.from_user.id,
+            selected_gpt_model=gpt_model
+        )
+        
+        gpt_models = {
+            "gpt-4o": {"name": "GPT-4o", "description": "Самая мощная модель"},
+            "gpt-4o-mini": {"name": "GPT-4o Mini", "description": "Быстрая и экономичная"},
+            "gpt-4-turbo": {"name": "GPT-4 Turbo", "description": "Баланс скорости и качества"},
+        }
+        
+        model_info = gpt_models.get(gpt_model, {})
+        await callback.message.answer(
+            f"✅ Модель <b>{model_info.get('name', gpt_model)}</b> выбрана для ChatGPT!\n\n"
+            f"Описание: {model_info.get('description', '')}"
+        )
+        
+        # Обновляем меню настроек
+        await generation_settings_handler(callback, None)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Ошибка выбора модели GPT: {e}")
+        await callback.message.answer(f"❌ Ошибка: {str(e)}")
+
+@router.callback_query(F.data.startswith("genset:header:"))
+async def header_handler(callback: types.CallbackQuery):
+    """Обработка заголовков (неактивные кнопки)"""
+    await callback.answer("Это заголовок раздела", show_alert=False)
 
 @router.callback_query(F.data == "genset:prompt:edit")
 async def edit_prompt_handler(callback: types.CallbackQuery, state: FSMContext):

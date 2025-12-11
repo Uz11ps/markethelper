@@ -9,8 +9,11 @@ class UserGenerationSettings(Model):
     id = fields.IntField(pk=True)
     user = fields.ForeignKeyField("models.User", related_name="generation_settings", unique=True)
     
-    # Выбранная модель для генерации (ключ из настроек админа)
+    # Выбранная модель для генерации изображений (ключ из настроек админа)
     selected_model_key = fields.CharField(255, null=True)
+    
+    # Выбранная модель для ChatGPT (например, "gpt-4o", "gpt-4o-mini")
+    selected_gpt_model = fields.CharField(255, null=True)
     
     # Кастомный промпт пользователя (если null, используется системный)
     custom_prompt = fields.TextField(null=True)

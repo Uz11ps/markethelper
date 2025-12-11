@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class GenerationSettingsUpdate(BaseModel):
     selected_model_key: str | None = None
+    selected_gpt_model: str | None = None
     custom_prompt: str | None = None
 
 
@@ -39,6 +40,7 @@ async def get_user_generation_settings(tg_id: int):
     
     return {
         "selected_model_key": settings.selected_model_key if settings else None,
+        "selected_gpt_model": settings.selected_gpt_model if settings else None,
         "custom_prompt": settings.custom_prompt if settings else None,
         "available_models": image_models,
         "system_prompt": system_prompt,
@@ -66,6 +68,7 @@ async def update_user_generation_settings(tg_id: int, data: GenerationSettingsUp
         user=user,
         defaults={
             "selected_model_key": data.selected_model_key,
+            "selected_gpt_model": data.selected_gpt_model,
             "custom_prompt": data.custom_prompt,
         }
     )
@@ -73,6 +76,8 @@ async def update_user_generation_settings(tg_id: int, data: GenerationSettingsUp
     if not created:
         if data.selected_model_key is not None:
             settings.selected_model_key = data.selected_model_key
+        if data.selected_gpt_model is not None:
+            settings.selected_gpt_model = data.selected_gpt_model
         if data.custom_prompt is not None:
             settings.custom_prompt = data.custom_prompt
         await settings.save()
@@ -81,6 +86,7 @@ async def update_user_generation_settings(tg_id: int, data: GenerationSettingsUp
         "status": "success",
         "message": "Settings updated",
         "selected_model_key": settings.selected_model_key,
+        "selected_gpt_model": settings.selected_gpt_model,
         "custom_prompt": settings.custom_prompt,
     }
 
