@@ -56,10 +56,13 @@ class FALService:
                 logger.info("Режим простых картинок - генерация только по промпту без фото товара")
                 
                 # Используем указанную модель или модель по умолчанию
-                if model_id:
-                    model = model_id
+                # ВАЖНО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
+                if model_id and model_id.strip():
+                    model = model_id.strip()
+                    logger.info(f"Используется переданная модель: {model}")
                 else:
                     model = "fal-ai/nano-banana-pro"
+                    logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
                 
                 # Определяем размер изображения на основе aspect_ratio
                 if aspect_ratio == "1:1":
@@ -101,7 +104,13 @@ class FALService:
                     "output_format": "jpeg",
                 }
 
-                model = model_id if model_id else "fal-ai/nano-banana"
+                # ВАЖНО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
+                if model_id and model_id.strip():
+                    model = model_id.strip()
+                    logger.info(f"Используется переданная модель: {model}")
+                else:
+                    model = "fal-ai/nano-banana"
+                    logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
             else:
                 # Без референса, но с фото товара - обычная генерация
                 logger.info("Генерация с фото товара без референса - используется Nano Banana Pro")
@@ -115,7 +124,13 @@ class FALService:
                     "enable_safety_checker": True,
                 }
 
-                model = model_id if model_id else "fal-ai/nano-banana-pro"
+                # ВАЖНО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
+                if model_id and model_id.strip():
+                    model = model_id.strip()
+                    logger.info(f"Используется переданная модель: {model}")
+                else:
+                    model = "fal-ai/nano-banana-pro"
+                    logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
 
             logger.info(f"Используется модель: {model}")
             logger.info(f"Параметры: {arguments}")

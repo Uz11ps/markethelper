@@ -893,6 +893,20 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
         model_name = data.get("model_name", "Nano Banana")
         model_id = data.get("model_id")
         
+        # Если model_id не установлен, пытаемся получить из настроек
+        if not model_id:
+            try:
+                models = await api_client.get_image_models()
+                selected_model_key = data.get("selected_model")
+                if selected_model_key and selected_model_key in models:
+                    selected_model = models[selected_model_key]
+                    model_id = selected_model.get("model_id")
+                    logger.info(f"[generate_with_confirmed_prompt] Получен model_id из настроек: {model_id}")
+            except Exception as e:
+                logger.warning(f"[generate_with_confirmed_prompt] Не удалось получить model_id из настроек: {e}")
+        
+        logger.info(f"[generate_with_confirmed_prompt] Используется модель: model_name={model_name}, model_id={model_id}")
+        
         msg1 = await message.answer(
             f"🎨 Генерирую изображение через {model_name}...\n\n"
             f"💰 Списано: <b>{charge['cost']} токенов</b>\n"
@@ -1193,6 +1207,20 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
         model_name = data.get("model_name", "Nano Banana")
         model_id = data.get("model_id")
         
+        # Если model_id не установлен, пытаемся получить из настроек
+        if not model_id:
+            try:
+                models = await api_client.get_image_models()
+                selected_model_key = data.get("selected_model")
+                if selected_model_key and selected_model_key in models:
+                    selected_model = models[selected_model_key]
+                    model_id = selected_model.get("model_id")
+                    logger.info(f"[generate_with_ai_prompt] Получен model_id из настроек: {model_id}")
+            except Exception as e:
+                logger.warning(f"[generate_with_ai_prompt] Не удалось получить model_id из настроек: {e}")
+        
+        logger.info(f"[generate_with_ai_prompt] Используется модель: model_name={model_name}, model_id={model_id}")
+        
         # Шаг 2: Генерация изображения через FAL
         msg4 = await message.answer(
             f"🎨 Генерирую изображение через {model_name}...\n\n"
@@ -1289,6 +1317,20 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
         data = await state.get_data()
         model_name = data.get("model_name", "Nano Banana")
         model_id = data.get("model_id")
+        
+        # Если model_id не установлен, пытаемся получить из настроек
+        if not model_id:
+            try:
+                models = await api_client.get_image_models()
+                selected_model_key = data.get("selected_model")
+                if selected_model_key and selected_model_key in models:
+                    selected_model = models[selected_model_key]
+                    model_id = selected_model.get("model_id")
+                    logger.info(f"[generate_with_custom_prompt] Получен model_id из настроек: {model_id}")
+            except Exception as e:
+                logger.warning(f"[generate_with_custom_prompt] Не удалось получить model_id из настроек: {e}")
+        
+        logger.info(f"[generate_with_custom_prompt] Используется модель: model_name={model_name}, model_id={model_id}")
         
         msg1 = await message.answer(
             f"🎨 Генерирую изображение с вашим промптом через {model_name}...\n\n"
