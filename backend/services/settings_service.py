@@ -187,7 +187,18 @@ class SettingsService:
     @classmethod
     async def get_prompt_generator_prompt(cls) -> str:
         """Промпт для генерации описаний изображений"""
-        return await cls.get_setting("prompt_generator_prompt", cls.DEFAULT_PROMPT_GENERATOR_PROMPT)
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        setting = await Settings.filter(key="prompt_generator_prompt").first()
+        if setting and setting.value and setting.value.strip():
+            prompt = setting.value.strip()
+            logger.info(f"[get_prompt_generator_prompt] ✅ Промпт загружен из БД (длина: {len(prompt)} символов, первые 200 символов: {prompt[:200]}...)")
+            return prompt
+        else:
+            logger.warning(f"[get_prompt_generator_prompt] ⚠️ Промпт не найден в БД или пустой, используется дефолтный промпт из кода")
+            logger.warning(f"[get_prompt_generator_prompt] Дефолтный промпт (длина: {len(cls.DEFAULT_PROMPT_GENERATOR_PROMPT)} символов)")
+            return cls.DEFAULT_PROMPT_GENERATOR_PROMPT
 
     @classmethod
     async def set_prompt_generator_prompt(cls, prompt: str) -> Settings:
