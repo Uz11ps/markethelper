@@ -27,7 +27,7 @@ TORTOISE_ORM = {
     },
     "apps": {
         "models": {
-            "models": ["backend.models"],
+            "models": ["backend.models", "backend.models.channel_bonus", "backend.models.ai", "backend.models.product_description", "backend.models.design_template"],
             "default_connection": "default",
         }
     },
