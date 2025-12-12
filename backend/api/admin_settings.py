@@ -31,11 +31,12 @@ class SettingsUpdate(BaseModel):
 async def get_prompt_settings(_: Admin = Depends(get_current_admin)):
     """Получение настроек промптов"""
     default_prompt = await Settings.filter(key="default_prompt_template").first()
-    product_analysis_prompt = await Settings.filter(key="product_analysis_prompt").first()
+    # Используем правильный ключ prompt_generator_prompt вместо product_analysis_prompt
+    prompt_generator_prompt = await SettingsService.get_prompt_generator_prompt()
 
     return {
         "default_prompt": default_prompt.value if default_prompt else "",
-        "product_analysis_prompt": product_analysis_prompt.value if product_analysis_prompt else ""
+        "product_analysis_prompt": prompt_generator_prompt  # Возвращаем для совместимости с фронтендом
     }
 
 
@@ -64,17 +65,15 @@ async def update_analysis_prompt(
     data: PromptTemplateUpdate,
     _: Admin = Depends(get_current_admin)
 ):
-    """Обновление промпта для анализа продукта"""
-    setting = await Settings.filter(key="product_analysis_prompt").first()
-
-    if setting:
-        setting.value = data.template
-        await setting.save()
-    else:
-        await Settings.create(
-            key="product_analysis_prompt",
-            value=data.template
-        )
+    """Обновление промпта для анализа продукта (генератора изображений)"""
+    # Используем правильный ключ prompt_generator_prompt через SettingsService
+    await SettingsService.set_prompt_generator_prompt(data.template)
+    
+    # Также обновляем старый ключ для совместимости (если он существует)
+    old_setting = await Settings.filter(key="product_analysis_prompt").first()
+    if old_setting:
+        old_setting.value = data.template
+        await old_setting.save()
 
     return {"message": "Analysis prompt template updated successfully"}
 
