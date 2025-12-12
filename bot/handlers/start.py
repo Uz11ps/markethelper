@@ -306,29 +306,23 @@ async def check_channel_subscription_callback(callback: types.CallbackQuery):
                     await callback.message.answer(
                         f"✅ {bonus_result.get('message', 'Запрос на бонус за подписку на канал отправлен администратору!')}"
                     )
-                    # Удаляем старое сообщение с кнопкой подписки
-                    try:
-                        await callback.message.delete()
-                    except:
-                        pass
                 elif bonus_result.get("request_already_exists"):
                     await callback.message.answer(
                         "⏳ Ваш запрос на бонус за подписку на канал уже отправлен и ожидает одобрения администратора."
                     )
-                    # Удаляем старое сообщение с кнопкой подписки
-                    try:
-                        await callback.message.delete()
-                    except:
-                        pass
                 elif bonus_result.get("bonus_already_given"):
                     await callback.message.answer(
                         "✅ Бонус за подписку на канал уже был начислен ранее."
                     )
-                    # Удаляем старое сообщение с кнопкой подписки
-                    try:
-                        await callback.message.delete()
-                    except:
-                        pass
+                
+                # Удаляем старое сообщение с кнопкой подписки
+                try:
+                    await callback.message.delete()
+                except:
+                    pass
+                
+                # Показываем главное меню после успешной проверки подписки
+                await show_main_menu(callback.message, tg)
             except Exception as e:
                 print(f"[ERROR check_channel_subscription] {e}")
                 await callback.message.answer(
