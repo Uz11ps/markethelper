@@ -91,4 +91,5 @@ class UserService:
             access_file_path=access_file_path,
             bonus_balance=user.bonus_balance,
             token_balance=user.token_balance,
+            channel_bonus_given=user.channel_bonus_given,
         )
