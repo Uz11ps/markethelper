@@ -28,7 +28,7 @@ function renderBonusesTable(bonuses) {
   tbody.innerHTML = "";
 
   if (bonuses.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7">📭 Нет ожидающих подтверждения бонусов</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8">📭 Нет ожидающих подтверждения бонусов</td></tr>`;
     return;
   }
 

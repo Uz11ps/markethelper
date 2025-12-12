@@ -169,12 +169,27 @@ async def approve_bonus(
 @router.post("/{bonus_id}/reject")
 async def reject_bonus(
     bonus_id: int,
+    bonus_type: str = None,  # "referral" или "channel", определяется автоматически если не указан
     admin: Admin = Depends(get_current_admin)
 ):
-    """Отклонить реферальный бонус"""
-    bonus = await PendingBonus.filter(id=bonus_id).prefetch_related(
-        "referrer", "referred"
-    ).first()
+    """Отклонить бонус (реферальный или за подписку на канал)"""
+    
+    # Если тип не указан, пытаемся определить автоматически
+    if not bonus_type:
+        channel_bonus = await ChannelBonusRequest.filter(id=bonus_id).first()
+        if channel_bonus:
+            bonus_type = "channel"
+        else:
+            bonus_type = "referral"
+    
+    if bonus_type == "channel":
+        bonus = await ChannelBonusRequest.filter(id=bonus_id).prefetch_related(
+            "user"
+        ).first()
+    else:
+        bonus = await PendingBonus.filter(id=bonus_id).prefetch_related(
+            "referred"
+        ).first()
     
     if not bonus:
         raise HTTPException(status_code=404, detail="Бонус не найден")
@@ -192,4 +207,3 @@ async def reject_bonus(
         "message": "Бонус отклонен",
         "bonus_id": bonus.id
     }
-
