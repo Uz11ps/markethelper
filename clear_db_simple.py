@@ -14,10 +14,12 @@ from backend.models import (
     User, Admin, AccessGroup, Subscription, Request,
     UserGenerationSettings, PendingBonus,
     ReferralPayout, Referral, TokenPurchaseRequest,
-    AccessFile, AIRequest, ProductDescription, EditablePromptTemplate,
-    InfographicProject, DesignTemplate, Mailing, BroadcastMessage
+    AccessFile, Mailing, BroadcastMessage
 )
 from backend.models.channel_bonus import ChannelBonusRequest
+from backend.models.ai import AIRequest
+from backend.models.product_description import ProductDescription, EditablePromptTemplate, InfographicProject
+from backend.models.design_template import DesignTemplate
 
 TORTOISE_ORM = {
     "connections": {
