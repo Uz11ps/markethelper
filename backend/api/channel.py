@@ -63,47 +63,77 @@ async def check_channel_subscription(tg_id: int):
     Проверка подписки пользователя на канал и создание запроса на бонус.
     Вызывается из бота после проверки подписки через Telegram API.
     """
-    user = await User.get_or_none(tg_id=tg_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Если бонус уже был начислен, ничего не делаем
-    if user.channel_bonus_given:
+    try:
+        logger.info(f"[check_channel_subscription] Начало обработки для tg_id={tg_id}")
+        
+        user = await User.get_or_none(tg_id=tg_id)
+        if not user:
+            logger.error(f"[check_channel_subscription] Пользователь не найден: tg_id={tg_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        logger.info(f"[check_channel_subscription] Пользователь найден: id={user.id}, tg_id={user.tg_id}")
+        
+        # Если бонус уже был начислен, ничего не делаем
+        if user.channel_bonus_given:
+            logger.info(f"[check_channel_subscription] Бонус уже был начислен для пользователя {tg_id}")
+            return {
+                "subscribed": True,
+                "bonus_already_given": True,
+                "message": "Бонус за подписку уже был начислен ранее"
+            }
+        
+        # Проверяем, есть ли уже pending запрос
+        existing_request = await ChannelBonusRequest.filter(
+            user=user,
+            status="pending"
+        ).first()
+        
+        if existing_request:
+            logger.info(f"[check_channel_subscription] Уже есть pending запрос для пользователя {tg_id}")
+            return {
+                "subscribed": True,
+                "request_already_exists": True,
+                "message": "Запрос на бонус за подписку уже отправлен и ожидает одобрения"
+            }
+        
+        # Получаем размер бонуса из настроек
+        try:
+            bonus_amount = await SettingsService.get_channel_bonus()
+            logger.info(f"[check_channel_subscription] Размер бонуса из настроек: {bonus_amount}")
+        except Exception as e:
+            logger.error(f"[check_channel_subscription] Ошибка при получении размера бонуса: {e}")
+            import traceback
+            traceback.print_exc()
+            bonus_amount = 50  # Дефолтное значение
+        
+        # Создаем запрос на бонус (требует одобрения админа)
+        try:
+            logger.info(f"[check_channel_subscription] Создание запроса на бонус: user_id={user.id}, bonus_amount={bonus_amount}")
+            bonus_request = await ChannelBonusRequest.create(
+                user=user,
+                bonus_amount=bonus_amount,
+                status="pending"
+            )
+            logger.info(f"[check_channel_subscription] Запрос на бонус успешно создан: id={bonus_request.id}")
+        except Exception as e:
+            logger.error(f"[check_channel_subscription] Ошибка при создании запроса на бонус: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Ошибка при создании запроса на бонус: {str(e)}")
+        
+        logger.info(f"[check_channel_subscription] Успешно создан запрос на бонус для пользователя {tg_id}: {bonus_amount} токенов")
+        
         return {
             "subscribed": True,
-            "bonus_already_given": True,
-            "message": "Бонус за подписку уже был начислен ранее"
+            "request_created": True,
+            "bonus_amount": bonus_amount,
+            "message": f"✅ Запрос на {bonus_amount} токенов за подписку на канал отправлен администратору. Бонус будет начислен после одобрения."
         }
-    
-    # Проверяем, есть ли уже pending запрос
-    existing_request = await ChannelBonusRequest.filter(
-        user=user,
-        status="pending"
-    ).first()
-    
-    if existing_request:
-        return {
-            "subscribed": True,
-            "request_already_exists": True,
-            "message": "Запрос на бонус за подписку уже отправлен и ожидает одобрения"
-        }
-    
-    # Получаем размер бонуса из настроек
-    bonus_amount = await SettingsService.get_channel_bonus()
-    
-    # Создаем запрос на бонус (требует одобрения админа)
-    await ChannelBonusRequest.create(
-        user=user,
-        bonus_amount=bonus_amount,
-        status="pending"
-    )
-    
-    logger.info(f"Создан запрос на бонус за подписку на канал для пользователя {tg_id}: {bonus_amount} токенов")
-    
-    return {
-        "subscribed": True,
-        "request_created": True,
-        "bonus_amount": bonus_amount,
-        "message": f"✅ Запрос на {bonus_amount} токенов за подписку на канал отправлен администратору. Бонус будет начислен после одобрения."
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[check_channel_subscription] Неожиданная ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
 
