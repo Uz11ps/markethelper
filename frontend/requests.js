@@ -400,6 +400,7 @@ function renderStats(data) {
   
   console.log("[renderStats] Статистика отображена:", { total, pending, approved, rejected });
   console.log("[renderStats] Контейнер после вставки:", statsContainer.innerHTML.substring(0, 200));
+  console.log("[renderStats] Контейнер видим:", statsContainer.offsetHeight > 0);
 }
 
-loadRequests();
+// Убираем вызов loadRequests() отсюда, так как он вызывается в DOMContentLoaded
