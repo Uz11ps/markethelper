@@ -389,14 +389,18 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
     """Обработка выбора режима генерации"""
     from bot.loader import bot
     
+    # КРИТИЧЕСКИ ВАЖНО: Отвечаем на callback ПЕРВЫМ делом
+    try:
+        await callback.answer()
+    except Exception as answer_exc:
+        logger.error(f"[generate_mode_handler] Ошибка при callback.answer(): {answer_exc}")
+    
     try:
         logger.info(f"[generate_mode_handler] === НАЧАЛО ОБРАБОТКИ ===")
         logger.info(f"[generate_mode_handler] Callback data: {callback.data}")
         logger.info(f"[generate_mode_handler] User ID: {callback.from_user.id}")
         logger.info(f"[generate_mode_handler] Message available: {callback.message is not None}")
         
-        # Отвечаем на callback сразу
-        await callback.answer()
         logger.info(f"[generate_mode_handler] Callback answered")
         
         mode = callback.data.replace("generate:mode:", "")
