@@ -87,19 +87,27 @@ class FALService:
                 logger.info("Используется Nano Banana для применения стиля референса к товару")
                 logger.info(f"[FALService] Используется сгенерированный промпт: {prompt[:200]}...")
 
-                # ВАЖНО: Используем сгенерированный промпт напрямую, так как он уже содержит все необходимые инструкции
-                # от GPT-4o, включая описание товара, стиля, композиции и т.д.
-                # Не заменяем его на базовые инструкции, а используем как есть
+                # Улучшаем промпт для лучшего следования изображениям
+                # Добавляем четкие инструкции о сохранении товара и следовании референсам
+                enhanced_prompt = (
+                    f"{prompt}. "
+                    "IMPORTANT: Keep the product EXACTLY as shown in the product images - same shape, color, size, and details. "
+                    "Apply ONLY the style, composition, background, lighting, and layout from the reference images. "
+                    "The product must remain identical to the original product photos. "
+                    "Follow the reference images precisely for composition, colors, background, and styling elements."
+                )
 
                 # Nano Banana принимает image_urls - массив изображений (товар + референсы)
                 image_urls_list = [main_product_image] + reference_images[:3]  # Товар + до 3 референсов
 
                 arguments = {
-                    "prompt": prompt,  # Используем сгенерированный промпт напрямую
+                    "prompt": enhanced_prompt,  # Используем улучшенный промпт
                     "image_urls": image_urls_list,  # Массив изображений для обработки
                     "num_images": num_images,
                     "aspect_ratio": aspect_ratio,
                     "output_format": "jpeg",
+                    "guidance_scale": 7.5,  # Увеличиваем guidance для лучшего следования промпту
+                    "num_inference_steps": 50,  # Увеличиваем количество шагов для лучшего качества
                 }
 
                 # ВАЖНО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
