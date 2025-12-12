@@ -1,10 +1,18 @@
 import asyncio
 import uvicorn
+import logging
 from aiogram import Dispatcher
 from bot.loader import bot, dp
 from bot.handlers import files, start, subscription, profile, ai, image_generation, topup
 from bot.handlers import keyboard_update
 from bot.api import app as fastapi_app
+
+# Настройка логирования для бота
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 async def run_bot():
