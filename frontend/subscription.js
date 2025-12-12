@@ -17,11 +17,11 @@ async function loadSubscriptions() {
   try {
     const res = await authFetch(API_SUBS);
     if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
-    allSubs = await res.json();
+    const allSubscriptions = await res.json();
     
     // Добавляем информацию о количестве продлений для каждого пользователя
     const userSubsCount = {};
-    allSubs.forEach(sub => {
+    allSubscriptions.forEach(sub => {
       const userId = sub.user_id || sub.tg_id;
       if (userId) {
         if (!userSubsCount[userId]) {
@@ -35,16 +35,65 @@ async function loadSubscriptions() {
       }
     });
     
-    // Добавляем количество продлений к каждой подписке
-    allSubs = allSubs.map(sub => {
+    // Добавляем флаг активности и количество продлений
+    const subsWithInfo = allSubscriptions.map(sub => {
       const userId = sub.user_id || sub.tg_id;
       const userInfo = userSubsCount[userId] || { count: 1 };
       return {
         ...sub,
         renewals_count: userInfo.count,
-        is_active: new Date(sub.end_date) > new Date()
+        is_active: new Date(sub.end_date) > new Date(),
+        user_key: userId || sub.tg_id || sub.id // Ключ для группировки
       };
     });
+    
+    // Группируем по пользователю и выбираем только самую актуальную подписку
+    const userSubscriptionsMap = new Map();
+    
+    subsWithInfo.forEach(sub => {
+      const userKey = sub.user_key;
+      const existing = userSubscriptionsMap.get(userKey);
+      
+      if (!existing) {
+        // Первая подписка для этого пользователя
+        userSubscriptionsMap.set(userKey, sub);
+      } else {
+        // Выбираем более актуальную подписку:
+        // 1. Активная подписка предпочтительнее неактивной
+        // 2. Если обе активные или обе неактивные - выбираем с более поздней датой окончания
+        const existingIsActive = existing.is_active;
+        const currentIsActive = sub.is_active;
+        
+        if (currentIsActive && !existingIsActive) {
+          // Текущая активна, существующая нет - выбираем текущую
+          userSubscriptionsMap.set(userKey, sub);
+        } else if (!currentIsActive && existingIsActive) {
+          // Существующая активна, текущая нет - оставляем существующую
+          // Ничего не делаем
+        } else {
+          // Обе активны или обе неактивны - выбираем с более поздней датой окончания
+          const existingEndDate = new Date(existing.end_date);
+          const currentEndDate = new Date(sub.end_date);
+          if (currentEndDate > existingEndDate) {
+            userSubscriptionsMap.set(userKey, sub);
+          }
+        }
+      }
+    });
+    
+    // Преобразуем Map обратно в массив
+    allSubs = Array.from(userSubscriptionsMap.values());
+    
+    // Сортируем по дате окончания (активные сначала, затем по дате)
+    allSubs.sort((a, b) => {
+      const aActive = a.is_active;
+      const bActive = b.is_active;
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      return new Date(b.end_date) - new Date(a.end_date);
+    });
+    
+    console.log(`[loadSubscriptions] Загружено ${allSubscriptions.length} подписок, после дедупликации: ${allSubs.length}`);
     
     applyFilters();
   } catch (err) {
