@@ -151,7 +151,9 @@ async def start_infographics_mode(message: Message, state: FSMContext):
     await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
     
     try:
-        models = await api_client.get_image_models()
+        all_models = await api_client.get_image_models()
+        # Для инфографики оставляем только nano-banana и pro (убираем sd/seedream)
+        models = {k: v for k, v in all_models.items() if k in ["nano-banana", "pro"]}
     except Exception as exc:
         logger.warning(f"Не удалось получить список моделей: {exc}")
         models = {}
@@ -160,6 +162,9 @@ async def start_infographics_mode(message: Message, state: FSMContext):
     try:
         user_settings = await api_client.get_user_generation_settings(message.from_user.id)
         selected_model_key = user_settings.get("selected_model_key")
+        # Если выбранная модель не поддерживается для инфографики, сбрасываем выбор
+        if selected_model_key and selected_model_key not in models:
+            selected_model_key = None
     except Exception as exc:
         logger.warning(f"Не удалось получить настройки пользователя: {exc}")
     

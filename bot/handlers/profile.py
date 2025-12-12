@@ -412,7 +412,13 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
         await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
     
     try:
-        models = await api.get_image_models()
+        all_models = await api.get_image_models()
+        # Для инфографики оставляем только nano-banana и pro (убираем sd/seedream)
+        if mode == "infographics":
+            models = {k: v for k, v in all_models.items() if k in ["nano-banana", "pro"]}
+        else:
+            # Для простых картинок доступны все модели
+            models = all_models
     except Exception as exc:
         logger.warning(f"Не удалось получить список моделей: {exc}")
         models = {}
@@ -421,6 +427,9 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
     try:
         user_settings = await api.get_user_generation_settings(callback.from_user.id)
         selected_model_key = user_settings.get("selected_model_key")
+        # Если выбранная модель не поддерживается для инфографики, сбрасываем выбор
+        if mode == "infographics" and selected_model_key and selected_model_key not in models:
+            selected_model_key = None
     except Exception as exc:
         logger.warning(f"Не удалось получить настройки пользователя: {exc}")
     
