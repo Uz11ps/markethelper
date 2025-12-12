@@ -195,41 +195,20 @@ class PromptGeneratorService:
                     "text": f"Референс #{i}"
                 })
 
-            # Определяем модель GPT для использования
-            # СТРОГО: используем модель пользователя, если она выбрана
-            gpt_model_to_use = None
+            # СТРОГО: Для генерации промпта из изображений ВСЕГДА используем GPT-4o Vision
+            # GPT-4o Vision специально предназначена для анализа изображений и генерации текстовых промптов
+            gpt_model_to_use = "gpt-4o"  # GPT-4o имеет встроенную поддержку Vision
             
-            if tg_id:
-                try:
-                    from bot.services.api_client import APIClient
-                    api_client = APIClient()
-                    user_settings = await api_client.get_user_generation_settings(tg_id)
-                    gpt_model_to_use = user_settings.get("selected_gpt_model")
-                    if gpt_model_to_use:
-                        logger.info(f"[PROMPT_GENERATOR] Используется выбранная пользователем GPT модель: {gpt_model_to_use}")
-                except Exception as e:
-                    logger.warning(f"[PROMPT_GENERATOR] Не удалось получить модель пользователя: {e}")
+            logger.info(f"[PROMPT_GENERATOR] СТРОГО: Используется GPT-4o Vision для анализа изображений и генерации промпта")
             
-            # Если модель пользователя не выбрана, используем системную модель из настроек
-            if not gpt_model_to_use:
-                try:
-                    from backend.services.settings_service import SettingsService
-                    gpt_model_to_use = await SettingsService.get_gpt_model()
-                    logger.info(f"[PROMPT_GENERATOR] Используется системная GPT модель из настроек: {gpt_model_to_use}")
-                except Exception as e:
-                    logger.warning(f"[PROMPT_GENERATOR] Не удалось получить системную модель GPT: {e}")
-                    # Fallback на дефолтную модель
-                    gpt_model_to_use = "gpt-4o-mini"
-                    logger.warning(f"[PROMPT_GENERATOR] Используется fallback модель: {gpt_model_to_use}")
-            
-            # Запрос к GPT с выбранной моделью
+            # Запрос к GPT-4o Vision с выбранной моделью
             system_prompt = await cls._get_system_prompt(force_refresh=False)
             logger.info(f"[PROMPT_GENERATOR] Используется системный промпт (длина: {len(system_prompt)} символов)")
             logger.info(f"[PROMPT_GENERATOR] Системный промпт (первые 500 символов): {system_prompt[:500]}...")
             logger.info(f"[PROMPT_GENERATOR] Системный промпт (полный):\n{system_prompt}")
-            logger.info(f"[PROMPT_GENERATOR] Используется GPT модель: {gpt_model_to_use}")
+            logger.info(f"[PROMPT_GENERATOR] Используется GPT модель: {gpt_model_to_use} (Vision enabled)")
 
-            logger.info(f"[PROMPT_GENERATOR] Отправка запроса к {gpt_model_to_use} для генерации промпта...")
+            logger.info(f"[PROMPT_GENERATOR] Отправка запроса к GPT-4o Vision для генерации промпта...")
             logger.info(f"[PROMPT_GENERATOR] Входные данные: {len(product_image_urls)} фото товара, {len(reference_image_urls)} референсов")
             response = await client.chat.completions.create(
                 model=gpt_model_to_use,
@@ -380,38 +359,16 @@ class PromptGeneratorService:
 
         Args:
             product_image_urls: Список URL фотографий товара
-            tg_id: Telegram ID пользователя (опционально, для получения выбранной модели)
+            tg_id: Telegram ID пользователя (опционально, не используется для Vision)
 
         Returns:
             Текстовое описание товара
         """
         try:
-            # Определяем модель GPT для использования
-            # СТРОГО: используем модель пользователя, если она выбрана
-            gpt_model_to_use = None
+            # СТРОГО: Для анализа изображений ВСЕГДА используем GPT-4o Vision
+            gpt_model_to_use = "gpt-4o"  # GPT-4o имеет встроенную поддержку Vision
             
-            if tg_id:
-                try:
-                    from bot.services.api_client import APIClient
-                    api_client = APIClient()
-                    user_settings = await api_client.get_user_generation_settings(tg_id)
-                    gpt_model_to_use = user_settings.get("selected_gpt_model")
-                    if gpt_model_to_use:
-                        logger.info(f"[PROMPT_GENERATOR] Используется выбранная пользователем GPT модель для анализа товара: {gpt_model_to_use}")
-                except Exception as e:
-                    logger.warning(f"[PROMPT_GENERATOR] Не удалось получить модель пользователя для анализа: {e}")
-            
-            # Если модель пользователя не выбрана, используем системную модель из настроек
-            if not gpt_model_to_use:
-                try:
-                    from backend.services.settings_service import SettingsService
-                    gpt_model_to_use = await SettingsService.get_gpt_model()
-                    logger.info(f"[PROMPT_GENERATOR] Используется системная GPT модель для анализа товара: {gpt_model_to_use}")
-                except Exception as e:
-                    logger.warning(f"[PROMPT_GENERATOR] Не удалось получить системную модель GPT для анализа: {e}")
-                    # Fallback на дефолтную модель
-                    gpt_model_to_use = "gpt-4o-mini"
-                    logger.warning(f"[PROMPT_GENERATOR] Используется fallback модель для анализа: {gpt_model_to_use}")
+            logger.info(f"[PROMPT_GENERATOR] СТРОГО: Используется GPT-4o Vision для анализа товара")
 
             content = [
                 {
