@@ -53,16 +53,17 @@ class FALService:
 
             # Если нет фото товара - это режим простых картинок, генерируем только по промпту
             if not main_product_image:
-                logger.info("Режим простых картинок - генерация только по промпту без фото товара")
+                logger.info("[FAL_SERVICE] Режим простых картинок - генерация только по промпту без фото товара")
+                logger.info(f"[FAL_SERVICE] Промпт для генерации (длина: {len(prompt)} символов):\n{prompt}")
                 
                 # Используем указанную модель или модель по умолчанию
                 # ВАЖНО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
                 if model_id and model_id.strip():
                     model = model_id.strip()
-                    logger.info(f"Используется переданная модель: {model}")
+                    logger.info(f"[FAL_SERVICE] Используется переданная модель: {model}")
                 else:
                     model = "fal-ai/nano-banana-pro"
-                    logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
+                    logger.info(f"[FAL_SERVICE] model_id не передан или пустой, используем модель по умолчанию: {model}")
                 
                 # Определяем размер изображения на основе aspect_ratio
                 if aspect_ratio == "1:1":
@@ -84,8 +85,8 @@ class FALService:
                 }
             elif main_reference:
                 # Используем Nano Banana для применения стиля референса к товару
-                logger.info("Используется Nano Banana для применения стиля референса к товару")
-                logger.info(f"[FALService] Используется сгенерированный промпт: {prompt[:200]}...")
+                logger.info("[FAL_SERVICE] Используется Nano Banana для применения стиля референса к товару")
+                logger.info(f"[FAL_SERVICE] Исходный промпт (длина: {len(prompt)} символов):\n{prompt}")
 
                 # Улучшаем промпт для лучшего следования изображениям
                 # Добавляем четкие инструкции о сохранении товара и следовании референсам
@@ -96,6 +97,7 @@ class FALService:
                     "The product must remain identical to the original product photos. "
                     "Follow the reference images precisely for composition, colors, background, and styling elements."
                 )
+                logger.info(f"[FAL_SERVICE] Улучшенный промпт (длина: {len(enhanced_prompt)} символов):\n{enhanced_prompt}")
 
                 # Nano Banana принимает image_urls - массив изображений (товар + референсы)
                 image_urls_list = [main_product_image] + reference_images[:3]  # Товар + до 3 референсов
@@ -119,7 +121,8 @@ class FALService:
                     logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
             else:
                 # Без референса, но с фото товара - обычная генерация
-                logger.info("Генерация с фото товара без референса - используется Nano Banana Pro")
+                logger.info("[FAL_SERVICE] Генерация с фото товара без референса - используется Nano Banana Pro")
+                logger.info(f"[FAL_SERVICE] Промпт для генерации (длина: {len(prompt)} символов):\n{prompt}")
 
                 arguments = {
                     "prompt": prompt,
@@ -138,8 +141,9 @@ class FALService:
                     model = "fal-ai/nano-banana-pro"
                     logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
 
-            logger.info(f"Используется модель: {model}")
-            logger.info(f"Параметры: {arguments}")
+            logger.info(f"[FAL_SERVICE] Используется модель: {model}")
+            logger.info(f"[FAL_SERVICE] Параметры генерации: {arguments}")
+            logger.info(f"[FAL_SERVICE] Финальный промпт для FAL API (длина: {len(arguments.get('prompt', ''))} символов):\n{arguments.get('prompt', '')}")
 
             # Асинхронный вызов FAL API
             result = await asyncio.to_thread(

@@ -196,9 +196,12 @@ class PromptGeneratorService:
 
             # Запрос к GPT-4o
             system_prompt = await cls._get_system_prompt(force_refresh=False)
-            logger.info(f"Используется системный промпт (длина: {len(system_prompt)} символов, первые 200 символов: {system_prompt[:200]}...)")
+            logger.info(f"[PROMPT_GENERATOR] Используется системный промпт (длина: {len(system_prompt)} символов)")
+            logger.info(f"[PROMPT_GENERATOR] Системный промпт (первые 500 символов): {system_prompt[:500]}...")
+            logger.info(f"[PROMPT_GENERATOR] Системный промпт (полный):\n{system_prompt}")
 
-            logger.info("Отправка запроса к GPT-4o для генерации промпта...")
+            logger.info(f"[PROMPT_GENERATOR] Отправка запроса к GPT-4o для генерации промпта...")
+            logger.info(f"[PROMPT_GENERATOR] Входные данные: {len(product_image_urls)} фото товара, {len(reference_image_urls)} референсов")
             response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -318,7 +321,10 @@ class PromptGeneratorService:
                 else:
                     raise ValueError("GPT вернул ответ без обязательного поля 'generated_text_prompt'")
 
-            logger.info(f"Промпт успешно сгенерирован: {result['generated_text_prompt'][:100]}...")
+            generated_prompt = result['generated_text_prompt']
+            logger.info(f"[PROMPT_GENERATOR] ✅ Промпт успешно сгенерирован (длина: {len(generated_prompt)} символов)")
+            logger.info(f"[PROMPT_GENERATOR] Сгенерированный промпт (полный):\n{generated_prompt}")
+            logger.info(f"[PROMPT_GENERATOR] Анализ товара: {result.get('deconstruction_analysis', {})}")
 
             return result
 

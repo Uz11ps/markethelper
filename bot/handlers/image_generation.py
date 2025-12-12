@@ -762,10 +762,13 @@ async def use_auto_prompt(callback: CallbackQuery, state: FSMContext):
         
         generated_prompt = prompt_data["generated_text_prompt"]
         analysis = prompt_data["deconstruction_analysis"]
+        logger.info(f"[IMAGE_GENERATION] Промпт сгенерирован GPT-4o (длина: {len(generated_prompt)} символов):\n{generated_prompt}")
         
         # Если указан текст на карточке, добавляем его в промпт
+        original_prompt = generated_prompt
         if card_text:
             generated_prompt = f"{generated_prompt}. Add text on the card: '{card_text}'"
+            logger.info(f"[IMAGE_GENERATION] Добавлен текст на карточку. Промпт до: {original_prompt[:200]}... Промпт после: {generated_prompt[:200]}...")
         
         # Сохраняем промпт и анализ
         await state.update_data(generated_prompt=generated_prompt, analysis=analysis)
@@ -1182,10 +1185,13 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
 
             generated_prompt = prompt_data["generated_text_prompt"]
             analysis = prompt_data["deconstruction_analysis"]
+            logger.info(f"[IMAGE_GENERATION] Промпт сгенерирован GPT-4o (длина: {len(generated_prompt)} символов):\n{generated_prompt}")
 
         # Если указан текст на карточке, добавляем его в промпт
         if card_text:
+            original_prompt = generated_prompt
             generated_prompt = f"{generated_prompt}. Add text on the card: '{card_text}'"
+            logger.info(f"[IMAGE_GENERATION] Добавлен текст на карточку. Промпт до: {original_prompt[:200]}... Промпт после: {generated_prompt[:200]}...")
 
         # Сохраняем промпт и анализ
         await state.update_data(generated_prompt=generated_prompt, analysis=analysis)
@@ -1314,8 +1320,10 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
             return
 
         # Если указан текст на карточке, добавляем его в промпт
+        original_custom_prompt = custom_prompt
         if card_text:
             custom_prompt = f"{custom_prompt}. Add text on the card: '{card_text}'"
+            logger.info(f"[IMAGE_GENERATION] Добавлен текст на карточку. Промпт до: {original_custom_prompt[:200]}... Промпт после: {custom_prompt[:200]}...")
 
         data = await state.get_data()
         model_name = data.get("model_name", "Nano Banana")
@@ -1329,11 +1337,13 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
                 if selected_model_key and selected_model_key in models:
                     selected_model = models[selected_model_key]
                     model_id = selected_model.get("model_id")
-                    logger.info(f"[generate_with_custom_prompt] Получен model_id из настроек: {model_id}")
+                    logger.info(f"[IMAGE_GENERATION] Получен model_id из настроек: {model_id}")
             except Exception as e:
-                logger.warning(f"[generate_with_custom_prompt] Не удалось получить model_id из настроек: {e}")
+                logger.warning(f"[IMAGE_GENERATION] Не удалось получить model_id из настроек: {e}")
         
-        logger.info(f"[generate_with_custom_prompt] Используется модель: model_name={model_name}, model_id={model_id}")
+        logger.info(f"[IMAGE_GENERATION] Используется модель: model_name={model_name}, model_id={model_id}")
+        logger.info(f"[IMAGE_GENERATION] Кастомный промпт перед отправкой в FAL (длина: {len(custom_prompt)} символов):\n{custom_prompt}")
+        logger.info(f"[IMAGE_GENERATION] Параметры: product_images={len(product_photos)}, reference_images={len(reference_photos)}, aspect_ratio={aspect_ratio}, model_id={model_id}")
         
         msg1 = await message.answer(
             f"🎨 Генерирую изображение с вашим промптом через {model_name}...\n\n"
