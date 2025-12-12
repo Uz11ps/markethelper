@@ -45,8 +45,8 @@ async def charge_tokens(request: ChargeTokensRequest):
     logger = logging.getLogger(__name__)
     
     try:
-        logger.info(f"[charge_tokens] Запрос на списание токенов: tg_id={request.tg_id}, action={request.action}")
-        result = await TokenService.charge(request.tg_id, request.action)
+        logger.info(f"[charge_tokens] Запрос на списание токенов: tg_id={request.tg_id}, action={request.action}, cost={request.cost}")
+        result = await TokenService.charge(request.tg_id, request.action, cost=request.cost)
         logger.info(f"[charge_tokens] Токены успешно списаны: {result}")
         return ChargeTokensResponse(**result)
     except HTTPException as e:

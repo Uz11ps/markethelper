@@ -255,10 +255,13 @@ class APIClient:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
 
-    async def charge_tokens(self, tg_id: int, action: str):
+    async def charge_tokens(self, tg_id: int, action: str, cost: int = None):
         url = f"{self.base_url}/api/tokens/charge"
+        payload = {"tg_id": tg_id, "action": action}
+        if cost is not None:
+            payload["cost"] = cost
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json={"tg_id": tg_id, "action": action}) as resp:
+            async with session.post(url, json=payload) as resp:
                 return await self._handle_response(resp)
 
     async def get_token_pricing(self):

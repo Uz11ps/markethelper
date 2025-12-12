@@ -65,14 +65,8 @@ async def charge_image_generation(message: Message, state: FSMContext, user_id: 
         data = await state.get_data()
         model_cost = data.get("model_cost", 5)
         
-        # Используем специальный endpoint для списания с указанием стоимости
-        # Или используем стандартный endpoint, если он поддерживает стоимость модели
-        # Пока используем стандартный endpoint, но в будущем можно добавить поддержку стоимости модели
-        result = await api_client.charge_tokens(user_id, "image_generation")
-        
-        # Обновляем результат с правильной стоимостью модели
-        if result and isinstance(result, dict):
-            result["cost"] = model_cost
+        # Используем endpoint для списания с указанием стоимости модели
+        result = await api_client.charge_tokens(user_id, "image_generation", cost=model_cost)
         
         return result
     except InsufficientTokensError:
@@ -723,14 +717,27 @@ async def proceed_to_prompt_choice(message: Message, state: FSMContext):
     reference_photos = data.get("reference_photos", [])
 
     await state.set_state(ImageGenerationStates.choosing_prompt_mode)
-    pricing = data.get("token_pricing", {}) if data else {}
-    image_cost = pricing.get("image_generation_cost", 0)
+    
+    # Получаем стоимость модели из state, если не указана - получаем из настроек
+    model_cost = data.get("model_cost")
+    if model_cost is None:
+        try:
+            models = await api_client.get_image_models()
+            selected_model_key = data.get("selected_model")
+            if selected_model_key and selected_model_key in models:
+                model_cost = models[selected_model_key].get("cost", 5)
+            else:
+                # Используем стоимость nano-banana по умолчанию
+                model_cost = models.get("nano-banana", {}).get("cost", 5) if models else 5
+        except Exception as exc:
+            logger.warning(f"Не удалось получить стоимость модели: {exc}")
+            model_cost = 5
 
     await message.answer(
         "✅ <b>Готово!</b>\n\n"
         f"📦 Фото товара: {len(product_photos)} шт.\n"
         f"🎨 Референсов: {len(reference_photos)} шт.\n\n"
-        f"💰 Стоимость генерации: <b>{image_cost} токенов</b>.\n"
+        f"💰 Стоимость генерации: <b>{model_cost} токенов</b>.\n"
         "Выберите способ создания промпта:",
         reply_markup=prompt_edit_keyboard()
     )

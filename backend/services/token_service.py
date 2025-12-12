@@ -44,12 +44,12 @@ class TokenService:
             raise HTTPException(status_code=500, detail=f"Ошибка при получении стоимости действия: {str(e)}")
 
     @classmethod
-    async def charge(cls, tg_id: int, action: str) -> dict:
+    async def charge(cls, tg_id: int, action: str, cost: int = None) -> dict:
         import logging
         logger = logging.getLogger(__name__)
         
         try:
-            logger.info(f"[TokenService.charge] Списание токенов для tg_id={tg_id}, action={action}")
+            logger.info(f"[TokenService.charge] Списание токенов для tg_id={tg_id}, action={action}, cost={cost}")
             
             user = await User.get_or_none(tg_id=tg_id)
             if not user:
@@ -58,7 +58,9 @@ class TokenService:
 
             logger.debug(f"[TokenService.charge] Пользователь найден: id={user.id}, balance={user.bonus_balance}")
             
-            cost = await cls.get_cost_for_action(action)
+            # Если стоимость не указана, получаем стандартную стоимость
+            if cost is None:
+                cost = await cls.get_cost_for_action(action)
             logger.debug(f"[TokenService.charge] Стоимость действия: {cost}")
 
             if cost < 0:
