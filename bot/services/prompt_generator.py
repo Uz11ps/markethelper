@@ -245,15 +245,18 @@ class PromptGeneratorService:
 
             logger.info(f"[PROMPT_GENERATOR] Отправка запроса к GPT-4o Vision для генерации промпта...")
             logger.info(f"[PROMPT_GENERATOR] Входные данные: {len(product_image_urls)} фото товара, {len(reference_image_urls)} референсов")
+            # Для массива концепций НЕ используем response_format={"type": "json_object"}
+            # так как это требует объект, а нам нужен массив
+            # Вместо этого полагаемся на четкие инструкции в промпте
             response = await client.chat.completions.create(
                 model=gpt_model_to_use,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": content}
                 ],
-                max_tokens=1500,
-                temperature=0.7,
-                response_format={"type": "json_object"}  # Принудительно запрашиваем JSON
+                max_tokens=2000,  # Увеличиваем для 3 концепций
+                temperature=0.7
+                # НЕ используем response_format для массива
             )
 
             # Проверяем наличие ответа
