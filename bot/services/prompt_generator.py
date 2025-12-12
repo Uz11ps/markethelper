@@ -97,33 +97,56 @@ class PromptGeneratorService:
     @classmethod
     async def _get_system_prompt(cls, force_refresh: bool = False) -> str:
         """Получить системный промпт из админки (ВСЕГДА из админки, без локального дефолта)"""
+        # Всегда очищаем кэш при force_refresh
+        if force_refresh:
+            cls._system_prompt_cache = None
+            logger.info("[PROMPT_GENERATOR] Кэш промпта очищен (force_refresh=True)")
+        
         if cls._system_prompt_cache and not force_refresh:
+            logger.info(f"[PROMPT_GENERATOR] Используется промпт из кэша (длина: {len(cls._system_prompt_cache)} символов)")
             return cls._system_prompt_cache
 
         try:
+            logger.info("[PROMPT_GENERATOR] Загрузка промпта из админки через API...")
             # Используем публичный endpoint для получения промпта генератора
             data = await settings_api.get_prompt_generator_prompt()
-            prompt = data.get("prompt_generator_prompt")
-            if prompt and prompt.strip():
-                logger.info(f"✅ Используется промпт из админки (длина: {len(prompt)} символов, первые 200 символов: {prompt[:200]}...)")
-                cls._system_prompt_cache = prompt
-                return prompt
-            else:
-                logger.error("❌ Промпт из админки пустой или отсутствует! Пожалуйста, установите промпт в админ-панели.")
+            logger.info(f"[PROMPT_GENERATOR] Ответ от API: {type(data)}, ключи: {list(data.keys()) if isinstance(data, dict) else 'не словарь'}")
+            
+            prompt = data.get("prompt_generator_prompt") if isinstance(data, dict) else None
+            
+            if not prompt:
+                logger.error(f"❌ Промпт из админки отсутствует в ответе API. Ответ: {data}")
                 # Если промпт пустой, пробуем еще раз без кэша
                 if not force_refresh:
                     logger.info("Повторная попытка получения промпта из админки...")
                     return await cls._get_system_prompt(force_refresh=True)
                 raise ValueError("Промпт генератора не настроен в админ-панели. Пожалуйста, установите его в настройках.")
+            
+            prompt = prompt.strip()
+            if not prompt:
+                logger.error("❌ Промпт из админки пустой (после strip)!")
+                if not force_refresh:
+                    logger.info("Повторная попытка получения промпта из админки...")
+                    return await cls._get_system_prompt(force_refresh=True)
+                raise ValueError("Промпт генератора пустой в админ-панели. Пожалуйста, установите его в настройках.")
+            
+            logger.info(f"✅ Используется промпт из админки (длина: {len(prompt)} символов, первые 200 символов: {prompt[:200]}...)")
+            logger.info(f"[PROMPT_GENERATOR] Полный промпт из админки:\n{prompt}")
+            cls._system_prompt_cache = prompt
+            return prompt
+        except ValueError:
+            # Пробрасываем ValueError как есть
+            raise
         except Exception as exc:
-            logger.error(f"❌ Не удалось получить промпт генератора из админки: {exc}")
+            logger.error(f"❌ Не удалось получить промпт генератора из админки: {exc}", exc_info=True)
             # Повторная попытка без кэша
             if not force_refresh:
                 logger.info("Повторная попытка получения промпта из админки после ошибки...")
                 try:
                     return await cls._get_system_prompt(force_refresh=True)
-                except:
-                    pass
+                except Exception as retry_exc:
+                    logger.error(f"❌ Повторная попытка также не удалась: {retry_exc}", exc_info=True)
+                    raise ValueError(f"Не удалось загрузить промпт генератора из админки: {exc}. Проверьте настройки в админ-панели.")
             raise ValueError(f"Не удалось загрузить промпт генератора из админки: {exc}. Проверьте настройки в админ-панели.")
     
     @classmethod
@@ -202,8 +225,9 @@ class PromptGeneratorService:
             logger.info(f"[PROMPT_GENERATOR] СТРОГО: Используется GPT-4o Vision для анализа изображений и генерации промпта")
             
             # Запрос к GPT-4o Vision с выбранной моделью
-            system_prompt = await cls._get_system_prompt(force_refresh=False)
-            logger.info(f"[PROMPT_GENERATOR] Используется системный промпт (длина: {len(system_prompt)} символов)")
+            # Принудительно обновляем промпт из админки перед каждой генерацией
+            system_prompt = await cls._get_system_prompt(force_refresh=True)
+            logger.info(f"[PROMPT_GENERATOR] Используется системный промпт из админки (длина: {len(system_prompt)} символов)")
             logger.info(f"[PROMPT_GENERATOR] Системный промпт (первые 500 символов): {system_prompt[:500]}...")
             logger.info(f"[PROMPT_GENERATOR] Системный промпт (полный):\n{system_prompt}")
             logger.info(f"[PROMPT_GENERATOR] Используется GPT модель: {gpt_model_to_use} (Vision enabled)")
