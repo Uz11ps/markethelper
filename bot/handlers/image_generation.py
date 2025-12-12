@@ -892,8 +892,10 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
             return
 
         # Если указан текст на карточке, добавляем его в промпт
+        original_prompt = prompt
         if card_text:
             prompt = f"{prompt}. Add text on the card: '{card_text}'"
+            logger.info(f"[IMAGE_GENERATION] Добавлен текст на карточку. Промпт до: {original_prompt[:200]}... Промпт после: {prompt[:200]}...")
 
         data = await state.get_data()
         model_name = data.get("model_name", "Nano Banana")
@@ -907,11 +909,13 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
                 if selected_model_key and selected_model_key in models:
                     selected_model = models[selected_model_key]
                     model_id = selected_model.get("model_id")
-                    logger.info(f"[generate_with_confirmed_prompt] Получен model_id из настроек: {model_id}")
+                    logger.info(f"[IMAGE_GENERATION] Получен model_id из настроек: {model_id}")
             except Exception as e:
-                logger.warning(f"[generate_with_confirmed_prompt] Не удалось получить model_id из настроек: {e}")
+                logger.warning(f"[IMAGE_GENERATION] Не удалось получить model_id из настроек: {e}")
         
-        logger.info(f"[generate_with_confirmed_prompt] Используется модель: model_name={model_name}, model_id={model_id}")
+        logger.info(f"[IMAGE_GENERATION] Используется модель: model_name={model_name}, model_id={model_id}")
+        logger.info(f"[IMAGE_GENERATION] Промпт перед отправкой в FAL (длина: {len(prompt)} символов):\n{prompt}")
+        logger.info(f"[IMAGE_GENERATION] Параметры: product_images={len(product_photos)}, reference_images={len(reference_photos)}, aspect_ratio={aspect_ratio}, model_id={model_id}")
         
         msg1 = await message.answer(
             f"🎨 Генерирую изображение через {model_name}...\n\n"
@@ -1228,7 +1232,9 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
             except Exception as e:
                 logger.warning(f"[generate_with_ai_prompt] Не удалось получить model_id из настроек: {e}")
         
-        logger.info(f"[generate_with_ai_prompt] Используется модель: model_name={model_name}, model_id={model_id}")
+        logger.info(f"[IMAGE_GENERATION] Используется модель: model_name={model_name}, model_id={model_id}")
+        logger.info(f"[IMAGE_GENERATION] Промпт перед отправкой в FAL (длина: {len(generated_prompt)} символов):\n{generated_prompt}")
+        logger.info(f"[IMAGE_GENERATION] Параметры: product_images={len(product_photos)}, reference_images={len(reference_photos)}, aspect_ratio={aspect_ratio}, model_id={model_id}")
         
         # Шаг 2: Генерация изображения через FAL
         msg4 = await message.answer(
