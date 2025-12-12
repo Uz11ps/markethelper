@@ -16,6 +16,18 @@ router = Router()
 api = APIClient()
 logger = logging.getLogger(__name__)
 
+async def safe_delete_message(message: types.Message | CallbackQuery):
+    """Безопасное удаление сообщения (игнорирует ошибки если сообщение нельзя удалить)"""
+    try:
+        if isinstance(message, CallbackQuery):
+            if message.message:
+                await message.message.delete()
+        else:
+            await message.delete()
+    except Exception:
+        # Игнорируем ошибки удаления (сообщение может быть старше 48 часов или уже удалено)
+        pass
+
 def _fmt_date(dt_iso: str | None) -> str:
     if not dt_iso:
         return "—"
@@ -76,13 +88,15 @@ async def show_profile(message: types.Message):
 
 @router.callback_query(F.data == "profile:referral")
 async def referral_info(callback: types.CallbackQuery):
+    await callback.answer()
+    await safe_delete_message(callback)
+    
     tg_id = callback.from_user.id
     try:
         data = await api.get_referral_info(tg_id)
     except Exception as e:
         await callback.message.answer(f"error {str(e)}")
         print(f"[ERROR referral_info] {e}")
-        await callback.answer()
         return
 
     ref_link = data.get("ref_link", "")
@@ -119,13 +133,13 @@ async def referral_info(callback: types.CallbackQuery):
         ])
 
     await callback.message.answer(text, reply_markup=keyboard)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "referral:request_payout")
 async def request_referral_payout(callback: types.CallbackQuery):
     """Создание заявки на выплату рублей за рефералов"""
     await callback.answer()
+    await safe_delete_message(callback)
     
     tg_id = callback.from_user.id
     
@@ -167,17 +181,20 @@ async def request_referral_payout(callback: types.CallbackQuery):
     
 @router.callback_query(F.data == "profile:support")
 async def support_handler(callback: types.CallbackQuery):
+    await callback.answer()
+    await safe_delete_message(callback)
+    
     support_username = "gorrrd"
     await callback.message.answer(
         f"📞 Связаться с оператором можно здесь: @{support_username}"
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "profile:topup")
 async def topup_from_profile(callback: types.CallbackQuery):
     """Обработка кнопки пополнения из профиля"""
     await callback.answer()
+    await safe_delete_message(callback)
     
     if not callback.message:
         await callback.message.answer("❌ Ошибка: не удалось обработать запрос")
@@ -228,6 +245,7 @@ async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
     await callback.answer()
+    await safe_delete_message(callback)
     
     # Получаем сохраненную модель пользователя
     selected_gpt_model = None
@@ -269,24 +287,13 @@ async def chatgpt_handler(callback: types.CallbackQuery, state: FSMContext):
         selected_model = gpt_models[selected_gpt_model]
         selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_gpt_model)}"
     
-    # Пытаемся отредактировать исходное сообщение, если не получается - отправляем новое
-    try:
-        await callback.message.edit_text(
-            "🤖 <b>Выберите модель ChatGPT</b>\n\n"
-            "Выберите модель для использования в чате:\n\n"
-            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>"
-            f"{selected_model_text}",
-            reply_markup=keyboard
-        )
-    except Exception:
-        # Если не удалось отредактировать, отправляем новое сообщение
-        await callback.message.answer(
-            "🤖 <b>Выберите модель ChatGPT</b>\n\n"
-            "Выберите модель для использования в чате:\n\n"
-            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>"
-            f"{selected_model_text}",
-            reply_markup=keyboard
-        )
+    await callback.message.answer(
+        "🤖 <b>Выберите модель ChatGPT</b>\n\n"
+        "Выберите модель для использования в чате:\n\n"
+        f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>"
+        f"{selected_model_text}",
+        reply_markup=keyboard
+    )
 
 
 @router.callback_query(F.data.startswith("chatgpt:select_model:"))
@@ -296,6 +303,7 @@ async def select_chatgpt_model_handler(callback: types.CallbackQuery, state: FSM
     from bot.keyboards.exit_ai import chatgpt_kb
     
     await callback.answer()
+    await safe_delete_message(callback)
     
     model_key = callback.data.replace("chatgpt:select_model:", "")
     
@@ -328,30 +336,14 @@ async def select_chatgpt_model_handler(callback: types.CallbackQuery, state: FSM
     
     await state.set_state(AIChatStates.chatting)
     
-    # Пытаемся отредактировать сообщение, если не получается - отправляем новое
-    try:
-        await callback.message.edit_text(
-            f"🤖 <b>Режим ChatGPT активирован!</b>\n\n"
-            f"✅ Выбрана модель: <b>{model_name}</b>\n\n"
-            "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
-            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
-            "Для выхода нажмите кнопку ниже 👇",
-            reply_markup=chatgpt_kb()
-        )
-    except Exception:
-        # Если не удалось отредактировать (сообщение было отправлено через answer), отправляем новое
-        try:
-            await callback.message.delete()
-        except Exception:
-            pass
-        await callback.message.answer(
-            f"🤖 <b>Режим ChatGPT активирован!</b>\n\n"
-            f"✅ Выбрана модель: <b>{model_name}</b>\n\n"
-            "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
-            f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
-            "Для выхода нажмите кнопку ниже 👇",
-            reply_markup=chatgpt_kb()
-        )
+    await callback.message.answer(
+        f"🤖 <b>Режим ChatGPT активирован!</b>\n\n"
+        f"✅ Выбрана модель: <b>{model_name}</b>\n\n"
+        "💬 Отправьте мне свой вопрос, и я спрошу у ChatGPT.\n"
+        f"💰 Стоимость одного вопроса: <b>{gpt_cost} токенов</b>.\n\n"
+        "Для выхода нажмите кнопку ниже 👇",
+        reply_markup=chatgpt_kb()
+    )
 
 @router.callback_query(F.data == "profile:generate")
 async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
@@ -359,6 +351,7 @@ async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
     await callback.answer()
+    await safe_delete_message(callback)
     
     await state.clear()
     
@@ -395,6 +388,7 @@ async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
 async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext):
     """Обработка выбора режима генерации"""
     await callback.answer()
+    await safe_delete_message(callback)
     
     mode = callback.data.replace("generate:mode:", "")
     
@@ -482,6 +476,7 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
 async def back_to_profile_handler(callback: types.CallbackQuery, state: FSMContext):
     """Возврат к профилю"""
     await callback.answer()
+    await safe_delete_message(callback)
     await state.clear()
     
     try:
@@ -515,11 +510,13 @@ async def back_to_profile_handler(callback: types.CallbackQuery, state: FSMConte
 
 @router.callback_query(F.data == "profile:renew")
 async def renew_subscription(callback: types.CallbackQuery):
+    await callback.answer()
+    await safe_delete_message(callback)
+    
     await callback.message.answer(
         "Выберите тариф для продления:",
         reply_markup=subscription.tariffs_kb()
     )
-    await callback.answer()
 
 @router.callback_query(F.data == "profile:get_file")
 async def on_file_get(callback: CallbackQuery):

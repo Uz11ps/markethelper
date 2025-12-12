@@ -36,6 +36,19 @@ os.makedirs(TEMP_PHOTO_DIR, exist_ok=True)
 media_groups = {}
 
 
+async def safe_delete_message(message_or_callback):
+    """Безопасное удаление сообщения (игнорирует ошибки если сообщение нельзя удалить)"""
+    try:
+        if isinstance(message_or_callback, CallbackQuery):
+            if message_or_callback.message:
+                await message_or_callback.message.delete()
+        else:
+            await message_or_callback.delete()
+    except Exception:
+        # Игнорируем ошибки удаления (сообщение может быть старше 48 часов или уже удалено)
+        pass
+
+
 async def delete_messages(chat_id: int, message_ids: list):
     """Удаление списка сообщений"""
     for msg_id in message_ids:
@@ -209,6 +222,7 @@ async def start_infographics_mode(message: Message, state: FSMContext):
 async def start_generation(callback: CallbackQuery, state: FSMContext):
     """Начало процесса генерации изображения - выбор модели"""
     await callback.answer()
+    await safe_delete_message(callback)
 
     await state.clear()
     await state.set_state(ImageGenerationStates.choosing_model)
@@ -279,6 +293,7 @@ async def select_model(callback: CallbackQuery, state: FSMContext):
     
     # Проверяем, что для инфографики не выбрана модель sd/seedream
     if mode == "infographics" and model_key == "sd":
+        await safe_delete_message(callback)
         await callback.message.answer(
             "❌ Модель Seedream не поддерживает генерацию инфографики с фото товара и референсами.\n\n"
             "Пожалуйста, выберите модель Nano Banana или Nano Banana Pro.",
@@ -287,6 +302,9 @@ async def select_model(callback: CallbackQuery, state: FSMContext):
             ])
         )
         return
+    
+    # Удаляем предыдущее сообщение перед редактированием
+    await safe_delete_message(callback)
     
     try:
         models = await api_client.get_image_models()
@@ -363,6 +381,7 @@ async def select_model(callback: CallbackQuery, state: FSMContext):
 async def choose_aspect_ratio(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора формата изображения"""
     await callback.answer()
+    await safe_delete_message(callback)
 
     aspect_ratio_map = {
         "aspect_3_4": "3:4",
@@ -503,6 +522,7 @@ async def product_photos_done(callback: CallbackQuery, state: FSMContext):
         return
 
     await callback.answer()
+    await safe_delete_message(callback)
     await state.set_state(ImageGenerationStates.waiting_for_reference_photos)
 
     await callback.message.answer(
@@ -635,6 +655,7 @@ async def reference_photos_done(callback: CallbackQuery, state: FSMContext):
         return
 
     await callback.answer()
+    await safe_delete_message(callback)
     await state.set_state(ImageGenerationStates.waiting_for_card_text)
 
     product_photos = data.get("product_photos", [])
@@ -776,7 +797,8 @@ async def use_auto_prompt(callback: CallbackQuery, state: FSMContext):
 async def confirm_auto_prompt(callback: CallbackQuery, state: FSMContext):
     """Подтверждение использования автоматически сгенерированного промпта"""
     await callback.answer()
-    
+    await safe_delete_message(callback)
+
     data = await state.get_data()
     generated_prompt = data.get("generated_prompt")
     
@@ -796,6 +818,7 @@ async def confirm_auto_prompt(callback: CallbackQuery, state: FSMContext):
 async def edit_auto_prompt(callback: CallbackQuery, state: FSMContext):
     """Редактирование автоматически сгенерированного промпта"""
     await callback.answer()
+    await safe_delete_message(callback)
     
     data = await state.get_data()
     generated_prompt = data.get("generated_prompt")
@@ -935,6 +958,7 @@ async def generate_with_confirmed_prompt(message: Message, state: FSMContext, pr
 async def edit_prompt_handler(callback: CallbackQuery, state: FSMContext):
     """Запрос на редактирование промпта"""
     await callback.answer()
+    await safe_delete_message(callback)
     await state.set_state(ImageGenerationStates.waiting_for_custom_prompt)
 
     await callback.message.answer(
@@ -1037,6 +1061,7 @@ async def receive_custom_prompt(message: Message, state: FSMContext):
 async def confirm_custom_prompt(callback: CallbackQuery, state: FSMContext):
     """Запуск генерации по кастомному промпту"""
     await callback.answer()
+    await safe_delete_message(callback)
 
     data = await state.get_data()
     custom_prompt = data.get("custom_prompt")
@@ -1053,6 +1078,7 @@ async def confirm_custom_prompt(callback: CallbackQuery, state: FSMContext):
 async def reenter_custom_prompt(callback: CallbackQuery, state: FSMContext):
     """Повторный ввод кастомного промпта"""
     await callback.answer()
+    await safe_delete_message(callback)
     await state.set_state(ImageGenerationStates.waiting_for_custom_prompt)
 
     await callback.message.answer(
@@ -1334,6 +1360,7 @@ async def generate_with_custom_prompt(message: Message, state: FSMContext, custo
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     """Возврат в главное меню"""
     await callback.answer()
+    await safe_delete_message(callback)
     await state.clear()
 
     try:
@@ -1366,6 +1393,7 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
 async def refine_image_handler(callback: CallbackQuery, state: FSMContext):
     """Запрос на внесение правок в изображение"""
     await callback.answer()
+    await safe_delete_message(callback)
 
     data = await state.get_data()
     last_image = data.get("last_generated_image")
