@@ -220,7 +220,10 @@ async function reject(id) {
 // 📊 Отрисовка статистики по заявкам
 function renderStats(data) {
   const statsContainer = document.getElementById("requestsStats");
-  if (!statsContainer) return;
+  if (!statsContainer) {
+    console.error("[renderStats] Контейнер requestsStats не найден!");
+    return;
+  }
   
   // Подсчитываем статистику
   const total = data.length;
@@ -242,6 +245,65 @@ function renderStats(data) {
   const approvedPercent = total > 0 ? Math.round((approved / total) * 100) : 0;
   const rejectedPercent = total > 0 ? Math.round((rejected / total) * 100) : 0;
   
+  // Вычисляем углы для круговой диаграммы
+  const approvedAngle = (approved / total) * 360;
+  const rejectedAngle = (rejected / total) * 360;
+  const pendingAngle = (pending / total) * 360;
+  
+  // Создаем SVG для круговой диаграммы
+  const svgSize = 120;
+  const radius = svgSize / 2 - 10;
+  const center = svgSize / 2;
+  
+  let currentAngle = -90; // Начинаем сверху
+  const approvedEndAngle = currentAngle + approvedAngle;
+  const rejectedEndAngle = approvedEndAngle + rejectedAngle;
+  
+  // Функция для преобразования угла в координаты
+  const getCoordinates = (angle, r) => {
+    const rad = (angle * Math.PI) / 180;
+    return {
+      x: center + r * Math.cos(rad),
+      y: center + r * Math.sin(rad)
+    };
+  };
+  
+  const approvedStart = getCoordinates(currentAngle, radius);
+  currentAngle += approvedAngle;
+  const approvedEnd = getCoordinates(currentAngle, radius);
+  
+  const rejectedStart = getCoordinates(currentAngle, radius);
+  currentAngle += rejectedAngle;
+  const rejectedEnd = getCoordinates(currentAngle, radius);
+  
+  const pendingStart = getCoordinates(currentAngle, radius);
+  currentAngle += pendingAngle;
+  const pendingEnd = getCoordinates(currentAngle, radius);
+  
+  // Создаем пути для секторов
+  const largeArcFlag = (angle) => angle > 180 ? 1 : 0;
+  
+  const approvedPath = approved > 0 ? `
+    M ${center} ${center}
+    L ${approvedStart.x} ${approvedStart.y}
+    A ${radius} ${radius} 0 ${largeArcFlag(approvedAngle)} 1 ${approvedEnd.x} ${approvedEnd.y}
+    Z
+  ` : '';
+  
+  const rejectedPath = rejected > 0 ? `
+    M ${center} ${center}
+    L ${rejectedStart.x} ${rejectedStart.y}
+    A ${radius} ${radius} 0 ${largeArcFlag(rejectedAngle)} 1 ${rejectedEnd.x} ${rejectedEnd.y}
+    Z
+  ` : '';
+  
+  const pendingPath = pending > 0 ? `
+    M ${center} ${center}
+    L ${pendingStart.x} ${pendingStart.y}
+    A ${radius} ${radius} 0 ${largeArcFlag(pendingAngle)} 1 ${pendingEnd.x} ${pendingEnd.y}
+    Z
+  ` : '';
+  
   statsContainer.innerHTML = `
     <div class="stat-card total">
       <div class="stat-card-icon">📊</div>
@@ -252,23 +314,52 @@ function renderStats(data) {
       <div class="stat-card-icon">⏳</div>
       <div class="stat-card-title">В ожидании</div>
       <div class="stat-card-value">${pending}</div>
-      <div class="stat-card-percentage">${pendingPercent}% от общего числа</div>
+      <div class="stat-card-percentage">${pendingPercent}%</div>
     </div>
     <div class="stat-card approved">
       <div class="stat-card-icon">✅</div>
       <div class="stat-card-title">Одобрено</div>
       <div class="stat-card-value">${approved}</div>
-      <div class="stat-card-percentage">${approvedPercent}% от общего числа</div>
+      <div class="stat-card-percentage">${approvedPercent}%</div>
     </div>
     <div class="stat-card rejected">
       <div class="stat-card-icon">❌</div>
       <div class="stat-card-title">Отклонено</div>
       <div class="stat-card-value">${rejected}</div>
-      <div class="stat-card-percentage">${rejectedPercent}% от общего числа</div>
+      <div class="stat-card-percentage">${rejectedPercent}%</div>
+    </div>
+    <div class="stat-card chart-card" style="grid-column: span 2;">
+      <div class="stat-card-title" style="margin-bottom: 16px;">📈 Распределение заявок</div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 30px; flex-wrap: wrap;">
+        <div style="position: relative;">
+          <svg width="${svgSize}" height="${svgSize}" style="transform: rotate(0deg);">
+            ${approvedPath ? `<path d="${approvedPath}" fill="#2ea44f" stroke="var(--surface)" stroke-width="2"></path>` : ''}
+            ${rejectedPath ? `<path d="${rejectedPath}" fill="#e8616b" stroke="var(--surface)" stroke-width="2"></path>` : ''}
+            ${pendingPath ? `<path d="${pendingPath}" fill="#ffa500" stroke="var(--surface)" stroke-width="2"></path>` : ''}
+            <circle cx="${center}" cy="${center}" r="${radius - 20}" fill="var(--surface)"></circle>
+            <text x="${center}" y="${center}" text-anchor="middle" dominant-baseline="middle" fill="var(--fg)" font-size="24" font-weight="700">${total}</text>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 16px; height: 16px; background: #2ea44f; border-radius: 3px;"></div>
+            <span style="color: var(--fg-muted); font-size: 14px;">Одобрено: <strong style="color: var(--fg);">${approved}</strong> (${approvedPercent}%)</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 16px; height: 16px; background: #e8616b; border-radius: 3px;"></div>
+            <span style="color: var(--fg-muted); font-size: 14px;">Отклонено: <strong style="color: var(--fg);">${rejected}</strong> (${rejectedPercent}%)</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 16px; height: 16px; background: #ffa500; border-radius: 3px;"></div>
+            <span style="color: var(--fg-muted); font-size: 14px;">В ожидании: <strong style="color: var(--fg);">${pending}</strong> (${pendingPercent}%)</span>
+          </div>
+        </div>
+      </div>
     </div>
   `;
   
   statsContainer.style.display = "grid";
+  console.log("[renderStats] Статистика отображена:", { total, pending, approved, rejected });
 }
 
 loadRequests();

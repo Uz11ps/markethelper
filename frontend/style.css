@@ -470,9 +470,10 @@ form button[type="submit"]:hover {
 /* Статистика по заявкам */
 .stats-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+  margin-top: 20px;
 }
 
 .stat-card {
@@ -529,4 +530,27 @@ form button[type="submit"]:hover {
 .stat-card-icon {
   font-size: 2rem;
   margin-bottom: 8px;
+}
+
+.stat-card.chart-card {
+  grid-column: span 2;
+  min-height: 200px;
+}
+
+@media (max-width: 768px) {
+  .stat-card.chart-card {
+    grid-column: span 1;
+  }
+  
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 32px;
+  margin-bottom: 20px;
+  color: var(--fg);
 }
