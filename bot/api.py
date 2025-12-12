@@ -9,11 +9,29 @@ async def notify(payload: dict):
     """
     Принимает уведомления от backend и отправляет юзерам в Telegram
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     tg_id = payload.get("tg_id")
     message = payload.get("message")
-    if tg_id and message:
+    
+    logger.info(f"[NOTIFY] Получен запрос на уведомление: tg_id={tg_id}, message_length={len(message) if message else 0}")
+    
+    if not tg_id:
+        logger.error("[NOTIFY] Отсутствует tg_id в запросе")
+        return {"ok": False, "error": "Missing tg_id"}
+    
+    if not message:
+        logger.error("[NOTIFY] Отсутствует message в запросе")
+        return {"ok": False, "error": "Missing message"}
+    
+    try:
         await bot.send_message(chat_id=tg_id, text=message)
-    return {"ok": True}
+        logger.info(f"[NOTIFY] Уведомление успешно отправлено пользователю {tg_id}")
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"[NOTIFY] Ошибка при отправке уведомления пользователю {tg_id}: {e}", exc_info=True)
+        return {"ok": False, "error": str(e)}
 
 
 @app.post("/broadcast")

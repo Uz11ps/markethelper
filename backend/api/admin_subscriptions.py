@@ -102,21 +102,42 @@ async def revoke_subscription(
     
     # Уведомляем пользователя об отзыве подписки
     user = await subscription.user
-    BOT_URL = "http://bot:8001/notify"
+    import os
+    BOT_URL = os.getenv("BOT_API_URL", "http://bot:8001")
+    if not BOT_URL.endswith("/notify"):
+        BOT_URL = f"{BOT_URL}/notify"
     
     async def notify_user(tg_id: int, message: str):
         async with httpx.AsyncClient() as client:
             try:
-                await client.post(BOT_URL, json={"tg_id": tg_id, "message": message}, timeout=5.0)
+                logger.info(f"[REVOKE_SUBSCRIPTION] Отправка уведомления пользователю {tg_id} через {BOT_URL}")
+                response = await client.post(
+                    BOT_URL, 
+                    json={"tg_id": tg_id, "message": message}, 
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                logger.info(f"[REVOKE_SUBSCRIPTION] Уведомление успешно отправлено пользователю {tg_id}")
+                return True
+            except httpx.TimeoutException as e:
+                logger.error(f"⚠ Таймаут при отправке уведомления пользователю {tg_id}: {e}")
+                return False
+            except httpx.HTTPStatusError as e:
+                logger.error(f"⚠ HTTP ошибка при отправке уведомления пользователю {tg_id}: {e.response.status_code} - {e.response.text}")
+                return False
             except Exception as e:
-                logger.warning(f"⚠ Ошибка при отправке уведомления: {e}")
+                logger.error(f"⚠ Ошибка при отправке уведомления пользователю {tg_id}: {e}", exc_info=True)
+                return False
     
-    await notify_user(
+    notification_sent = await notify_user(
         user.tg_id,
         "⚠️ Ваша подписка была отозвана администратором.\n"
         "Вы стали обычным пользователем без подписки.\n"
         "Для возобновления доступа обратитесь в поддержку."
     )
+    
+    if not notification_sent:
+        logger.warning(f"[REVOKE_SUBSCRIPTION] Не удалось отправить уведомление пользователю {user.tg_id}, но подписка отозвана")
 
     return {
         "status": "success",
