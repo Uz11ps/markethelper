@@ -2,6 +2,7 @@
 // const API_BASE_URL уже объявлен в auth.js
 
 let groupsList = [];
+let allRequestsData = []; // Храним все заявки для статистики
 
 // Проверка аутентификации при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -44,6 +45,12 @@ async function loadRequests() {
     const data = await res.json();
     console.log(`[loadRequests] Получено заявок:`, data.length);
     console.log(`[loadRequests] Данные:`, data);
+    
+    // Сохраняем все заявки для статистики
+    allRequestsData = data;
+
+    // Показываем статистику
+    renderStats(data);
 
     const tbody = document.querySelector("#requestsTable tbody");
     tbody.innerHTML = "";
@@ -51,7 +58,8 @@ async function loadRequests() {
     // Фильтруем только новые заявки
     const pending = data.filter(req => {
       console.log(`[loadRequests] Проверка заявки:`, req.id, `status="${req.status}"`);
-      return req.status === "Pending" || req.status === "В ожидании";
+      const status = req.status || "";
+      return status === "Pending" || status === "В ожидании" || status.toLowerCase() === "pending";
     });
     
     console.log(`[loadRequests] Отфильтровано заявок со статусом "Pending":`, pending.length);
@@ -59,9 +67,14 @@ async function loadRequests() {
     if (pending.length === 0) {
       console.log(`[loadRequests] Нет заявок со статусом "Pending"`);
       if (data.length > 0) {
-        tbody.innerHTML = `<tr><td colspan="8">Нет заявок со статусом "Pending". Всего заявок: ${data.length}. Статусы: ${data.map(r => r.status).join(', ')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--fg-muted);">
+          <div style="font-size: 1.1rem; margin-bottom: 8px;">📋 Нет новых заявок</div>
+          <div style="font-size: 0.9rem;">Все заявки обработаны</div>
+        </td></tr>`;
       } else {
-        tbody.innerHTML = `<tr><td colspan="8">Новых заявок нет</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--fg-muted);">
+          <div style="font-size: 1.1rem;">📭 Заявок пока нет</div>
+        </td></tr>`;
       }
       return;
     }
