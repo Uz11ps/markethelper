@@ -96,7 +96,7 @@ class PromptGeneratorService:
 
     @classmethod
     async def _get_system_prompt(cls, force_refresh: bool = False) -> str:
-        """Получить системный промпт из админки или использовать дефолтный"""
+        """Получить системный промпт из админки (ВСЕГДА из админки, без локального дефолта)"""
         if cls._system_prompt_cache and not force_refresh:
             return cls._system_prompt_cache
 
@@ -109,13 +109,22 @@ class PromptGeneratorService:
                 cls._system_prompt_cache = prompt
                 return prompt
             else:
-                logger.warning("⚠️ Промпт из админки пустой или отсутствует, используется дефолтный")
+                logger.error("❌ Промпт из админки пустой или отсутствует! Пожалуйста, установите промпт в админ-панели.")
+                # Если промпт пустой, пробуем еще раз без кэша
+                if not force_refresh:
+                    logger.info("Повторная попытка получения промпта из админки...")
+                    return await cls._get_system_prompt(force_refresh=True)
+                raise ValueError("Промпт генератора не настроен в админ-панели. Пожалуйста, установите его в настройках.")
         except Exception as exc:
-            logger.warning(f"⚠️ Не удалось получить промпт генератора из админки: {exc}, используется дефолтный")
-
-        cls._system_prompt_cache = SYSTEM_PROMPT
-        logger.info("Используется дефолтный системный промпт")
-        return SYSTEM_PROMPT
+            logger.error(f"❌ Не удалось получить промпт генератора из админки: {exc}")
+            # Повторная попытка без кэша
+            if not force_refresh:
+                logger.info("Повторная попытка получения промпта из админки после ошибки...")
+                try:
+                    return await cls._get_system_prompt(force_refresh=True)
+                except:
+                    pass
+            raise ValueError(f"Не удалось загрузить промпт генератора из админки: {exc}. Проверьте настройки в админ-панели.")
     
     @classmethod
     def clear_cache(cls):
