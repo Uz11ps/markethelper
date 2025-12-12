@@ -6,7 +6,12 @@ let allRequestsData = []; // Храним все заявки для стати�
 
 // Проверка аутентификации при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-  if (!requireAuth()) return;
+  console.log("[DOMContentLoaded] Страница загружена");
+  if (!requireAuth()) {
+    console.error("[DOMContentLoaded] Аутентификация не пройдена");
+    return;
+  }
+  console.log("[DOMContentLoaded] Загружаем группы и заявки...");
   loadGroups();
   loadRequests();
 });
@@ -44,12 +49,13 @@ async function loadRequests() {
 
     const data = await res.json();
     console.log(`[loadRequests] Получено заявок:`, data.length);
-    console.log(`[loadRequests] Данные:`, data);
+    console.log(`[loadRequests] Первые 3 заявки для отладки:`, data.slice(0, 3).map(r => ({ id: r.id, status: r.status })));
     
     // Сохраняем все заявки для статистики
     allRequestsData = data;
 
-    // Показываем статистику
+    // Показываем статистику - вызываем сразу после получения данных
+    console.log(`[loadRequests] Вызываем renderStats с ${data.length} заявками`);
     renderStats(data);
 
     const tbody = document.querySelector("#requestsTable tbody");
@@ -219,26 +225,47 @@ async function reject(id) {
 
 // 📊 Отрисовка статистики по заявкам
 function renderStats(data) {
+  console.log("[renderStats] Начало функции, данные:", data);
+  
   const statsContainer = document.getElementById("requestsStats");
   if (!statsContainer) {
-    console.error("[renderStats] Контейнер requestsStats не найден!");
+    console.error("[renderStats] Контейнер requestsStats не найден! Проверяем DOM...");
+    console.error("[renderStats] Все элементы с id:", Array.from(document.querySelectorAll('[id]')).map(el => el.id));
+    return;
+  }
+  
+  console.log("[renderStats] Контейнер найден:", statsContainer);
+  
+  // Проверяем, что данные - массив
+  if (!Array.isArray(data)) {
+    console.error("[renderStats] Данные не являются массивом:", typeof data, data);
     return;
   }
   
   // Подсчитываем статистику
   const total = data.length;
+  
+  // Проверяем все возможные варианты статусов
+  const uniqueStatuses = [...new Set(data.map(r => r.status))];
+  console.log("[renderStats] Уникальные статусы:", uniqueStatuses);
+  console.log("[renderStats] Примеры статусов из данных:", data.slice(0, 5).map(r => ({ id: r.id, status: r.status })));
+  
   const pending = data.filter(req => {
-    const status = (req.status || "").toLowerCase();
-    return status === "pending" || status === "в ожидании";
+    const status = String(req.status || "").toLowerCase();
+    return status === "pending" || status === "в ожидании" || status.includes("ожида");
   }).length;
+  
   const approved = data.filter(req => {
-    const status = (req.status || "").toLowerCase();
-    return status === "approved" || status === "одобрена";
+    const status = String(req.status || "").toLowerCase();
+    return status === "approved" || status === "одобрена" || status.includes("одобр");
   }).length;
+  
   const rejected = data.filter(req => {
-    const status = (req.status || "").toLowerCase();
-    return status === "rejected" || status === "отклонена";
+    const status = String(req.status || "").toLowerCase();
+    return status === "rejected" || status === "отклонена" || status.includes("отклон");
   }).length;
+  
+  console.log("[renderStats] Подсчет:", { total, pending, approved, rejected });
   
   // Вычисляем проценты
   const pendingPercent = total > 0 ? Math.round((pending / total) * 100) : 0;
@@ -304,6 +331,14 @@ function renderStats(data) {
     Z
   ` : '';
   
+  // Проверяем, что контейнер существует перед вставкой
+  if (!statsContainer) {
+    console.error("[renderStats] Контейнер не найден после проверки!");
+    return;
+  }
+  
+  console.log("[renderStats] Создаем HTML для статистики...");
+  
   statsContainer.innerHTML = `
     <div class="stat-card total">
       <div class="stat-card-icon">📊</div>
@@ -358,8 +393,13 @@ function renderStats(data) {
     </div>
   `;
   
+  // Убеждаемся, что контейнер виден
   statsContainer.style.display = "grid";
+  statsContainer.style.visibility = "visible";
+  statsContainer.style.opacity = "1";
+  
   console.log("[renderStats] Статистика отображена:", { total, pending, approved, rejected });
+  console.log("[renderStats] Контейнер после вставки:", statsContainer.innerHTML.substring(0, 200));
 }
 
 loadRequests();
