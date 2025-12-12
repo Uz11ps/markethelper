@@ -492,19 +492,43 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
     
     try:
         keyboard = model_selection_keyboard(models, selected_model_key)
-        logger.info(f"[generate_mode_handler] Отправка сообщения с клавиатурой, количество кнопок: {len(keyboard.inline_keyboard)}")
-        await callback.message.answer(
-            text,
-            reply_markup=keyboard
-        )
+        logger.info(f"[generate_mode_handler] Отправка сообщения с клавиатурой, количество кнопок: {len(keyboard.inline_keyboard) if keyboard and keyboard.inline_keyboard else 0}")
+        
+        # Проверяем, что callback.message доступен
+        if not callback.message:
+            logger.error("[generate_mode_handler] callback.message равен None")
+            # Пытаемся отправить через callback.from_user
+            from bot.loader import bot
+            await bot.send_message(
+                chat_id=callback.from_user.id,
+                text=text,
+                reply_markup=keyboard
+            )
+        else:
+            await callback.message.answer(
+                text,
+                reply_markup=keyboard
+            )
         logger.info(f"[generate_mode_handler] Сообщение успешно отправлено")
     except Exception as exc:
         logger.error(f"[generate_mode_handler] Ошибка при отправке сообщения: {exc}", exc_info=True)
-        await callback.message.answer(
-            f"❌ <b>Ошибка при отправке сообщения</b>\n\n"
-            f"Произошла ошибка: {str(exc)}\n\n"
-            "Попробуйте еще раз или обратитесь в поддержку."
-        )
+        try:
+            if callback.message:
+                await callback.message.answer(
+                    f"❌ <b>Ошибка при отправке сообщения</b>\n\n"
+                    f"Произошла ошибка: {str(exc)}\n\n"
+                    "Попробуйте еще раз или обратитесь в поддержку."
+                )
+            else:
+                from bot.loader import bot
+                await bot.send_message(
+                    chat_id=callback.from_user.id,
+                    text=f"❌ <b>Ошибка при отправке сообщения</b>\n\n"
+                         f"Произошла ошибка: {str(exc)}\n\n"
+                         "Попробуйте еще раз или обратитесь в поддержку."
+                )
+        except Exception as e2:
+            logger.error(f"[generate_mode_handler] Критическая ошибка при отправке сообщения об ошибке: {e2}", exc_info=True)
 
 
 @router.callback_query(F.data == "back_to_profile")
