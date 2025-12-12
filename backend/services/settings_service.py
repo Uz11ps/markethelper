@@ -355,6 +355,22 @@ class SettingsService:
     async def set_channel_username(cls, username: str) -> Settings:
         """Установить username канала для проверки подписки"""
         return await cls.set_setting("channel_username", username)
+    
+    @classmethod
+    async def get_channel_id(cls) -> int | None:
+        """Получить ID канала для проверки подписки"""
+        value = await cls.get_setting("channel_id", None)
+        if value:
+            try:
+                return int(value)
+            except ValueError:
+                return None
+        return None
+    
+    @classmethod
+    async def set_channel_id(cls, channel_id: int) -> Settings:
+        """Установить ID канала для проверки подписки"""
+        return await cls.set_setting("channel_id", str(channel_id))
 
     @classmethod
     async def initialize_defaults(cls):

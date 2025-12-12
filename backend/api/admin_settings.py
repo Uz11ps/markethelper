@@ -252,7 +252,8 @@ async def get_channel_settings(_: Admin = Depends(get_current_admin)):
     """Получение настроек канала"""
     return {
         "channel_bonus": await SettingsService.get_channel_bonus(),
-        "channel_username": await SettingsService.get_channel_username()
+        "channel_username": await SettingsService.get_channel_username(),
+        "channel_id": await SettingsService.get_channel_id() or -1002089983609  # Дефолтный ID канала @lifefreelancer
     }
 
 
