@@ -112,13 +112,13 @@ class FALService:
                     "num_inference_steps": 50,  # Увеличиваем количество шагов для лучшего качества
                 }
 
-                # ВАЖНО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
+                # СТРОГО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
                 if model_id and model_id.strip():
                     model = model_id.strip()
-                    logger.info(f"Используется переданная модель: {model}")
+                    logger.info(f"[FAL_SERVICE] СТРОГО: Используется переданная модель изображений: {model}")
                 else:
                     model = "fal-ai/nano-banana"
-                    logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
+                    logger.warning(f"[FAL_SERVICE] model_id не передан или пустой, используем модель по умолчанию: {model}")
             else:
                 # Без референса, но с фото товара - обычная генерация
                 logger.info("[FAL_SERVICE] Генерация с фото товара без референса - используется Nano Banana Pro")
@@ -133,13 +133,13 @@ class FALService:
                     "enable_safety_checker": True,
                 }
 
-                # ВАЖНО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
+                # СТРОГО: model_id должен быть передан явно, иначе используем правильную модель по умолчанию
                 if model_id and model_id.strip():
                     model = model_id.strip()
-                    logger.info(f"Используется переданная модель: {model}")
+                    logger.info(f"[FAL_SERVICE] СТРОГО: Используется переданная модель изображений: {model}")
                 else:
                     model = "fal-ai/nano-banana-pro"
-                    logger.info(f"model_id не передан или пустой, используем модель по умолчанию: {model}")
+                    logger.warning(f"[FAL_SERVICE] model_id не передан или пустой, используем модель по умолчанию: {model}")
 
             logger.info(f"[FAL_SERVICE] Используется модель: {model}")
             logger.info(f"[FAL_SERVICE] Параметры генерации: {arguments}")
