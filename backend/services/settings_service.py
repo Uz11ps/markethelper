@@ -190,7 +190,16 @@ class SettingsService:
     @classmethod
     async def get_image_model(cls) -> str:
         """Получить модель генерации изображений по умолчанию"""
-        return await cls.get_setting("image_model", cls.DEFAULT_IMAGE_MODEL)
+        model = await cls.get_setting("image_model", cls.DEFAULT_IMAGE_MODEL)
+        # Исправляем старое значение flux-pro на nano-banana
+        if model and ("flux-pro" in model.lower() or model == "fal-ai/flux-pro/v1.1"):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"[get_image_model] Обнаружено старое значение модели: {model}, заменяем на {cls.DEFAULT_IMAGE_MODEL}")
+            # Обновляем значение в базе данных
+            await cls.set_image_model(cls.DEFAULT_IMAGE_MODEL)
+            return cls.DEFAULT_IMAGE_MODEL
+        return model
 
     @classmethod
     async def set_image_model(cls, model: str) -> Settings:
