@@ -57,8 +57,8 @@ function renderTopupTable(requests) {
       <td>
         ${req.username 
           ? `<a href="https://t.me/${req.username}" target="_blank">@${req.username}</a>` 
-          : `ID: ${req.user_id}`}
-        ${req.full_name ? `<br><small>${req.full_name}</small>` : ''}
+          : `<span style="color: gray;">ID: ${req.user_id || '—'}</span>`}
+        ${req.full_name ? `<br><small style="color: var(--fg-muted);">${req.full_name}</small>` : ''}
       </td>
       <td><b>${req.amount}</b></td>
       <td><b>${req.cost}₽</b></td>

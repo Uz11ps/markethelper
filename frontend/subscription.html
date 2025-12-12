@@ -37,13 +37,27 @@
     </div>
   </div>
 
-  <div class="search-container">
-    <input 
-      type="text" 
-      id="searchFile" 
-      placeholder="🔍 Поиск по названию файла..." 
-      class="search-input"
-    >
+  <!-- Фильтры и поиск -->
+  <div class="filter-section">
+    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+      <div>
+        <label for="statusFilter" style="color: var(--fg-muted); margin-right: 8px;">Статус:</label>
+        <select id="statusFilter" style="padding: 8px 12px; background: #20232b; color: var(--fg); border: 1px solid var(--border); border-radius: calc(var(--radius) - 6px); font-size: 14px;">
+          <option value="all">Все</option>
+          <option value="active">Активные</option>
+          <option value="inactive">Неактивные</option>
+        </select>
+      </div>
+      <div style="flex: 1; min-width: 300px;">
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="🔍 Поиск по username или файлу..." 
+          class="search-input"
+          style="width: 100%;"
+        >
+      </div>
+    </div>
   </div>
   <div style="margin-bottom: 20px;"></div>
   <table id="subsTable">

@@ -53,9 +53,10 @@ function renderPayouts(payouts) {
       <tr>
         <td>${payout.id}</td>
         <td>
-          ${payout.referrer_full_name || payout.referrer_username || '—'}<br>
-          <small>@${payout.referrer_username || '—'}</small><br>
-          <small>TG ID: ${payout.referrer_tg_id}</small>
+          ${payout.referrer_full_name || '—'}<br>
+          ${payout.referrer_username 
+            ? `<a href="https://t.me/${payout.referrer_username}" target="_blank">@${payout.referrer_username}</a>` 
+            : `<span style="color: gray;">ID: ${payout.referrer_tg_id || '—'}</span>`}
         </td>
         <td>${payout.referral_count}</td>
         <td><strong>${payout.amount_rub.toFixed(2)}₽</strong></td>

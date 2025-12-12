@@ -97,7 +97,7 @@ async function loadRequests() {
         <td>
           ${req.username 
             ? `<a href="https://t.me/${req.username}" target="_blank">@${req.username}</a>` 
-            : `<span style="color: gray;">нет username</span>`}
+            : `<span style="color: gray;">ID: ${req.tg_id || '—'}</span>`}
         </td>
         <td>${req.tariff_code}</td>
         <td>${req.duration_months} мес.</td>

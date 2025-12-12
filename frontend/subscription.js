@@ -12,17 +12,45 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSubscriptions();
 });
 
-// 📡 Загрузка всех активных подписок
+// 📡 Загрузка всех подписок (активных и неактивных)
 async function loadSubscriptions() {
   try {
     const res = await authFetch(API_SUBS);
     if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
     allSubs = await res.json();
-    renderTable(allSubs);
+    
+    // Добавляем информацию о количестве продлений для каждого пользователя
+    const userSubsCount = {};
+    allSubs.forEach(sub => {
+      const userId = sub.user_id || sub.tg_id;
+      if (userId) {
+        if (!userSubsCount[userId]) {
+          userSubsCount[userId] = {
+            count: 0,
+            username: sub.username,
+            tg_id: sub.tg_id
+          };
+        }
+        userSubsCount[userId].count++;
+      }
+    });
+    
+    // Добавляем количество продлений к каждой подписке
+    allSubs = allSubs.map(sub => {
+      const userId = sub.user_id || sub.tg_id;
+      const userInfo = userSubsCount[userId] || { count: 1 };
+      return {
+        ...sub,
+        renewals_count: userInfo.count,
+        is_active: new Date(sub.end_date) > new Date()
+      };
+    });
+    
+    applyFilters();
   } catch (err) {
     console.error("Ошибка загрузки подписок:", err);
     document.querySelector("#subsTable tbody").innerHTML = `
-      <tr><td colspan="8">❌ Ошибка загрузки подписок</td></tr>
+      <tr><td colspan="10">❌ Ошибка загрузки подписок</td></tr>
     `;
   }
 }
@@ -33,22 +61,30 @@ function renderTable(data) {
   tbody.innerHTML = "";
 
   if (data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10">📭 Подписок не найдено</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11">📭 Подписок не найдено</td></tr>`;
     return;
   }
 
   data.forEach(item => {
     const row = document.createElement("tr");
+    const isActive = item.is_active !== undefined ? item.is_active : (new Date(item.end_date) > new Date());
+    const statusBadge = isActive 
+      ? '<span style="color: #2ea44f; font-weight: 600;">✓ Активна</span>'
+      : '<span style="color: #e8616b; font-weight: 600;">✗ Неактивна</span>';
+    
+    const renewalsBadge = item.renewals_count > 1 
+      ? `<span style="background: #494f5e; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px;" title="Количество продлений">${item.renewals_count}x</span>`
+      : '';
 
     row.innerHTML = `
       <td>${item.id}</td>
       <td>
         ${item.username
-          ? `<a href="https://t.me/${item.username}" target="_blank">@${item.username}</a>`
-          : `<span style="color:gray">нет username</span>`}
+          ? `<a href="https://t.me/${item.username}" target="_blank">@${item.username}</a>${renewalsBadge}`
+          : `<span style="color:gray">ID: ${item.tg_id || item.user_id || '—'}</span>${renewalsBadge}`}
       </td>
       <td>${item.tariff_id || "—"}</td>
-      <td>${item.status_id || "—"}</td>
+      <td>${statusBadge}</td>
       <td>${new Date(item.start_date).toLocaleDateString()}</td>
       <td>${new Date(item.end_date).toLocaleDateString()}</td>
       <td>${item.group || "—"}</td>
@@ -67,13 +103,41 @@ function renderTable(data) {
   });
 }
 
-// 🔍 Поиск по названию файла
-document.getElementById("searchFile").addEventListener("input", e => {
-  const query = e.target.value.toLowerCase();
-  const filtered = allSubs.filter(sub =>
-    (sub.file_name || "").toLowerCase().includes(query)
-  );
+// 🔍 Применение фильтров и поиска
+function applyFilters() {
+  const statusFilter = document.getElementById("statusFilter")?.value || "all";
+  const searchQuery = (document.getElementById("searchInput")?.value || "").toLowerCase();
+  
+  let filtered = [...allSubs];
+  
+  // Фильтр по статусу
+  if (statusFilter === "active") {
+    filtered = filtered.filter(sub => sub.is_active);
+  } else if (statusFilter === "inactive") {
+    filtered = filtered.filter(sub => !sub.is_active);
+  }
+  
+  // Поиск по username или файлу
+  if (searchQuery) {
+    filtered = filtered.filter(sub => {
+      const usernameMatch = (sub.username || "").toLowerCase().includes(searchQuery);
+      const fileMatch = (sub.file_name || "").toLowerCase().includes(searchQuery);
+      const tgIdMatch = String(sub.tg_id || "").includes(searchQuery);
+      return usernameMatch || fileMatch || tgIdMatch;
+    });
+  }
+  
   renderTable(filtered);
+}
+
+// 🔍 Поиск по username и файлу
+document.getElementById("searchInput")?.addEventListener("input", () => {
+  applyFilters();
+});
+
+// 🔍 Фильтр по статусу
+document.getElementById("statusFilter")?.addEventListener("change", () => {
+  applyFilters();
 });
 
 // 📢 Рассылка сообщений
