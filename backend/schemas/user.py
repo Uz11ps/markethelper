@@ -67,6 +67,7 @@ class ProfileOut(BaseModel):
     bonus_balance: int = 0
     token_balance: int = 0
     channel_bonus_given: bool = False
+    channel_subscription_message_shown: bool = False
 
     class Config:
         from_attributes = True

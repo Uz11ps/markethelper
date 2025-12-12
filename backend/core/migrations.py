@@ -204,6 +204,7 @@ async def migrate_users_table():
             columns_to_add = [
                 ("email", "VARCHAR(255) NULL", "Email для индивидуальных подписок"),
                 ("channel_bonus_given", "BOOLEAN DEFAULT 0", "Был ли начислен бонус за подписку на канал"),
+                ("channel_subscription_message_shown", "BOOLEAN DEFAULT 0", "Было ли показано сообщение о подписке на канал"),
             ]
             
             for column_name, column_type, description in columns_to_add:

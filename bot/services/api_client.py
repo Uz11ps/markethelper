@@ -283,6 +283,13 @@ class APIClient:
                     return result.get("has_pending", False)
                 return False
     
+    async def mark_channel_subscription_message_shown(self, tg_id: int):
+        """Отметить, что сообщение о подписке на канал было показано"""
+        url = f"{self.base_url}/api/channel/mark-message-shown/{tg_id}"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url) as resp:
+                return await self._handle_response(resp)
+    
     async def create_token_purchase_request(self, tg_id: int, amount: int, cost: float):
         """Создать заявку на пополнение токенов"""
         url = f"{self.base_url}/api/tokens/purchase"

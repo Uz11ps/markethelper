@@ -17,6 +17,7 @@ class User(Model):
     
     is_banned = fields.BooleanField(default=False)  # Черный список
     channel_bonus_given = fields.BooleanField(default=False)  # Был ли начислен бонус за подписку на канал
+    channel_subscription_message_shown = fields.BooleanField(default=False)  # Было ли показано сообщение о подписке на канал
 
     referrer = fields.ForeignKeyField(
         "models.User",

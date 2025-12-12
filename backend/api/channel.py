@@ -35,6 +35,19 @@ async def has_pending_channel_bonus_request(tg_id: int):
     return {"has_pending": pending_request is not None}
 
 
+@router.post("/mark-message-shown/{tg_id}")
+async def mark_channel_subscription_message_shown(tg_id: int):
+    """Отметить, что сообщение о подписке на канал было показано пользователю"""
+    user = await User.get_or_none(tg_id=tg_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.channel_subscription_message_shown = True
+    await user.save(update_fields=['channel_subscription_message_shown'])
+    
+    return {"message": "Message marked as shown"}
+
+
 @router.post("/check-subscription/{tg_id}")
 async def check_channel_subscription(tg_id: int):
     """
