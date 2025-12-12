@@ -231,3 +231,98 @@ async def cmd_menu(message: types.Message, state: FSMContext):
     text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
 
     await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, is_group_subscription=is_group_subscription))
+
+
+@router.callback_query(F.data == "check_channel_subscription")
+async def check_channel_subscription_callback(callback: types.CallbackQuery):
+    """Обработка кнопки проверки подписки на канал"""
+    await callback.answer()
+    
+    tg = callback.from_user
+    channel_username = ""
+    channel_id = None
+    
+    try:
+        channel_settings = await api.get_channel_settings()
+        if isinstance(channel_settings, dict):
+            channel_username = channel_settings.get("channel_username", "")
+            channel_id = channel_settings.get("channel_id") or -1002089983609
+    except Exception as e:
+        print(f"[WARNING] Не удалось получить настройки канала: {e}")
+        channel_username = os.getenv("CHANNEL_USERNAME", "")
+        channel_id = -1002089983609
+    
+    if not (channel_username or channel_id):
+        await callback.message.answer("❌ Настройки канала не найдены. Обратитесь к администратору.")
+        return
+    
+    try:
+        # Проверяем подписку
+        if channel_username:
+            channel_username = channel_username.lstrip("@")
+            chat_member = await bot.get_chat_member(f"@{channel_username}", tg.id)
+        else:
+            chat_member = await bot.get_chat_member(channel_id, tg.id)
+        
+        if chat_member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            # Пользователь подписан - создаем запрос на бонус
+            try:
+                bonus_result = await api.check_channel_subscription(tg.id)
+                if bonus_result.get("request_created"):
+                    await callback.message.answer(
+                        f"✅ {bonus_result.get('message', 'Запрос на бонус за подписку на канал отправлен администратору!')}"
+                    )
+                    # Удаляем старое сообщение с кнопкой подписки
+                    try:
+                        await callback.message.delete()
+                    except:
+                        pass
+                elif bonus_result.get("request_already_exists"):
+                    await callback.message.answer(
+                        "⏳ Ваш запрос на бонус за подписку на канал уже отправлен и ожидает одобрения администратора."
+                    )
+                    # Удаляем старое сообщение с кнопкой подписки
+                    try:
+                        await callback.message.delete()
+                    except:
+                        pass
+                elif bonus_result.get("bonus_already_given"):
+                    await callback.message.answer(
+                        "✅ Бонус за подписку на канал уже был начислен ранее."
+                    )
+                    # Удаляем старое сообщение с кнопкой подписки
+                    try:
+                        await callback.message.delete()
+                    except:
+                        pass
+            except Exception as e:
+                print(f"[ERROR check_channel_subscription] {e}")
+                await callback.message.answer(
+                    f"❌ Ошибка при создании запроса на бонус: {str(e)}"
+                )
+        else:
+            # Пользователь не подписан
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            channel_link = f"https://t.me/{channel_username.lstrip('@')}" if channel_username else f"https://t.me/c/{str(channel_id)[4:]}" if channel_id else None
+            
+            if channel_link:
+                subscribe_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="📢 Подписаться на канал", url=channel_link)],
+                    [InlineKeyboardButton(text="✅ Я подписался", callback_data="check_channel_subscription")]
+                ])
+                
+                await callback.message.answer(
+                    "❌ Вы еще не подписаны на канал.\n\n"
+                    f"Пожалуйста, подпишитесь на канал @{channel_username.lstrip('@') if channel_username else 'lifefreelancer'} "
+                    "и нажмите кнопку '✅ Я подписался' еще раз.",
+                    reply_markup=subscribe_keyboard
+                )
+            else:
+                await callback.message.answer(
+                    "❌ Не удалось получить ссылку на канал. Обратитесь к администратору."
+                )
+    except Exception as e:
+        print(f"[ERROR check_channel_subscription_callback] {e}")
+        await callback.message.answer(
+            f"❌ Ошибка при проверке подписки: {str(e)}"
+        )
