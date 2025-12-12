@@ -387,11 +387,23 @@ async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("generate:mode:"))
 async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext):
     """Обработка выбора режима генерации"""
-    await callback.answer()
-    await safe_delete_message(callback)
-    
-    mode = callback.data.replace("generate:mode:", "")
-    logger.info(f"[generate_mode_handler] Режим: {mode}, пользователь: {callback.from_user.id}")
+    try:
+        await callback.answer()
+        logger.info(f"[generate_mode_handler] Начало обработки, режим: {callback.data}, пользователь: {callback.from_user.id}")
+        
+        mode = callback.data.replace("generate:mode:", "")
+        logger.info(f"[generate_mode_handler] Извлеченный режим: {mode}")
+        
+        # Сохраняем ссылку на сообщение ДО удаления
+        message_to_use = callback.message
+        logger.info(f"[generate_mode_handler] Сообщение доступно: {message_to_use is not None}")
+        
+        # Удаляем сообщение, но не критично если не получится
+        try:
+            await safe_delete_message(callback)
+            logger.info(f"[generate_mode_handler] Сообщение удалено")
+        except Exception as del_exc:
+            logger.warning(f"[generate_mode_handler] Не удалось удалить сообщение: {del_exc}")
     
     # Вызываем логику выбора модели напрямую, без создания Message объекта
     from bot.states.image_generation import ImageGenerationStates
@@ -490,36 +502,32 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
             "После выбора модели вы сможете загрузить фото товара и референсы."
         )
     
-    try:
-        keyboard = model_selection_keyboard(models, selected_model_key)
-        logger.info(f"[generate_mode_handler] Отправка сообщения с клавиатурой, количество кнопок: {len(keyboard.inline_keyboard) if keyboard and keyboard.inline_keyboard else 0}")
-        
-        # Проверяем, что callback.message доступен
-        if not callback.message:
-            logger.error("[generate_mode_handler] callback.message равен None")
-            # Пытаемся отправить через callback.from_user
-            from bot.loader import bot
-            await bot.send_message(
-                chat_id=callback.from_user.id,
-                text=text,
-                reply_markup=keyboard
-            )
-        else:
-            await callback.message.answer(
-                text,
-                reply_markup=keyboard
-            )
-        logger.info(f"[generate_mode_handler] Сообщение успешно отправлено")
-    except Exception as exc:
-        logger.error(f"[generate_mode_handler] Ошибка при отправке сообщения: {exc}", exc_info=True)
         try:
-            if callback.message:
-                await callback.message.answer(
-                    f"❌ <b>Ошибка при отправке сообщения</b>\n\n"
-                    f"Произошла ошибка: {str(exc)}\n\n"
-                    "Попробуйте еще раз или обратитесь в поддержку."
+            keyboard = model_selection_keyboard(models, selected_model_key)
+            logger.info(f"[generate_mode_handler] Клавиатура создана, количество кнопок: {len(keyboard.inline_keyboard) if keyboard and keyboard.inline_keyboard else 0}")
+            
+            # Используем сохраненную ссылку на сообщение или callback.message
+            target_message = message_to_use or callback.message
+            
+            if not target_message:
+                logger.error("[generate_mode_handler] Нет доступного сообщения, отправляем через bot.send_message")
+                from bot.loader import bot
+                sent_msg = await bot.send_message(
+                    chat_id=callback.from_user.id,
+                    text=text,
+                    reply_markup=keyboard
                 )
+                logger.info(f"[generate_mode_handler] Сообщение отправлено через bot.send_message, message_id: {sent_msg.message_id}")
             else:
+                logger.info(f"[generate_mode_handler] Отправка через target_message.answer")
+                sent_msg = await target_message.answer(
+                    text,
+                    reply_markup=keyboard
+                )
+                logger.info(f"[generate_mode_handler] Сообщение успешно отправлено, message_id: {sent_msg.message_id}")
+        except Exception as exc:
+            logger.error(f"[generate_mode_handler] Ошибка при отправке сообщения: {exc}", exc_info=True)
+            try:
                 from bot.loader import bot
                 await bot.send_message(
                     chat_id=callback.from_user.id,
@@ -527,8 +535,20 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
                          f"Произошла ошибка: {str(exc)}\n\n"
                          "Попробуйте еще раз или обратитесь в поддержку."
                 )
-        except Exception as e2:
-            logger.error(f"[generate_mode_handler] Критическая ошибка при отправке сообщения об ошибке: {e2}", exc_info=True)
+            except Exception as e2:
+                logger.error(f"[generate_mode_handler] Критическая ошибка при отправке сообщения об ошибке: {e2}", exc_info=True)
+    except Exception as main_exc:
+        logger.error(f"[generate_mode_handler] Критическая ошибка в обработчике: {main_exc}", exc_info=True)
+        try:
+            await callback.answer("❌ Произошла ошибка. Попробуйте еще раз.", show_alert=True)
+            from bot.loader import bot
+            await bot.send_message(
+                chat_id=callback.from_user.id,
+                text="❌ <b>Произошла критическая ошибка</b>\n\n"
+                     "Попробуйте еще раз или обратитесь в поддержку."
+            )
+        except:
+            pass
 
 
 @router.callback_query(F.data == "back_to_profile")
