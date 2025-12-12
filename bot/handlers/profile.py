@@ -403,22 +403,22 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
         logger.info(f"[generate_mode_handler] User ID: {callback.from_user.id}")
         logger.info(f"[generate_mode_handler] Message available: {callback.message is not None}")
         
-        # Отправляем тестовое сообщение сразу, чтобы убедиться, что обработчик работает
-        try:
-            await bot.send_message(
-                chat_id=callback.from_user.id,
-                text="🔍 Тест: обработчик вызван!"
-            )
-            logger.info(f"[generate_mode_handler] ✅ Тестовое сообщение отправлено")
-        except Exception as test_exc:
-            logger.error(f"[generate_mode_handler] ❌ Ошибка при отправке тестового сообщения: {test_exc}", exc_info=True)
-        
         mode = callback.data.replace("generate:mode:", "")
         logger.info(f"[generate_mode_handler] Извлеченный режим: {mode}")
         
         # Сохраняем chat_id для надежности
         chat_id = callback.from_user.id
         logger.info(f"[generate_mode_handler] Chat ID: {chat_id}")
+        
+        # Отправляем тестовое сообщение сразу, чтобы убедиться, что обработчик работает
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text="🔍 Тест: обработчик вызван!"
+            )
+            logger.info(f"[generate_mode_handler] ✅ Тестовое сообщение отправлено")
+        except Exception as test_exc:
+            logger.error(f"[generate_mode_handler] ❌ Ошибка при отправке тестового сообщения: {test_exc}", exc_info=True)
         
         # НЕ удаляем сообщение сразу - сначала отправим новое, потом удалим старое
         # Это поможет избежать проблем с недоступностью callback.message
