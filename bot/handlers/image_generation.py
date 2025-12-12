@@ -757,7 +757,8 @@ async def use_auto_prompt(callback: CallbackQuery, state: FSMContext):
         
         prompt_data = await PromptGeneratorService.generate_prompt_from_images(
             product_image_urls=product_photos,
-            reference_image_urls=reference_photos
+            reference_image_urls=reference_photos,
+            tg_id=callback.from_user.id
         )
         
         generated_prompt = prompt_data["generated_text_prompt"]
@@ -1184,12 +1185,13 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
 
             prompt_data = await PromptGeneratorService.generate_prompt_from_images(
                 product_image_urls=product_photos,
-                reference_image_urls=reference_photos
+                reference_image_urls=reference_photos,
+                tg_id=message.from_user.id
             )
 
             generated_prompt = prompt_data["generated_text_prompt"]
             analysis = prompt_data["deconstruction_analysis"]
-            logger.info(f"[IMAGE_GENERATION] Промпт сгенерирован GPT-4o (длина: {len(generated_prompt)} символов):\n{generated_prompt}")
+            logger.info(f"[IMAGE_GENERATION] Промпт сгенерирован выбранной GPT моделью (длина: {len(generated_prompt)} символов):\n{generated_prompt}")
 
         # Если указан текст на карточке, добавляем его в промпт
         if card_text:
