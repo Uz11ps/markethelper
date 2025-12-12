@@ -56,7 +56,14 @@ async function loadRequests() {
 
     // Показываем статистику - вызываем сразу после получения данных
     console.log(`[loadRequests] Вызываем renderStats с ${data.length} заявками`);
-    renderStats(data);
+    
+    // Убеждаемся, что DOM готов перед отрисовкой статистики
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => renderStats(data));
+    } else {
+      // DOM уже готов, можно сразу вызывать
+      renderStats(data);
+    }
 
     const tbody = document.querySelector("#requestsTable tbody");
     tbody.innerHTML = "";
@@ -225,16 +232,32 @@ async function reject(id) {
 
 // 📊 Отрисовка статистики по заявкам
 function renderStats(data) {
-  console.log("[renderStats] Начало функции, данные:", data);
+  console.log("[renderStats] === НАЧАЛО ФУНКЦИИ ===");
+  console.log("[renderStats] Данные:", data);
+  console.log("[renderStats] Тип данных:", typeof data, Array.isArray(data));
+  console.log("[renderStats] Состояние DOM:", document.readyState);
   
   const statsContainer = document.getElementById("requestsStats");
   if (!statsContainer) {
-    console.error("[renderStats] Контейнер requestsStats не найден! Проверяем DOM...");
+    console.error("[renderStats] ❌ Контейнер requestsStats не найден!");
     console.error("[renderStats] Все элементы с id:", Array.from(document.querySelectorAll('[id]')).map(el => el.id));
+    // Попробуем найти через querySelector
+    const altContainer = document.querySelector('#requestsStats');
+    if (altContainer) {
+      console.log("[renderStats] ✅ Контейнер найден через querySelector");
+      _renderStatsContent(altContainer, data);
+    }
     return;
   }
   
-  console.log("[renderStats] Контейнер найден:", statsContainer);
+  console.log("[renderStats] ✅ Контейнер найден:", statsContainer);
+  console.log("[renderStats] Контейнер видим:", statsContainer.offsetHeight > 0);
+  
+  _renderStatsContent(statsContainer, data);
+}
+
+function _renderStatsContent(statsContainer, data) {
+  console.log("[_renderStatsContent] Начало отрисовки контента");
   
   // Проверяем, что данные - массив
   if (!Array.isArray(data)) {
