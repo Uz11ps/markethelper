@@ -131,7 +131,18 @@ class PromptGeneratorService:
                 raise ValueError("Промпт генератора пустой в админ-панели. Пожалуйста, установите его в настройках.")
             
             logger.info(f"✅ Используется промпт из админки (длина: {len(prompt)} символов, первые 200 символов: {prompt[:200]}...)")
-            logger.info(f"[PROMPT_GENERATOR] Полный промпт из админки:\n{prompt}")
+            # Выводим полный промпт построчно для лучшей читаемости в логах
+            logger.info(f"[PROMPT_GENERATOR] ========== ПОЛНЫЙ ПРОМПТ ИЗ АДМИНКИ (начало) ==========")
+            # Разбиваем промпт на строки и логируем каждую
+            prompt_lines = prompt.split('\n')
+            for i, line in enumerate(prompt_lines[:50]):  # Первые 50 строк
+                logger.info(f"[PROMPT_GENERATOR] {line}")
+            if len(prompt_lines) > 50:
+                logger.info(f"[PROMPT_GENERATOR] ... (пропущено {len(prompt_lines) - 50} строк) ...")
+                logger.info(f"[PROMPT_GENERATOR] Последние 10 строк промпта:")
+                for line in prompt_lines[-10:]:
+                    logger.info(f"[PROMPT_GENERATOR] {line}")
+            logger.info(f"[PROMPT_GENERATOR] ========== ПОЛНЫЙ ПРОМПТ ИЗ АДМИНКИ (конец) ==========")
             cls._system_prompt_cache = prompt
             return prompt
         except ValueError:
