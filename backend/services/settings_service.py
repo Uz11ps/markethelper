@@ -200,7 +200,16 @@ class SettingsService:
     @classmethod
     async def get_image_model_pro(cls) -> str:
         """Получить Pro модель генерации изображений"""
-        return await cls.get_setting("image_model_pro", cls.DEFAULT_IMAGE_MODEL_PRO)
+        model = await cls.get_setting("image_model_pro", cls.DEFAULT_IMAGE_MODEL_PRO)
+        # Исправляем старое значение flux-pro на nano-banana-pro
+        if model and ("flux-pro" in model.lower() or "ultra" in model.lower()):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"[get_image_model_pro] Обнаружено старое значение модели: {model}, заменяем на {cls.DEFAULT_IMAGE_MODEL_PRO}")
+            # Обновляем значение в базе данных
+            await cls.set_image_model_pro(cls.DEFAULT_IMAGE_MODEL_PRO)
+            return cls.DEFAULT_IMAGE_MODEL_PRO
+        return model
 
     @classmethod
     async def set_image_model_pro(cls, model: str) -> Settings:
