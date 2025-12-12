@@ -9,6 +9,16 @@ router = APIRouter(prefix="/channel", tags=["Channel"])
 logger = logging.getLogger(__name__)
 
 
+@router.get("/settings")
+async def get_channel_settings_public():
+    """Получение настроек канала (публичный endpoint для бота)"""
+    return {
+        "channel_bonus": await SettingsService.get_channel_bonus(),
+        "channel_username": await SettingsService.get_channel_username(),
+        "channel_id": await SettingsService.get_channel_id() or -1002089983609  # Дефолтный ID канала @lifefreelancer
+    }
+
+
 @router.post("/check-subscription/{tg_id}")
 async def check_channel_subscription(tg_id: int):
     """

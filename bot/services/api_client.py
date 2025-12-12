@@ -241,8 +241,8 @@ class APIClient:
                 return await self._handle_response(resp)
     
     async def get_channel_settings(self):
-        """Получить настройки канала"""
-        url = f"{self.base_url}/api/admin/settings/channel"
+        """Получить настройки канала (публичный endpoint)"""
+        url = f"{self.base_url}/api/channel/settings"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)

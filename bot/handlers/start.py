@@ -51,75 +51,84 @@ async def cmd_start(message: types.Message):
             print(f"[WARNING] Не удалось привязать реферала: {e}")
 
     # Проверка подписки на канал и создание запроса на бонус
-    # Получаем username канала из настроек через API
-    channel_subscribed = False
-    channel_username = ""
-    channel_id = None
-    
+    # Показываем сообщение о подписке только новым пользователям, которые еще не получали бонус
     try:
-        channel_settings = await api.get_channel_settings()
-        if isinstance(channel_settings, dict):
-            channel_username = channel_settings.get("channel_username", "")
-            # Пытаемся получить ID канала из настроек или используем дефолтный
-            channel_id = channel_settings.get("channel_id") or -1002089983609
+        profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
+        channel_bonus_given = profile.get("channel_bonus_given", False) if profile else False
     except Exception as e:
-        print(f"[WARNING] Не удалось получить настройки канала: {e}")
-        channel_username = os.getenv("CHANNEL_USERNAME", "")
-        channel_id = -1002089983609  # Дефолтный ID канала @lifefreelancer
+        print(f"[WARNING] Не удалось получить профиль для проверки channel_bonus_given: {e}")
+        channel_bonus_given = False
     
-    if channel_username or channel_id:
+    # Если бонус уже был начислен или есть pending запрос, не показываем сообщение о подписке
+    if not channel_bonus_given:
+        channel_subscribed = False
+        channel_username = ""
+        channel_id = None
+        
         try:
-            # Сначала пытаемся проверить по username, если не получится - по ID
-            try:
-                if channel_username:
-                    channel_username = channel_username.lstrip("@")
-                    chat_member = await bot.get_chat_member(f"@{channel_username}", tg.id)
-                else:
-                    chat_member = await bot.get_chat_member(channel_id, tg.id)
-                
-                # Проверяем, что пользователь подписан (member, administrator, creator)
-                if chat_member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
-                    channel_subscribed = True
-                    # Создаем запрос на бонус через API (требует одобрения админа)
-                    try:
-                        bonus_result = await api.check_channel_subscription(tg.id)
-                        if bonus_result.get("request_created"):
-                            # Показываем уведомление о созданном запросе
-                            await message.answer(
-                                f"✅ {bonus_result.get('message', 'Запрос на бонус за подписку на канал отправлен администратору!')}"
-                            )
-                        elif bonus_result.get("request_already_exists"):
-                            await message.answer(
-                                "⏳ Ваш запрос на бонус за подписку на канал уже отправлен и ожидает одобрения администратора."
-                            )
-                    except Exception as e:
-                        print(f"[ERROR check_channel_subscription] {e}")
-            except Exception as e:
-                print(f"[WARNING] Не удалось проверить подписку на канал: {e}")
-                channel_subscribed = False
+            channel_settings = await api.get_channel_settings()
+            if isinstance(channel_settings, dict):
+                channel_username = channel_settings.get("channel_username", "")
+                # Пытаемся получить ID канала из настроек или используем дефолтный
+                channel_id = channel_settings.get("channel_id") or -1002089983609
         except Exception as e:
-            print(f"[WARNING] Ошибка при проверке подписки на канал: {e}")
-            channel_subscribed = False
-    
-    # Если пользователь не подписан на канал, показываем кнопку подписки
-    if not channel_subscribed and (channel_username or channel_id):
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            print(f"[WARNING] Не удалось получить настройки канала: {e}")
+            channel_username = os.getenv("CHANNEL_USERNAME", "")
+            channel_id = -1002089983609  # Дефолтный ID канала @lifefreelancer
         
-        channel_link = f"https://t.me/{channel_username.lstrip('@')}" if channel_username else f"https://t.me/c/{str(channel_id)[4:]}" if channel_id else None
+        if channel_username or channel_id:
+            try:
+                # Сначала пытаемся проверить по username, если не получится - по ID
+                try:
+                    if channel_username:
+                        channel_username = channel_username.lstrip("@")
+                        chat_member = await bot.get_chat_member(f"@{channel_username}", tg.id)
+                    else:
+                        chat_member = await bot.get_chat_member(channel_id, tg.id)
+                    
+                    # Проверяем, что пользователь подписан (member, administrator, creator)
+                    if chat_member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+                        channel_subscribed = True
+                        # Создаем запрос на бонус через API (требует одобрения админа)
+                        try:
+                            bonus_result = await api.check_channel_subscription(tg.id)
+                            if bonus_result.get("request_created"):
+                                # Показываем уведомление о созданном запросе
+                                await message.answer(
+                                    f"✅ {bonus_result.get('message', 'Запрос на бонус за подписку на канал отправлен администратору!')}"
+                                )
+                            elif bonus_result.get("request_already_exists"):
+                                await message.answer(
+                                    "⏳ Ваш запрос на бонус за подписку на канал уже отправлен и ожидает одобрения администратора."
+                                )
+                        except Exception as e:
+                            print(f"[ERROR check_channel_subscription] {e}")
+                except Exception as e:
+                    print(f"[WARNING] Не удалось проверить подписку на канал: {e}")
+                    channel_subscribed = False
+            except Exception as e:
+                print(f"[WARNING] Ошибка при проверке подписки на канал: {e}")
+                channel_subscribed = False
         
-        if channel_link:
-            subscribe_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="📢 Подписаться на канал", url=channel_link)],
-                [InlineKeyboardButton(text="✅ Я подписался", callback_data="check_channel_subscription")]
-            ])
+        # Если пользователь не подписан на канал, показываем кнопку подписки (только один раз)
+        if not channel_subscribed and (channel_username or channel_id):
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
             
-            await message.answer(
-                "📢 <b>Подпишитесь на наш канал</b>\n\n"
-                f"Подпишитесь на канал @{channel_username.lstrip('@') if channel_username else 'lifefreelancer'} "
-                "и получите бесплатные токены!\n\n"
-                "После подписки нажмите кнопку '✅ Я подписался' для проверки.",
-                reply_markup=subscribe_keyboard
-            )
+            channel_link = f"https://t.me/{channel_username.lstrip('@')}" if channel_username else f"https://t.me/c/{str(channel_id)[4:]}" if channel_id else None
+            
+            if channel_link:
+                subscribe_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="📢 Подписаться на канал", url=channel_link)],
+                    [InlineKeyboardButton(text="✅ Я подписался", callback_data="check_channel_subscription")]
+                ])
+                
+                await message.answer(
+                    "📢 <b>Подпишитесь на наш канал</b>\n\n"
+                    f"Подпишитесь на канал @{channel_username.lstrip('@') if channel_username else 'lifefreelancer'} "
+                    "и получите бесплатные токены!\n\n"
+                    "После подписки нажмите кнопку '✅ Я подписался' для проверки.",
+                    reply_markup=subscribe_keyboard
+                )
 
     # Получаем профиль пользователя
     try:
