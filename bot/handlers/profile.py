@@ -391,9 +391,11 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
     
     # КРИТИЧЕСКИ ВАЖНО: Отвечаем на callback ПЕРВЫМ делом
     try:
-        await callback.answer()
+        await callback.answer("⏳ Загружаю...")
+        logger.info(f"[generate_mode_handler] ✅ Callback answered успешно")
     except Exception as answer_exc:
-        logger.error(f"[generate_mode_handler] Ошибка при callback.answer(): {answer_exc}")
+        logger.error(f"[generate_mode_handler] ❌ Ошибка при callback.answer(): {answer_exc}", exc_info=True)
+        # Продолжаем выполнение даже если callback.answer() не сработал
     
     try:
         logger.info(f"[generate_mode_handler] === НАЧАЛО ОБРАБОТКИ ===")
@@ -401,7 +403,15 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
         logger.info(f"[generate_mode_handler] User ID: {callback.from_user.id}")
         logger.info(f"[generate_mode_handler] Message available: {callback.message is not None}")
         
-        logger.info(f"[generate_mode_handler] Callback answered")
+        # Отправляем тестовое сообщение сразу, чтобы убедиться, что обработчик работает
+        try:
+            await bot.send_message(
+                chat_id=callback.from_user.id,
+                text="🔍 Тест: обработчик вызван!"
+            )
+            logger.info(f"[generate_mode_handler] ✅ Тестовое сообщение отправлено")
+        except Exception as test_exc:
+            logger.error(f"[generate_mode_handler] ❌ Ошибка при отправке тестового сообщения: {test_exc}", exc_info=True)
         
         mode = callback.data.replace("generate:mode:", "")
         logger.info(f"[generate_mode_handler] Извлеченный режим: {mode}")
