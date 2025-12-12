@@ -51,10 +51,30 @@ async def mark_channel_subscription_message_shown(tg_id: int):
 @router.get("/prompt-generator")
 async def get_prompt_generator_public():
     """Получение промпта генератора изображений (публичный endpoint для бота)"""
-    prompt = await SettingsService.get_prompt_generator_prompt()
-    return {
-        "prompt_generator_prompt": prompt
-    }
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        prompt = await SettingsService.get_prompt_generator_prompt()
+        logger.info(f"[get_prompt_generator_public] Загружен промпт из БД (длина: {len(prompt)} символов, первые 200 символов: {prompt[:200]}...)")
+        
+        if not prompt or not prompt.strip():
+            logger.warning("[get_prompt_generator_public] Промпт пустой или отсутствует в БД!")
+            # Возвращаем дефолтный промпт, если в БД пусто
+            prompt = SettingsService.DEFAULT_PROMPT_GENERATOR_PROMPT
+            logger.warning("[get_prompt_generator_public] Используется дефолтный промпт из кода")
+        
+        return {
+            "prompt_generator_prompt": prompt
+        }
+    except Exception as e:
+        logger.error(f"[get_prompt_generator_public] Ошибка при загрузке промпта: {e}", exc_info=True)
+        # В случае ошибки возвращаем дефолтный промпт
+        prompt = SettingsService.DEFAULT_PROMPT_GENERATOR_PROMPT
+        logger.warning("[get_prompt_generator_public] Используется дефолтный промпт из кода из-за ошибки")
+        return {
+            "prompt_generator_prompt": prompt
+        }
 
 
 @router.post("/check-subscription/{tg_id}")
