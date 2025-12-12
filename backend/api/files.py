@@ -136,6 +136,9 @@ async def add_access_file(
         access_file.last_updated = datetime.now(timezone.utc)
         await access_file.save()
         
+        # Отправляем уведомления пользователям группы об обновлении файла
+        await FileService.notify_group_users_about_file_update(access_file)
+        
         return {
             "status": "ok",
             "file_id": access_file.id,

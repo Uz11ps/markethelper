@@ -8,7 +8,7 @@ from http.cookiejar import MozillaCookieJar, Cookie
 from fastapi import HTTPException
 
 from backend.models.file import AccessFile
-from backend.models import AccessGroup, Subscription, User
+from backend.models import AccessGroup, Subscription, User, Status
 import httpx
 
 logger = logging.getLogger(__name__)
