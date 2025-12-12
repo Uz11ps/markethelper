@@ -391,6 +391,7 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
     await safe_delete_message(callback)
     
     mode = callback.data.replace("generate:mode:", "")
+    logger.info(f"[generate_mode_handler] Режим: {mode}, пользователь: {callback.from_user.id}")
     
     # Вызываем логику выбора модели напрямую, без создания Message объекта
     from bot.states.image_generation import ImageGenerationStates
@@ -404,28 +405,50 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
     elif mode == "infographics":
         await state.set_state(ImageGenerationStates.choosing_model_infographics)
         await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
+    else:
+        logger.error(f"[generate_mode_handler] Неизвестный режим: {mode}")
+        await callback.message.answer("❌ Ошибка: неизвестный режим генерации")
+        return
     
     try:
         all_models = await api.get_image_models()
+        logger.info(f"[generate_mode_handler] Получены модели: {list(all_models.keys())}")
         # Для инфографики оставляем только nano-banana и pro (убираем sd/seedream)
         if mode == "infographics":
             models = {k: v for k, v in all_models.items() if k in ["nano-banana", "pro"]}
+            logger.info(f"[generate_mode_handler] Отфильтрованные модели для инфографики: {list(models.keys())}")
         else:
             # Для простых картинок доступны все модели
             models = all_models
     except Exception as exc:
-        logger.warning(f"Не удалось получить список моделей: {exc}")
+        logger.error(f"[generate_mode_handler] Ошибка при получении списка моделей: {exc}", exc_info=True)
         models = {}
+        await callback.message.answer(
+            "❌ <b>Ошибка при загрузке моделей</b>\n\n"
+            "Не удалось получить список доступных моделей. Попробуйте позже или обратитесь в поддержку."
+        )
+        return
+    
+    # Проверяем, что есть хотя бы одна модель
+    if not models:
+        logger.error(f"[generate_mode_handler] Нет доступных моделей для режима {mode}")
+        await callback.message.answer(
+            "❌ <b>Нет доступных моделей</b>\n\n"
+            "В данный момент нет доступных моделей для генерации. Обратитесь в поддержку."
+        )
+        return
     
     selected_model_key = None
     try:
         user_settings = await api.get_user_generation_settings(callback.from_user.id)
         selected_model_key = user_settings.get("selected_model_key")
+        logger.info(f"[generate_mode_handler] Сохраненная модель пользователя: {selected_model_key}")
         # Если выбранная модель не поддерживается для инфографики, сбрасываем выбор
         if mode == "infographics" and selected_model_key and selected_model_key not in models:
+            logger.warning(f"[generate_mode_handler] Модель {selected_model_key} не поддерживается для инфографики, сбрасываем")
             selected_model_key = None
     except Exception as exc:
-        logger.warning(f"Не удалось получить настройки пользователя: {exc}")
+        logger.warning(f"[generate_mode_handler] Не удалось получить настройки пользователя: {exc}")
     
     try:
         profile = await api.get_profile(
@@ -434,8 +457,9 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
             full_name=get_full_name(callback.from_user),
         )
         balance = profile.get("bonus_balance", 0) if profile else 0
+        logger.info(f"[generate_mode_handler] Баланс пользователя: {balance}")
     except Exception as exc:
-        logger.warning(f"Не удалось получить профиль пользователя: {exc}")
+        logger.warning(f"[generate_mode_handler] Не удалось получить профиль пользователя: {exc}")
         balance = 0
     
     models_text = "\n".join([
@@ -466,10 +490,21 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
             "После выбора модели вы сможете загрузить фото товара и референсы."
         )
     
-    await callback.message.answer(
-        text,
-        reply_markup=model_selection_keyboard(models, selected_model_key)
-    )
+    try:
+        keyboard = model_selection_keyboard(models, selected_model_key)
+        logger.info(f"[generate_mode_handler] Отправка сообщения с клавиатурой, количество кнопок: {len(keyboard.inline_keyboard)}")
+        await callback.message.answer(
+            text,
+            reply_markup=keyboard
+        )
+        logger.info(f"[generate_mode_handler] Сообщение успешно отправлено")
+    except Exception as exc:
+        logger.error(f"[generate_mode_handler] Ошибка при отправке сообщения: {exc}", exc_info=True)
+        await callback.message.answer(
+            f"❌ <b>Ошибка при отправке сообщения</b>\n\n"
+            f"Произошла ошибка: {str(exc)}\n\n"
+            "Попробуйте еще раз или обратитесь в поддержку."
+        )
 
 
 @router.callback_query(F.data == "back_to_profile")
