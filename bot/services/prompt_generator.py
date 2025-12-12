@@ -254,14 +254,19 @@ class PromptGeneratorService:
             # GPT-4o Vision специально предназначена для анализа изображений и генерации текстовых промптов
             gpt_model_to_use = "gpt-4o"  # GPT-4o имеет встроенную поддержку Vision
             
+            # Проверяем наличие API ключа
+            if not OPENAI_API_KEY:
+                logger.error("[PROMPT_GENERATOR] ❌ OPENAI_API_KEY не установлен!")
+                raise ValueError("OpenAI API ключ не настроен. Обратитесь к администратору.")
+            
             logger.info(f"[PROMPT_GENERATOR] СТРОГО: Используется GPT-4o Vision для анализа изображений и генерации промпта")
+            logger.info(f"[PROMPT_GENERATOR] Модель: {gpt_model_to_use}, API ключ установлен: {bool(OPENAI_API_KEY)}")
             
             # Запрос к GPT-4o Vision с выбранной моделью
             # Принудительно обновляем промпт из админки перед каждой генерацией
             system_prompt = await cls._get_system_prompt(force_refresh=True)
             logger.info(f"[PROMPT_GENERATOR] Используется системный промпт из админки (длина: {len(system_prompt)} символов)")
             logger.info(f"[PROMPT_GENERATOR] Системный промпт (первые 500 символов): {system_prompt[:500]}...")
-            logger.info(f"[PROMPT_GENERATOR] Системный промпт (полный):\n{system_prompt}")
             logger.info(f"[PROMPT_GENERATOR] Используется GPT модель: {gpt_model_to_use} (Vision enabled)")
 
             logger.info(f"[PROMPT_GENERATOR] Отправка запроса к GPT-4o Vision для генерации промпта...")
