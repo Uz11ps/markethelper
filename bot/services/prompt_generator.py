@@ -296,31 +296,29 @@ class PromptGeneratorService:
             answer = answer.strip()
             logger.debug(f"После удаления markdown (длина: {len(answer)}): {answer[:200]}...")
 
-            # Пытаемся найти JSON в ответе, если он обернут в текст
-            json_start = answer.find("{")
-            json_end = answer.rfind("}") + 1
+            # Пытаемся найти JSON в ответе (может быть массив или объект)
+            # Сначала проверяем, начинается ли ответ с массива
+            json_start_array = answer.find("[")
+            json_end_array = answer.rfind("]") + 1
             
-            if json_start == -1:
-                logger.warning(f"Не найден символ '{{' в ответе. Ответ: {answer[:500]}")
-                # Пытаемся найти JSON с помощью regex
-                json_match = re.search(r'\{.*\}', answer, re.DOTALL)
+            json_start_object = answer.find("{")
+            json_end_object = answer.rfind("}") + 1
+            
+            # Приоритет массиву, если он найден
+            if json_start_array != -1 and json_end_array > json_start_array:
+                answer = answer[json_start_array:json_end_array]
+                logger.debug(f"Извлечен JSON массив (длина: {len(answer)}): {answer[:200]}...")
+            elif json_start_object != -1 and json_end_object > json_start_object:
+                answer = answer[json_start_object:json_end_object]
+                logger.debug(f"Извлечен JSON объект (длина: {len(answer)}): {answer[:200]}...")
+            else:
+                # Пытаемся найти JSON с помощью regex (массив или объект)
+                json_match = re.search(r'(\[.*\]|\{.*\})', answer, re.DOTALL)
                 if json_match:
                     answer = json_match.group(0)
                     logger.info("JSON найден с помощью regex")
                 else:
                     raise ValueError(f"Не найден JSON в ответе GPT. Ответ: {answer[:300]}...")
-            elif json_end <= json_start:
-                logger.warning(f"Некорректные индексы JSON: start={json_start}, end={json_end}")
-                # Пытаемся найти JSON с помощью regex
-                json_match = re.search(r'\{.*\}', answer, re.DOTALL)
-                if json_match:
-                    answer = json_match.group(0)
-                    logger.info("JSON найден с помощью regex после некорректных индексов")
-                else:
-                    raise ValueError(f"Не найден валидный JSON в ответе GPT. Ответ: {answer[:300]}...")
-            else:
-                answer = answer[json_start:json_end]
-                logger.debug(f"Извлечен JSON (длина: {len(answer)}): {answer[:200]}...")
 
             # Проверяем, что после извлечения JSON не пустой
             if not answer or not answer.strip():
@@ -392,8 +390,7 @@ class PromptGeneratorService:
             # Обрабатываем массив концепций
             if concepts and isinstance(concepts, list) and len(concepts) > 0:
                 # Новый формат: массив концепций
-                logger.info(f"[PROMPT_GENERATOR] ✅ Обнаружен новый формат с 'concepts' (количество: {len(result['concepts'])})")
-                concepts = result["concepts"]
+                logger.info(f"[PROMPT_GENERATOR] ✅ Обработка массива концепций (количество: {len(concepts)})")
                 
                 # Сохраняем все концепции для выбора пользователем
                 # Преобразуем первую концепцию в формат для генерации (для обратной совместимости)
