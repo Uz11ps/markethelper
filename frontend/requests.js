@@ -217,4 +217,58 @@ async function reject(id) {
   }
 }
 
+// 📊 Отрисовка статистики по заявкам
+function renderStats(data) {
+  const statsContainer = document.getElementById("requestsStats");
+  if (!statsContainer) return;
+  
+  // Подсчитываем статистику
+  const total = data.length;
+  const pending = data.filter(req => {
+    const status = (req.status || "").toLowerCase();
+    return status === "pending" || status === "в ожидании";
+  }).length;
+  const approved = data.filter(req => {
+    const status = (req.status || "").toLowerCase();
+    return status === "approved" || status === "одобрена";
+  }).length;
+  const rejected = data.filter(req => {
+    const status = (req.status || "").toLowerCase();
+    return status === "rejected" || status === "отклонена";
+  }).length;
+  
+  // Вычисляем проценты
+  const pendingPercent = total > 0 ? Math.round((pending / total) * 100) : 0;
+  const approvedPercent = total > 0 ? Math.round((approved / total) * 100) : 0;
+  const rejectedPercent = total > 0 ? Math.round((rejected / total) * 100) : 0;
+  
+  statsContainer.innerHTML = `
+    <div class="stat-card total">
+      <div class="stat-card-icon">📊</div>
+      <div class="stat-card-title">Всего заявок</div>
+      <div class="stat-card-value">${total}</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="stat-card-icon">⏳</div>
+      <div class="stat-card-title">В ожидании</div>
+      <div class="stat-card-value">${pending}</div>
+      <div class="stat-card-percentage">${pendingPercent}% от общего числа</div>
+    </div>
+    <div class="stat-card approved">
+      <div class="stat-card-icon">✅</div>
+      <div class="stat-card-title">Одобрено</div>
+      <div class="stat-card-value">${approved}</div>
+      <div class="stat-card-percentage">${approvedPercent}% от общего числа</div>
+    </div>
+    <div class="stat-card rejected">
+      <div class="stat-card-icon">❌</div>
+      <div class="stat-card-title">Отклонено</div>
+      <div class="stat-card-value">${rejected}</div>
+      <div class="stat-card-percentage">${rejectedPercent}% от общего числа</div>
+    </div>
+  `;
+  
+  statsContainer.style.display = "grid";
+}
+
 loadRequests();
