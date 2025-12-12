@@ -266,6 +266,10 @@ class PromptGeneratorService:
 
             logger.info(f"[PROMPT_GENERATOR] Отправка запроса к GPT-4o Vision для генерации промпта...")
             logger.info(f"[PROMPT_GENERATOR] Входные данные: {len(product_image_urls)} фото товара, {len(reference_image_urls)} референсов")
+            logger.info(f"[PROMPT_GENERATOR] URL фото товара: {product_image_urls}")
+            logger.info(f"[PROMPT_GENERATOR] URL референсов: {reference_image_urls}")
+            logger.info(f"[PROMPT_GENERATOR] Количество элементов в content: {len(content)}")
+            logger.info(f"[PROMPT_GENERATOR] Типы элементов в content: {[item.get('type') for item in content]}")
             # Для массива концепций НЕ используем response_format={"type": "json_object"}
             # так как это требует объект, а нам нужен массив
             # Вместо этого полагаемся на четкие инструкции в промпте
