@@ -107,11 +107,15 @@ async def add_access_file(
     
     # Если загружается файл напрямую
     if file:
-        # Определяем имя файла
+        # Определяем имя файла и гарантируем расширение .txt
         if filename:
             cookie_file_name = filename
+            if not cookie_file_name.endswith('.txt'):
+                cookie_file_name = f"{cookie_file_name.rsplit('.', 1)[0]}.txt"
         else:
             cookie_file_name = file.filename or f"file_{int(datetime.utcnow().timestamp())}.txt"
+            if not cookie_file_name.endswith('.txt'):
+                cookie_file_name = f"{cookie_file_name.rsplit('.', 1)[0]}.txt"
         
         cookie_file_path = os.path.join(COOKIE_DIR, cookie_file_name)
         
@@ -146,6 +150,9 @@ async def add_access_file(
         raise HTTPException(status_code=400, detail="Необходимо либо загрузить файл, либо указать login и password")
     
     cookie_file_name = filename or f"{login}_{int(datetime.utcnow().timestamp())}.txt"
+    # Гарантируем расширение .txt
+    if not cookie_file_name.endswith('.txt'):
+        cookie_file_name = f"{cookie_file_name.rsplit('.', 1)[0]}.txt"
     cookie_file_path = os.path.join(COOKIE_DIR, cookie_file_name)
 
     access_file = await AccessFile.create(
@@ -171,6 +178,9 @@ async def add_access_file(
                     f"Вы можете создать файл без авторизации, установив параметр skip_auth=true"
                 )
             raise
+    
+    # Отправляем уведомления пользователям группы об обновлении файла
+    await FileService.notify_group_users_about_file_update(access_file)
 
     return {
         "status": "ok",

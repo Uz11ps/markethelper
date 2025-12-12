@@ -34,6 +34,49 @@ async def notify(payload: dict):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/notify-with-button")
+async def notify_with_button(payload: dict):
+    """
+    Принимает уведомления от backend и отправляет юзерам в Telegram с кнопкой
+    """
+    import logging
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    logger = logging.getLogger(__name__)
+    
+    tg_id = payload.get("tg_id")
+    message = payload.get("message")
+    button_text = payload.get("button_text", "Получить файл")
+    button_data = payload.get("button_data", "profile:get_file")
+    
+    logger.info(f"[NOTIFY-WITH-BUTTON] Получен запрос: tg_id={tg_id}, message_length={len(message) if message else 0}")
+    
+    if not tg_id:
+        logger.error("[NOTIFY-WITH-BUTTON] Отсутствует tg_id в запросе")
+        return {"ok": False, "error": "Missing tg_id"}
+    
+    if not message:
+        logger.error("[NOTIFY-WITH-BUTTON] Отсутствует message в запросе")
+        return {"ok": False, "error": "Missing message"}
+    
+    try:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=button_text, callback_data=button_data)]
+        ])
+        
+        await bot.send_message(
+            chat_id=tg_id,
+            text=message,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        logger.info(f"[NOTIFY-WITH-BUTTON] Уведомление с кнопкой успешно отправлено пользователю {tg_id}")
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"[NOTIFY-WITH-BUTTON] Ошибка при отправке уведомления пользователю {tg_id}: {e}", exc_info=True)
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/broadcast")
 async def broadcast(payload: dict):
     """

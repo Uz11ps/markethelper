@@ -9,8 +9,13 @@ from fastapi import HTTPException
 
 from backend.models.file import AccessFile
 from backend.models import AccessGroup, Subscription, User
+import httpx
 
 logger = logging.getLogger(__name__)
+
+BOT_URL = os.getenv("BOT_API_URL", "http://bot:8001/notify")
+if not BOT_URL.endswith("/notify"):
+    BOT_URL = f"{BOT_URL}/notify"
 
 COOKIE_DIR = "/app/cookie"
 os.makedirs(COOKIE_DIR, exist_ok=True)
@@ -85,6 +90,11 @@ class FileService:
         """
         if not file.path:
             file.path = os.path.join(COOKIE_DIR, f"{file.id}.txt")
+        else:
+            # Убеждаемся, что файл имеет расширение .txt
+            if not file.path.endswith('.txt'):
+                file.path = f"{file.path.rsplit('.', 1)[0]}.txt"
+        
         with open(file.path, "w", encoding="utf-8") as fh:
             fh.write(cookies_str)
 
@@ -101,8 +111,14 @@ class FileService:
         """
         if filename:
             cookie_filename = filename
+            # Убеждаемся, что файл имеет расширение .txt
+            if not cookie_filename.endswith('.txt'):
+                cookie_filename = f"{cookie_filename.rsplit('.', 1)[0]}.txt"
         elif file.path:
             cookie_filename = os.path.basename(file.path)
+            # Убеждаемся, что файл имеет расширение .txt
+            if not cookie_filename.endswith('.txt'):
+                cookie_filename = f"{cookie_filename.rsplit('.', 1)[0]}.txt"
         else:
             cookie_filename = f"{file.id}.txt"
 
@@ -128,11 +144,17 @@ class FileService:
         if not file.login or not file.password:
             raise HTTPException(400, "У файла нет логина или пароля")
 
-        # Выбираем имя файла
+        # Выбираем имя файла и гарантируем расширение .txt
         if filename:
             cookie_filename = filename
+            # Убеждаемся, что файл имеет расширение .txt
+            if not cookie_filename.endswith('.txt'):
+                cookie_filename = f"{cookie_filename.rsplit('.', 1)[0]}.txt"
         elif file.path:
             cookie_filename = os.path.basename(file.path)
+            # Убеждаемся, что файл имеет расширение .txt
+            if not cookie_filename.endswith('.txt'):
+                cookie_filename = f"{cookie_filename.rsplit('.', 1)[0]}.txt"
         else:
             cookie_filename = f"{file.id}.txt"
 
@@ -210,6 +232,10 @@ class FileService:
         file.last_updated = datetime.now(timezone.utc)
         file.locked_until = datetime.now(timezone.utc) + timedelta(minutes=10)
         await file.save()
+        
+        # Отправляем уведомления пользователям группы об обновлении файла
+        await FileService.notify_group_users_about_file_update(file)
+        
         return file
 
     @staticmethod
@@ -248,3 +274,61 @@ class FileService:
             return False, f"Сервер отказал, код {r.status_code}"
         except Exception as e:
             return False, f"Ошибка проверки: {e}"
+    
+    @staticmethod
+    async def notify_group_users_about_file_update(file: AccessFile):
+        """
+        Отправляет уведомления всем пользователям группы об обновлении файла куки
+        """
+        try:
+            # Получаем всех пользователей с активными подписками на эту группу
+            now = datetime.now(timezone.utc)
+            active_status = await Status.get_or_none(type="subscription", code="ACTIVE")
+            
+            if not active_status:
+                logger.warning("Статус 'ACTIVE' не найден, уведомления не отправлены")
+                return
+            
+            subscriptions = await Subscription.filter(
+                group_id=file.group_id,
+                status_id=active_status.id,
+                end_date__gte=now
+            ).prefetch_related("user").all()
+            
+            if not subscriptions:
+                logger.info(f"Нет активных подписок для группы {file.group_id}, уведомления не требуются")
+                return
+            
+            # Формируем сообщение с кнопкой
+            filename = os.path.basename(file.path) if file.path else "файл куки"
+            message_text = (
+                "🔔 <b>Обновлен файл куки!</b>\n\n"
+                f"Файл <b>{filename}</b> был обновлен.\n"
+                "Нажмите кнопку ниже, чтобы получить обновленный файл."
+            )
+            
+            # Отправляем уведомления всем пользователям группы
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                for subscription in subscriptions:
+                    user = await subscription.user
+                    if not user or not user.tg_id:
+                        continue
+                    
+                    try:
+                        # Отправляем уведомление с кнопкой через специальный endpoint бота
+                        await client.post(
+                            BOT_URL.replace("/notify", "/notify-with-button"),
+                            json={
+                                "tg_id": user.tg_id,
+                                "message": message_text,
+                                "button_text": "📥 Получить файл",
+                                "button_data": "profile:get_file"
+                            }
+                        )
+                        logger.info(f"Уведомление об обновлении файла отправлено пользователю {user.tg_id}")
+                    except Exception as e:
+                        logger.error(f"Ошибка при отправке уведомления пользователю {user.tg_id}: {e}")
+            
+            logger.info(f"Уведомления об обновлении файла {file.id} отправлены {len(subscriptions)} пользователям")
+        except Exception as e:
+            logger.error(f"Ошибка при отправке уведомлений об обновлении файла: {e}", exc_info=True)

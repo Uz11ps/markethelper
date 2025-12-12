@@ -11,6 +11,7 @@ async def refresh_cookies(file_id: int):
         raise HTTPException(404, "Файл не найден")
 
     file = await file_service.FileService.generate_and_save_cookies(file)
+    # Уведомления отправляются автоматически в generate_and_save_cookies
     return {"status": "ok", "last_updated": file.last_updated}
 
 @router.post("/{group_id}/regen")
@@ -20,6 +21,7 @@ async def regen_group_file(group_id: int):
     """
     file = await file_service.FileService.get_group_file(group_id)
     file = await file_service.FileService.generate_and_save_cookies(file)
+    # Уведомления отправляются автоматически в generate_and_save_cookies
     return {
         "status": "regenerated",
         "group_id": group_id,
