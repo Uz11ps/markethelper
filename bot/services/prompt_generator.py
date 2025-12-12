@@ -76,18 +76,20 @@ class PromptGeneratorService:
             return cls._system_prompt_cache
 
         try:
-            data = await settings_api.get_admin_settings()
+            # Используем публичный endpoint для получения промпта генератора
+            data = await settings_api.get_prompt_generator_prompt()
             prompt = data.get("prompt_generator_prompt")
             if prompt and prompt.strip():
-                logger.info(f"Используется промпт из админки (длина: {len(prompt)} символов)")
+                logger.info(f"✅ Используется промпт из админки (длина: {len(prompt)} символов, первые 200 символов: {prompt[:200]}...)")
                 cls._system_prompt_cache = prompt
                 return prompt
             else:
-                logger.warning("Промпт из админки пустой или отсутствует, используется дефолтный")
+                logger.warning("⚠️ Промпт из админки пустой или отсутствует, используется дефолтный")
         except Exception as exc:
-            logger.warning(f"Не удалось получить промпт генератора из админки: {exc}")
+            logger.warning(f"⚠️ Не удалось получить промпт генератора из админки: {exc}, используется дефолтный")
 
         cls._system_prompt_cache = SYSTEM_PROMPT
+        logger.info("Используется дефолтный системный промпт")
         return SYSTEM_PROMPT
     
     @classmethod

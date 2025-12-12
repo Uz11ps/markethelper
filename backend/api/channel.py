@@ -48,6 +48,15 @@ async def mark_channel_subscription_message_shown(tg_id: int):
     return {"message": "Message marked as shown"}
 
 
+@router.get("/prompt-generator")
+async def get_prompt_generator_public():
+    """Получение промпта генератора изображений (публичный endpoint для бота)"""
+    prompt = await SettingsService.get_prompt_generator_prompt()
+    return {
+        "prompt_generator_prompt": prompt
+    }
+
+
 @router.post("/check-subscription/{tg_id}")
 async def check_channel_subscription(tg_id: int):
     """

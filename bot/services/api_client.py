@@ -213,7 +213,15 @@ class APIClient:
                 return await resp.json()
 
     async def get_admin_settings(self):
+        """Получить настройки админки (устаревший метод, используйте get_prompt_generator_prompt)"""
         url = f"{self.base_url}/api/admin/settings"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                return await self._handle_response(resp)
+    
+    async def get_prompt_generator_prompt(self):
+        """Получить промпт генератора изображений (публичный endpoint)"""
+        url = f"{self.base_url}/api/channel/prompt-generator"
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 return await self._handle_response(resp)
