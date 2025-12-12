@@ -274,6 +274,17 @@ async def select_model(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     mode = data.get("mode", "infographics")  # По умолчанию инфографика для совместимости
     
+    # Проверяем, что для инфографики не выбрана модель sd/seedream
+    if mode == "infographics" and model_key == "sd":
+        await callback.message.answer(
+            "❌ Модель Seedream не поддерживает генерацию инфографики с фото товара и референсами.\n\n"
+            "Пожалуйста, выберите модель Nano Banana или Nano Banana Pro.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад к выбору модели", callback_data="back_to_menu")]
+            ])
+        )
+        return
+    
     try:
         models = await api_client.get_image_models()
         selected_model = models.get(model_key, {})
