@@ -77,8 +77,8 @@ async def list_texts():
         logger.error(f"Ошибка при получении текстов: {e}")
         return []
 
-async def query_ai(question: str, tg_id: int = None) -> str:
-    logger.info(f"Запрос AI: {question}")
+async def query_ai(question: str, tg_id: int = None, gpt_model: str = None) -> str:
+    logger.info(f"Запрос AI: {question}, tg_id: {tg_id}, gpt_model: {gpt_model}")
 
     context = ""
     try:
@@ -95,10 +95,8 @@ async def query_ai(question: str, tg_id: int = None) -> str:
     system_prompt = await SettingsService.get_ai_prompt()
     logger.info(f"[query_ai] Используется системный промпт из админки (длина: {len(system_prompt)} символов, первые 200 символов: {system_prompt[:200]}...)")
 
-    prompt = f"""
-{system_prompt}
-
-Вопрос пользователя:
+    # Формируем user сообщение с вопросом и контекстом
+    user_content = f"""Вопрос пользователя:
 {question}
 
 Контекст (фрагменты из базы знаний):
@@ -106,14 +104,21 @@ async def query_ai(question: str, tg_id: int = None) -> str:
 
 Используй контекст для формирования точного и полезного ответа. Если контекста недостаточно, честно скажи об этом.
 """
-    print(prompt)
+    
     if not client_openai:
         logger.error("OpenAI client not initialized. Check OPENAI_API_KEY.")
         return "❌ Сервис ИИ недоступен. Проверьте настройки."
     
     # Определяем модель для использования
+    # Приоритет: переданный gpt_model > модель пользователя > системная модель
     model_to_use = "gpt-4o-mini"  # По умолчанию
-    if tg_id:
+    
+    if gpt_model:
+        # Если модель передана явно, используем её
+        model_to_use = gpt_model
+        logger.info(f"Используется переданная модель: {model_to_use}")
+    elif tg_id:
+        # Пытаемся получить модель пользователя
         try:
             from backend.models.user import User
             from backend.models.user_generation_settings import UserGenerationSettings
@@ -126,19 +131,24 @@ async def query_ai(question: str, tg_id: int = None) -> str:
         except Exception as e:
             logger.warning(f"Не удалось получить модель пользователя: {e}")
     
-    # Если модель не выбрана пользователем, используем системную
+    # Если модель всё ещё дефолтная, используем системную
     if model_to_use == "gpt-4o-mini":
         try:
             model_to_use = await SettingsService.get_gpt_model()
+            logger.info(f"Используется системная модель GPT: {model_to_use}")
         except Exception as e:
             logger.warning(f"Не удалось получить системную модель GPT: {e}")
     
     try:
         # Увеличенный таймаут для OpenAI запросов
+        # Используем системный промпт правильно через role="system"
         response = await asyncio.wait_for(
             client_openai.chat.completions.create(
                 model=model_to_use,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
+                ],
                 temperature=0.7,
             ),
             timeout=240.0  # 4 минуты таймаут

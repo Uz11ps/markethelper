@@ -88,17 +88,22 @@ async def delete_text(text_id: str):
 async def query_ai(data: dict):
     """
     Задать вопрос к базе знаний (через RAG).
-    data = { "question": "вопрос пользователя", "tg_id": 123456789 (опционально) }
+    data = { 
+        "question": "вопрос пользователя", 
+        "tg_id": 123456789 (опционально),
+        "gpt_model": "gpt-4o" (опционально)
+    }
     """
     if "question" not in data:
         raise HTTPException(400, "question is required")
 
     start_time = time.time()
     tg_id = data.get("tg_id")
-    logger.info(f"Запрос AI: {data['question']}, tg_id: {tg_id}")
+    gpt_model = data.get("gpt_model")
+    logger.info(f"Запрос AI: {data['question']}, tg_id: {tg_id}, gpt_model: {gpt_model}")
 
     try:
-        answer = await ai_service.query_ai(data["question"], tg_id=tg_id)
+        answer = await ai_service.query_ai(data["question"], tg_id=tg_id, gpt_model=gpt_model)
         elapsed = time.time() - start_time
         logger.info(f"Время обработки запроса: {elapsed:.3f} сек")
 
