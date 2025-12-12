@@ -268,7 +268,10 @@ class PromptGeneratorService:
                 raise ValueError("GPT вернул пустой ответ. Попробуйте ещё раз позже.")
             
             answer = raw_content.strip()
-            logger.info(f"Получен ответ от GPT (длина: {len(answer)}): {answer[:200]}...")
+            logger.info(f"[PROMPT_GENERATOR] Получен ответ от GPT (длина: {len(answer)} символов)")
+            logger.info(f"[PROMPT_GENERATOR] ========== ПОЛНЫЙ ОТВЕТ GPT (начало) ==========")
+            logger.info(f"[PROMPT_GENERATOR] {answer}")
+            logger.info(f"[PROMPT_GENERATOR] ========== ПОЛНЫЙ ОТВЕТ GPT (конец) ==========")
 
             # Проверяем, что ответ не пустой
             if not answer:
@@ -347,10 +350,41 @@ class PromptGeneratorService:
                 raise ValueError("GPT вернул ответ в неверном формате. Ожидался JSON объект.")
             
             if "generated_text_prompt" not in result:
-                logger.error(f"В ответе GPT отсутствует поле 'generated_text_prompt'. Доступные поля: {list(result.keys())}. Ответ: {answer[:500]}")
-                # Попытка создать дефолтный промпт из того, что есть
-                if original_answer and len(original_answer) > 50:
-                    logger.warning("Попытка использовать оригинальный ответ как промпт")
+                logger.error(f"[PROMPT_GENERATOR] ❌ В ответе GPT отсутствует поле 'generated_text_prompt'")
+                logger.error(f"[PROMPT_GENERATOR] Доступные поля в ответе: {list(result.keys())}")
+                logger.error(f"[PROMPT_GENERATOR] Полный ответ GPT: {answer}")
+                
+                # Попытка извлечь информацию из неправильного формата (например, если есть concepts)
+                if "concepts" in result and isinstance(result["concepts"], list) and len(result["concepts"]) > 0:
+                    logger.warning("[PROMPT_GENERATOR] Обнаружен формат с 'concepts', пытаемся преобразовать...")
+                    concept = result["concepts"][0]
+                    # Пытаемся собрать промпт из доступных полей
+                    prompt_parts = []
+                    if concept.get("🔍 Описание"):
+                        prompt_parts.append(concept["🔍 Описание"])
+                    if concept.get("📍 Использование товара"):
+                        prompt_parts.append(concept["📍 Использование товара"])
+                    if concept.get("🏞️ Фон"):
+                        prompt_parts.append(concept["🏞️ Фон"])
+                    if concept.get("🏷️ Заголовок"):
+                        prompt_parts.append(concept["🏷️ Заголовок"])
+                    
+                    if prompt_parts:
+                        generated_prompt = ". ".join(prompt_parts)
+                        logger.info(f"[PROMPT_GENERATOR] Создан промпт из формата concepts: {generated_prompt[:200]}...")
+                        result = {
+                            "generated_text_prompt": generated_prompt,
+                            "deconstruction_analysis": {
+                                "product_identified": concept.get("📍 Использование товара", "Не удалось определить"),
+                                "style_source": concept.get("🔍 Описание", "Не удалось определить"),
+                                "layout_source": concept.get("🏞️ Фон", "Не удалось определить"),
+                                "palette_source": concept.get("🏞️ Фон", "Не удалось определить")
+                            }
+                        }
+                    else:
+                        raise ValueError("GPT вернул ответ в неправильном формате (concepts без данных). Проверьте промпт в админ-панели - он должен требовать формат с 'generated_text_prompt' и 'deconstruction_analysis'.")
+                elif original_answer and len(original_answer) > 50:
+                    logger.warning("[PROMPT_GENERATOR] Попытка использовать оригинальный ответ как промпт")
                     result = {
                         "generated_text_prompt": original_answer[:500],
                         "deconstruction_analysis": {
@@ -362,7 +396,7 @@ class PromptGeneratorService:
                     }
                     logger.info("Создан fallback промпт из оригинального ответа")
                 else:
-                    raise ValueError("GPT вернул ответ без обязательного поля 'generated_text_prompt'")
+                    raise ValueError(f"GPT вернул ответ без обязательного поля 'generated_text_prompt'. Доступные поля: {list(result.keys())}. Проверьте промпт в админ-панели - он должен требовать формат с 'generated_text_prompt' и 'deconstruction_analysis'.")
 
             generated_prompt = result['generated_text_prompt']
             logger.info(f"[PROMPT_GENERATOR] ✅ Промпт успешно сгенерирован (длина: {len(generated_prompt)} символов)")
