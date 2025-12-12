@@ -243,3 +243,38 @@ async def migrate_users_table():
         traceback.print_exc()
         # Не прерываем запуск приложения, если миграция не удалась
 
+
+async def migrate_channel_bonus_requests():
+    """Создать таблицу channel_bonus_requests если её нет"""
+    try:
+        conn = connections.get("default")
+        
+        # Проверяем существование таблицы
+        try:
+            await conn.execute_query("SELECT 1 FROM channel_bonus_requests LIMIT 1")
+            logger.info("Таблица channel_bonus_requests уже существует")
+        except OperationalError as e:
+            if "no such table" in str(e).lower():
+                logger.info("Создаем таблицу channel_bonus_requests")
+                await conn.execute_query("""
+                    CREATE TABLE IF NOT EXISTS channel_bonus_requests (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        bonus_amount INTEGER NOT NULL,
+                        status VARCHAR(20) DEFAULT 'pending',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        approved_at DATETIME NULL,
+                        approved_by_id INTEGER NULL,
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        FOREIGN KEY (approved_by_id) REFERENCES admins(id)
+                    )
+                """)
+                logger.info("✅ Таблица channel_bonus_requests успешно создана")
+            else:
+                raise
+    except Exception as e:
+        logger.error(f"Ошибка при миграции channel_bonus_requests: {e}")
+        import traceback
+        traceback.print_exc()
+        # Не прерываем запуск приложения, если миграция не удалась
+
