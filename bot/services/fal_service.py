@@ -85,19 +85,17 @@ class FALService:
             elif main_reference:
                 # Используем Nano Banana для применения стиля референса к товару
                 logger.info("Используется Nano Banana для применения стиля референса к товару")
+                logger.info(f"[FALService] Используется сгенерированный промпт: {prompt[:200]}...")
 
-                # Промпт инструкция для комбинирования
-                combined_prompt = (
-                    f"Apply the visual style, composition, lighting, background, and color palette "
-                    f"from the reference image to the product image. "
-                    f"{prompt}. Keep the product recognizable but apply the exact marketplace card style from reference."
-                )
+                # ВАЖНО: Используем сгенерированный промпт напрямую, так как он уже содержит все необходимые инструкции
+                # от GPT-4o, включая описание товара, стиля, композиции и т.д.
+                # Не заменяем его на базовые инструкции, а используем как есть
 
                 # Nano Banana принимает image_urls - массив изображений (товар + референсы)
                 image_urls_list = [main_product_image] + reference_images[:3]  # Товар + до 3 референсов
 
                 arguments = {
-                    "prompt": combined_prompt,
+                    "prompt": prompt,  # Используем сгенерированный промпт напрямую
                     "image_urls": image_urls_list,  # Массив изображений для обработки
                     "num_images": num_images,
                     "aspect_ratio": aspect_ratio,
