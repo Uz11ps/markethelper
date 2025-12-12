@@ -406,104 +406,112 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
         
         # НЕ удаляем сообщение сразу - сначала отправим новое, потом удалим старое
         # Это поможет избежать проблем с недоступностью callback.message
-    
-    # Вызываем логику выбора модели напрямую, без создания Message объекта
-    from bot.states.image_generation import ImageGenerationStates
-    from bot.keyboards.inline import model_selection_keyboard
-    
-    await state.clear()
-    
-    if mode == "images":
-        await state.set_state(ImageGenerationStates.choosing_model_images)
-        await state.update_data(mode="images")
-    elif mode == "infographics":
-        await state.set_state(ImageGenerationStates.choosing_model_infographics)
-        await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
-    else:
-        logger.error(f"[generate_mode_handler] Неизвестный режим: {mode}")
-        await callback.message.answer("❌ Ошибка: неизвестный режим генерации")
-        return
-    
-    try:
-        all_models = await api.get_image_models()
-        logger.info(f"[generate_mode_handler] Получены модели: {list(all_models.keys())}")
-        # Для инфографики оставляем только nano-banana и pro (убираем sd/seedream)
-        if mode == "infographics":
-            models = {k: v for k, v in all_models.items() if k in ["nano-banana", "pro"]}
-            logger.info(f"[generate_mode_handler] Отфильтрованные модели для инфографики: {list(models.keys())}")
+        
+        # Вызываем логику выбора модели напрямую, без создания Message объекта
+        from bot.states.image_generation import ImageGenerationStates
+        from bot.keyboards.inline import model_selection_keyboard
+        
+        await state.clear()
+        
+        if mode == "images":
+            await state.set_state(ImageGenerationStates.choosing_model_images)
+            await state.update_data(mode="images")
+        elif mode == "infographics":
+            await state.set_state(ImageGenerationStates.choosing_model_infographics)
+            await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
         else:
-            # Для простых картинок доступны все модели
-            models = all_models
-    except Exception as exc:
-        logger.error(f"[generate_mode_handler] Ошибка при получении списка моделей: {exc}", exc_info=True)
-        models = {}
-        await callback.message.answer(
-            "❌ <b>Ошибка при загрузке моделей</b>\n\n"
-            "Не удалось получить список доступных моделей. Попробуйте позже или обратитесь в поддержку."
-        )
-        return
-    
-    # Проверяем, что есть хотя бы одна модель
-    if not models:
-        logger.error(f"[generate_mode_handler] Нет доступных моделей для режима {mode}")
-        await callback.message.answer(
-            "❌ <b>Нет доступных моделей</b>\n\n"
-            "В данный момент нет доступных моделей для генерации. Обратитесь в поддержку."
-        )
-        return
-    
-    selected_model_key = None
-    try:
-        user_settings = await api.get_user_generation_settings(callback.from_user.id)
-        selected_model_key = user_settings.get("selected_model_key")
-        logger.info(f"[generate_mode_handler] Сохраненная модель пользователя: {selected_model_key}")
-        # Если выбранная модель не поддерживается для инфографики, сбрасываем выбор
-        if mode == "infographics" and selected_model_key and selected_model_key not in models:
-            logger.warning(f"[generate_mode_handler] Модель {selected_model_key} не поддерживается для инфографики, сбрасываем")
-            selected_model_key = None
-    except Exception as exc:
-        logger.warning(f"[generate_mode_handler] Не удалось получить настройки пользователя: {exc}")
-    
-    try:
-        profile = await api.get_profile(
-            callback.from_user.id,
-            username=callback.from_user.username,
-            full_name=get_full_name(callback.from_user),
-        )
-        balance = profile.get("bonus_balance", 0) if profile else 0
-        logger.info(f"[generate_mode_handler] Баланс пользователя: {balance}")
-    except Exception as exc:
-        logger.warning(f"[generate_mode_handler] Не удалось получить профиль пользователя: {exc}")
-        balance = 0
-    
-    models_text = "\n".join([
-        f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
-        for key, info in models.items()
-    ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
-    
-    selected_model_text = ""
-    if selected_model_key and selected_model_key in models:
-        selected_model = models[selected_model_key]
-        selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_model_key)}"
-    
-    if mode == "images":
-        text = (
-            "🖼 <b>Генерация картинок</b>\n\n"
-            "Выберите модель для генерации:\n\n"
-            f"{models_text}"
-            f"{selected_model_text}\n\n"
-            f"💰 Ваш баланс: <b>{balance} токенов</b>"
-        )
-    else:
-        text = (
-            "📊 <b>Генерация инфографики</b>\n\n"
-            "Выберите модель для генерации:\n\n"
-            f"{models_text}"
-            f"{selected_model_text}\n\n"
-            f"💰 Ваш баланс: <b>{balance} токенов</b>\n\n"
-            "После выбора модели вы сможете загрузить фото товара и референсы."
-        )
-    
+            logger.error(f"[generate_mode_handler] Неизвестный режим: {mode}")
+            from bot.loader import bot
+            await bot.send_message(
+                chat_id=chat_id,
+                text="❌ Ошибка: неизвестный режим генерации"
+            )
+            return
+        
+        try:
+            all_models = await api.get_image_models()
+            logger.info(f"[generate_mode_handler] Получены модели: {list(all_models.keys())}")
+            # Для инфографики оставляем только nano-banana и pro (убираем sd/seedream)
+            if mode == "infographics":
+                models = {k: v for k, v in all_models.items() if k in ["nano-banana", "pro"]}
+                logger.info(f"[generate_mode_handler] Отфильтрованные модели для инфографики: {list(models.keys())}")
+            else:
+                # Для простых картинок доступны все модели
+                models = all_models
+        except Exception as exc:
+            logger.error(f"[generate_mode_handler] Ошибка при получении списка моделей: {exc}", exc_info=True)
+            models = {}
+            from bot.loader import bot
+            await bot.send_message(
+                chat_id=chat_id,
+                text="❌ <b>Ошибка при загрузке моделей</b>\n\n"
+                     "Не удалось получить список доступных моделей. Попробуйте позже или обратитесь в поддержку."
+            )
+            return
+        
+        # Проверяем, что есть хотя бы одна модель
+        if not models:
+            logger.error(f"[generate_mode_handler] Нет доступных моделей для режима {mode}")
+            from bot.loader import bot
+            await bot.send_message(
+                chat_id=chat_id,
+                text="❌ <b>Нет доступных моделей</b>\n\n"
+                     "В данный момент нет доступных моделей для генерации. Обратитесь в поддержку."
+            )
+            return
+        
+        selected_model_key = None
+        try:
+            user_settings = await api.get_user_generation_settings(callback.from_user.id)
+            selected_model_key = user_settings.get("selected_model_key")
+            logger.info(f"[generate_mode_handler] Сохраненная модель пользователя: {selected_model_key}")
+            # Если выбранная модель не поддерживается для инфографики, сбрасываем выбор
+            if mode == "infographics" and selected_model_key and selected_model_key not in models:
+                logger.warning(f"[generate_mode_handler] Модель {selected_model_key} не поддерживается для инфографики, сбрасываем")
+                selected_model_key = None
+        except Exception as exc:
+            logger.warning(f"[generate_mode_handler] Не удалось получить настройки пользователя: {exc}")
+        
+        try:
+            profile = await api.get_profile(
+                callback.from_user.id,
+                username=callback.from_user.username,
+                full_name=get_full_name(callback.from_user),
+            )
+            balance = profile.get("bonus_balance", 0) if profile else 0
+            logger.info(f"[generate_mode_handler] Баланс пользователя: {balance}")
+        except Exception as exc:
+            logger.warning(f"[generate_mode_handler] Не удалось получить профиль пользователя: {exc}")
+            balance = 0
+        
+        models_text = "\n".join([
+            f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
+            for key, info in models.items()
+        ]) if models else "• Nano Banana: 5 токенов - Быстрая генерация"
+        
+        selected_model_text = ""
+        if selected_model_key and selected_model_key in models:
+            selected_model = models[selected_model_key]
+            selected_model_text = f"\n\n✅ <b>Ваша сохраненная модель:</b> {selected_model.get('name', selected_model_key)}"
+        
+        if mode == "images":
+            text = (
+                "🖼 <b>Генерация картинок</b>\n\n"
+                "Выберите модель для генерации:\n\n"
+                f"{models_text}"
+                f"{selected_model_text}\n\n"
+                f"💰 Ваш баланс: <b>{balance} токенов</b>"
+            )
+        else:
+            text = (
+                "📊 <b>Генерация инфографики</b>\n\n"
+                "Выберите модель для генерации:\n\n"
+                f"{models_text}"
+                f"{selected_model_text}\n\n"
+                f"💰 Ваш баланс: <b>{balance} токенов</b>\n\n"
+                "После выбора модели вы сможете загрузить фото товара и референсы."
+            )
+        
         try:
             keyboard = model_selection_keyboard(models, selected_model_key)
             logger.info(f"[generate_mode_handler] Клавиатура создана, количество кнопок: {len(keyboard.inline_keyboard) if keyboard and keyboard.inline_keyboard else 0}")
