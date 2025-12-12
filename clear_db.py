@@ -13,11 +13,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 from tortoise import Tortoise
 from backend.models import (
     User, Admin, AccessGroup, Subscription, Request,
-    ChannelBonusRequest, UserGenerationSettings, PendingBonus,
+    UserGenerationSettings, PendingBonus,
     ReferralPayout, Referral, TokenPurchaseRequest,
     AccessFile, AIRequest, ProductDescription, EditablePromptTemplate,
     InfographicProject, DesignTemplate, Mailing, BroadcastMessage
 )
+from backend.models.channel_bonus import ChannelBonusRequest
 
 TORTOISE_ORM = {
     "connections": {
