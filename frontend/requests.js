@@ -238,7 +238,8 @@ function renderStats(data) {
   
   // Проверяем, что данные - массив
   if (!Array.isArray(data)) {
-    console.error("[renderStats] Данные не являются массивом:", typeof data, data);
+    console.error("[_renderStatsContent] Данные не являются массивом:", typeof data, data);
+    statsContainer.innerHTML = `<div style="color: red; padding: 20px;">Ошибка: данные не являются массивом</div>`;
     return;
   }
   
