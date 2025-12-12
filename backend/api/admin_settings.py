@@ -66,14 +66,26 @@ async def update_analysis_prompt(
     _: Admin = Depends(get_current_admin)
 ):
     """Обновление промпта для анализа продукта (генератора изображений)"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"[update_analysis_prompt] Получен запрос на обновление промпта (длина: {len(data.template)} символов)")
+    logger.info(f"[update_analysis_prompt] Первые 200 символов промпта: {data.template[:200]}...")
+    
     # Используем правильный ключ prompt_generator_prompt через SettingsService
     await SettingsService.set_prompt_generator_prompt(data.template)
+    logger.info(f"[update_analysis_prompt] ✅ Промпт сохранен в ключ 'prompt_generator_prompt' через SettingsService")
     
     # Также обновляем старый ключ для совместимости (если он существует)
     old_setting = await Settings.filter(key="product_analysis_prompt").first()
     if old_setting:
         old_setting.value = data.template
         await old_setting.save()
+        logger.info(f"[update_analysis_prompt] ✅ Старый ключ 'product_analysis_prompt' также обновлен для совместимости")
+    
+    # Проверяем, что промпт действительно сохранился
+    saved_prompt = await SettingsService.get_prompt_generator_prompt()
+    logger.info(f"[update_analysis_prompt] ✅ Проверка: промпт в БД (длина: {len(saved_prompt)} символов, первые 200 символов: {saved_prompt[:200]}...)")
 
     return {"message": "Analysis prompt template updated successfully"}
 
