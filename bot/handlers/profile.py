@@ -410,54 +410,46 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
         chat_id = callback.from_user.id
         logger.info(f"[generate_mode_handler] Chat ID: {chat_id}")
         
-        # Отправляем тестовое сообщение сразу, чтобы убедиться, что обработчик работает
-        try:
-            await bot.send_message(
-                chat_id=chat_id,
-                text="🔍 Тест: обработчик вызван!"
-            )
-            logger.info(f"[generate_mode_handler] ✅ Тестовое сообщение отправлено")
-        except Exception as test_exc:
-            logger.error(f"[generate_mode_handler] ❌ Ошибка при отправке тестового сообщения: {test_exc}", exc_info=True)
-        
-        # НЕ удаляем сообщение сразу - сначала отправим новое, потом удалим старое
-        # Это поможет избежать проблем с недоступностью callback.message
-        
         # Вызываем логику выбора модели напрямую, без создания Message объекта
         from bot.states.image_generation import ImageGenerationStates
         from bot.keyboards.inline import model_selection_keyboard
         
+        logger.info(f"[generate_mode_handler] Очищаю state...")
         await state.clear()
+        logger.info(f"[generate_mode_handler] State очищен")
         
         if mode == "images":
             await state.set_state(ImageGenerationStates.choosing_model_images)
             await state.update_data(mode="images")
+            logger.info(f"[generate_mode_handler] Установлен режим: images")
         elif mode == "infographics":
             await state.set_state(ImageGenerationStates.choosing_model_infographics)
             await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
+            logger.info(f"[generate_mode_handler] Установлен режим: infographics")
         else:
             logger.error(f"[generate_mode_handler] Неизвестный режим: {mode}")
-            from bot.loader import bot
             await bot.send_message(
                 chat_id=chat_id,
                 text="❌ Ошибка: неизвестный режим генерации"
             )
             return
         
+        logger.info(f"[generate_mode_handler] Получаю список моделей из API...")
         try:
             all_models = await api.get_image_models()
-            logger.info(f"[generate_mode_handler] Получены модели: {list(all_models.keys())}")
+            logger.info(f"[generate_mode_handler] ✅ Получены модели: {list(all_models.keys())}")
             # Для инфографики оставляем только nano-banana и pro (убираем sd/seedream)
             if mode == "infographics":
                 models = {k: v for k, v in all_models.items() if k in ["nano-banana", "pro"]}
-                logger.info(f"[generate_mode_handler] Отфильтрованные модели для инфографики: {list(models.keys())}")
+                logger.info(f"[generate_mode_handler] ✅ Отфильтрованные модели для инфографики: {list(models.keys())}")
             else:
                 # Для простых картинок доступны все модели
                 models = all_models
         except Exception as exc:
-            logger.error(f"[generate_mode_handler] Ошибка при получении списка моделей: {exc}", exc_info=True)
+            logger.error(f"[generate_mode_handler] ❌ Ошибка при получении списка моделей: {exc}", exc_info=True)
+            import traceback
+            logger.error(f"[generate_mode_handler] Traceback: {traceback.format_exc()}")
             models = {}
-            from bot.loader import bot
             await bot.send_message(
                 chat_id=chat_id,
                 text="❌ <b>Ошибка при загрузке моделей</b>\n\n"
@@ -467,14 +459,15 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
         
         # Проверяем, что есть хотя бы одна модель
         if not models:
-            logger.error(f"[generate_mode_handler] Нет доступных моделей для режима {mode}")
-            from bot.loader import bot
+            logger.error(f"[generate_mode_handler] ❌ Нет доступных моделей для режима {mode}")
             await bot.send_message(
                 chat_id=chat_id,
                 text="❌ <b>Нет доступных моделей</b>\n\n"
                      "В данный момент нет доступных моделей для генерации. Обратитесь в поддержку."
             )
             return
+        
+        logger.info(f"[generate_mode_handler] ✅ Модели получены успешно, количество: {len(models)}")
         
         logger.info(f"[generate_mode_handler] Получаю настройки пользователя...")
         selected_model_key = None
