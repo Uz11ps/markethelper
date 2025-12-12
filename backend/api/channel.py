@@ -19,6 +19,22 @@ async def get_channel_settings_public():
     }
 
 
+@router.get("/has-pending-request/{tg_id}")
+async def has_pending_channel_bonus_request(tg_id: int):
+    """Проверить, есть ли pending запрос на бонус за подписку на канал для пользователя"""
+    user = await User.get_or_none(tg_id=tg_id)
+    if not user:
+        return {"has_pending": False}
+    
+    # Проверяем наличие pending запроса
+    pending_request = await ChannelBonusRequest.filter(
+        user=user,
+        status="pending"
+    ).first()
+    
+    return {"has_pending": pending_request is not None}
+
+
 @router.post("/check-subscription/{tg_id}")
 async def check_channel_subscription(tg_id: int):
     """

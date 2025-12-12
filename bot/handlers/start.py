@@ -51,16 +51,20 @@ async def cmd_start(message: types.Message):
             print(f"[WARNING] Не удалось привязать реферала: {e}")
 
     # Проверка подписки на канал и создание запроса на бонус
-    # Показываем сообщение о подписке только новым пользователям, которые еще не получали бонус
+    # Показываем сообщение о подписке только один раз новым пользователям
     try:
         profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
         channel_bonus_given = profile.get("channel_bonus_given", False) if profile else False
+        # Проверяем, есть ли уже pending запрос на бонус (если есть, значит уже показывали сообщение)
+        has_pending_request = await api.has_channel_bonus_pending_request(tg.id)
     except Exception as e:
         print(f"[WARNING] Не удалось получить профиль для проверки channel_bonus_given: {e}")
         channel_bonus_given = False
+        has_pending_request = False
     
     # Если бонус уже был начислен или есть pending запрос, не показываем сообщение о подписке
-    if not channel_bonus_given:
+    # Сообщение показывается только один раз при первом /start
+    if not channel_bonus_given and not has_pending_request:
         channel_subscribed = False
         channel_username = ""
         channel_id = None

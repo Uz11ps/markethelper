@@ -273,6 +273,16 @@ class APIClient:
             async with session.post(url) as resp:
                 return await self._handle_response(resp)
     
+    async def has_channel_bonus_pending_request(self, tg_id: int):
+        """Проверить, есть ли pending запрос на бонус за подписку на канал"""
+        url = f"{self.base_url}/api/channel/has-pending-request/{tg_id}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    return result.get("has_pending", False)
+                return False
+    
     async def create_token_purchase_request(self, tg_id: int, amount: int, cost: float):
         """Создать заявку на пополнение токенов"""
         url = f"{self.base_url}/api/tokens/purchase"
