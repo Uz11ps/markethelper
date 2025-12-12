@@ -215,9 +215,14 @@ class PromptGeneratorService:
             })
 
             for i, url in enumerate(product_image_urls, 1):
+                # Проверяем, что URL валидный
+                if not url or not url.startswith(("http://", "https://")):
+                    logger.warning(f"[PROMPT_GENERATOR] Некорректный URL фото товара #{i}: {url}")
+                    continue
+                
                 content.append({
                     "type": "image_url",
-                    "image_url": {"url": url}
+                    "image_url": {"url": url, "detail": "high"}  # Добавляем detail для лучшего качества анализа
                 })
                 content.append({
                     "type": "text",
@@ -231,9 +236,14 @@ class PromptGeneratorService:
             })
 
             for i, url in enumerate(reference_image_urls, 1):
+                # Проверяем, что URL валидный
+                if not url or not url.startswith(("http://", "https://")):
+                    logger.warning(f"[PROMPT_GENERATOR] Некорректный URL референса #{i}: {url}")
+                    continue
+                
                 content.append({
                     "type": "image_url",
-                    "image_url": {"url": url}
+                    "image_url": {"url": url, "detail": "high"}  # Добавляем detail для лучшего качества анализа
                 })
                 content.append({
                     "type": "text",
