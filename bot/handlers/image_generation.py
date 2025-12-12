@@ -212,10 +212,13 @@ async def start_generation(callback: CallbackQuery, state: FSMContext):
 
     await state.clear()
     await state.set_state(ImageGenerationStates.choosing_model)
-    await state.update_data(product_photos=[], reference_photos=[])
+    # По умолчанию режим инфографики для этого обработчика
+    await state.update_data(mode="infographics", product_photos=[], reference_photos=[])
 
     try:
-        models = await api_client.get_image_models()
+        all_models = await api_client.get_image_models()
+        # Для инфографики оставляем только nano-banana и pro (убираем sd/seedream)
+        models = {k: v for k, v in all_models.items() if k in ["nano-banana", "pro"]}
     except Exception as exc:
         logger.warning(f"Не удалось получить список моделей: {exc}")
         models = {}
@@ -1066,6 +1069,7 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
     reference_photos = data.get("reference_photos", [])
     aspect_ratio = data.get("aspect_ratio", "3:4")
     card_text = data.get("card_text")
+    mode = data.get("mode", "infographics")  # По умолчанию инфографика
     
     # Получаем сохраненные настройки пользователя
     try:
@@ -1074,6 +1078,11 @@ async def generate_with_ai_prompt(message: Message, state: FSMContext):
         if not data.get("selected_model") and user_settings.get("selected_model_key"):
             models = await api_client.get_image_models()
             selected_model_key = user_settings.get("selected_model_key")
+            # Для инфографики не используем модель sd/seedream
+            if mode == "infographics" and selected_model_key == "sd":
+                logger.warning(f"Модель Seedream не поддерживается для инфографики, используем nano-banana")
+                selected_model_key = "nano-banana"
+            
             if selected_model_key in models:
                 selected_model = models[selected_model_key]
                 data["selected_model"] = selected_model_key
