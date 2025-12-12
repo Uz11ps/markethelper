@@ -4,12 +4,12 @@
 """
 import asyncio
 import sys
-from pathlib import Path
 
 # Добавляем путь к проекту
 sys.path.insert(0, '/app')
 
 from tortoise import Tortoise
+from backend.core.db import TORTOISE_ORM
 from backend.models import (
     User, Admin, AccessGroup, Subscription, Request,
     UserGenerationSettings, PendingBonus,
@@ -20,18 +20,6 @@ from backend.models.channel_bonus import ChannelBonusRequest
 from backend.models.ai import AIRequest
 from backend.models.product_description import ProductDescription, EditablePromptTemplate, InfographicProject
 from backend.models.design_template import DesignTemplate
-
-TORTOISE_ORM = {
-    "connections": {
-        "default": "sqlite:///app/data/db.sqlite3"
-    },
-    "apps": {
-        "models": {
-            "models": ["backend.models", "backend.models.channel_bonus", "backend.models.ai", "backend.models.product_description", "backend.models.design_template"],
-            "default_connection": "default",
-        }
-    },
-}
 
 
 async def clear_database(keep_admin_id=None):
