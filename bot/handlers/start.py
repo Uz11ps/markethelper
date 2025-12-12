@@ -122,7 +122,8 @@ async def cmd_start(message: types.Message):
             if channel_link:
                 subscribe_keyboard = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text="📢 Подписаться на канал", url=channel_link)],
-                    [InlineKeyboardButton(text="✅ Я подписался", callback_data="check_channel_subscription")]
+                    [InlineKeyboardButton(text="✅ Я подписался", callback_data="check_channel_subscription")],
+                    [InlineKeyboardButton(text="⏰ Может быть позже", callback_data="skip_channel_subscription")]
                 ])
                 
                 await message.answer(
@@ -138,7 +139,15 @@ async def cmd_start(message: types.Message):
                     await api.mark_channel_subscription_message_shown(tg.id)
                 except Exception as e:
                     print(f"[WARNING] Не удалось отметить сообщение как показанное: {e}")
+                
+                # НЕ показываем главное меню сразу - ждем действия пользователя
+                return
 
+    # Показываем главное меню (если не было показано сообщение о подписке)
+    await show_main_menu(message, tg)
+
+async def show_main_menu(message: types.Message, tg: types.User):
+    """Показать главное меню и профиль пользователя"""
     # Получаем профиль пользователя
     try:
         profile = await api.get_profile(tg.id, username=tg.username, full_name=get_full_name(tg))
@@ -240,6 +249,22 @@ async def cmd_menu(message: types.Message, state: FSMContext):
     text += f"💰 <b>Токены:</b> {profile.get('bonus_balance') or 0}"
 
     await message.answer(text, reply_markup=profile_menu_kb(has_active_sub=has_active, is_group_subscription=is_group_subscription))
+
+
+@router.callback_query(F.data == "skip_channel_subscription")
+async def skip_channel_subscription_callback(callback: types.CallbackQuery):
+    """Обработка кнопки 'Может быть позже' - пропуск подписки и показ главного меню"""
+    await callback.answer("Показываю главное меню...")
+    
+    # Удаляем сообщение о подписке
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    
+    # Показываем главное меню
+    tg = callback.from_user
+    await show_main_menu(callback.message, tg)
 
 
 @router.callback_query(F.data == "check_channel_subscription")
