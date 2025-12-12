@@ -770,31 +770,85 @@ async def use_auto_prompt(callback: CallbackQuery, state: FSMContext):
         
         generated_prompt = prompt_data["generated_text_prompt"]
         analysis = prompt_data["deconstruction_analysis"]
+        concepts = prompt_data.get("concepts")  # Новый формат с концепциями
+        
         logger.info(f"[IMAGE_GENERATION] Промпт сгенерирован GPT-4o (длина: {len(generated_prompt)} символов):\n{generated_prompt}")
         
-        # Если указан текст на карточке, добавляем его в промпт
-        original_prompt = generated_prompt
-        if card_text:
-            generated_prompt = f"{generated_prompt}. Add text on the card: '{card_text}'"
-            logger.info(f"[IMAGE_GENERATION] Добавлен текст на карточку. Промпт до: {original_prompt[:200]}... Промпт после: {generated_prompt[:200]}...")
-        
-        # Сохраняем промпт и анализ
-        await state.update_data(generated_prompt=generated_prompt, analysis=analysis)
+        # Сохраняем промпт, анализ и концепции
+        await state.update_data(
+            generated_prompt=generated_prompt, 
+            analysis=analysis,
+            concepts=concepts
+        )
         
         # Удаляем временные сообщения
         await delete_messages(callback.message.chat.id, temp_messages)
         
-        # Показываем пользователю промпт с возможностью редактирования
-        await callback.message.answer(
-            f"🤖 <b>Автоматически сгенерированный промпт:</b>\n\n"
-            f"📝 <b>Товар:</b> {analysis['product_identified']}\n"
-            f"🎨 <b>Стиль:</b> {analysis['style_source']}\n"
-            f"📐 <b>Композиция:</b> {analysis['layout_source']}\n"
-            f"🎨 <b>Палитра:</b> {analysis['palette_source']}\n\n"
-            f"<b>Промпт:</b>\n<code>{generated_prompt}</code>\n\n"
-            f"Вы можете использовать этот промпт или отредактировать его:",
-            reply_markup=prompt_preview_keyboard()
-        )
+        # Если есть концепции (новый формат), показываем их для выбора
+        if concepts and isinstance(concepts, list) and len(concepts) > 0:
+            # Показываем все концепции с кнопками выбора
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            
+            concept_text = "🎨 <b>Создано 3 уникальные концепции:</b>\n\n"
+            
+            for idx, concept in enumerate(concepts[:3], 1):
+                concept_name = concept.get("concept_name", f"Концепция {idx}")
+                description = concept.get("🔍 Описание", "")
+                background = concept.get("🏞️ Фон", "")
+                title = concept.get("🏷️ Заголовок", "")
+                offers = concept.get("💥 Офферы", [])
+                
+                concept_text += f"<b>📌 {idx}. {concept_name}</b>\n"
+                if description:
+                    concept_text += f"🔍 <i>{description[:100]}{'...' if len(description) > 100 else ''}</i>\n"
+                if background:
+                    concept_text += f"🏞️ Фон: {background[:80]}{'...' if len(background) > 80 else ''}\n"
+                if title:
+                    concept_text += f"🏷️ Заголовок: {title[:80]}{'...' if len(title) > 80 else ''}\n"
+                if offers and isinstance(offers, list):
+                    concept_text += f"💥 Офферы: {', '.join(offers[:2])}{'...' if len(offers) > 2 else ''}\n"
+                concept_text += "\n"
+            
+            concept_text += "Выберите концепцию для генерации:"
+            
+            # Создаем клавиатуру с кнопками выбора концепций
+            buttons = []
+            for idx in range(min(3, len(concepts))):
+                concept_name = concepts[idx].get("concept_name", f"Концепция {idx+1}")
+                buttons.append([
+                    InlineKeyboardButton(
+                        text=f"✅ Выбрать: {concept_name[:30]}",
+                        callback_data=f"select_concept:{idx}"
+                    )
+                ])
+            buttons.append([InlineKeyboardButton(text="✏️ Редактировать промпт", callback_data="edit_auto_prompt")])
+            buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")])
+            
+            concept_keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+            
+            await callback.message.answer(
+                concept_text,
+                reply_markup=concept_keyboard
+            )
+        else:
+            # Старый формат - показываем как раньше
+            # Если указан текст на карточке, добавляем его в промпт
+            original_prompt = generated_prompt
+            if card_text:
+                generated_prompt = f"{generated_prompt}. Add text on the card: '{card_text}'"
+                logger.info(f"[IMAGE_GENERATION] Добавлен текст на карточку. Промпт до: {original_prompt[:200]}... Промпт после: {generated_prompt[:200]}...")
+                await state.update_data(generated_prompt=generated_prompt)
+            
+            await callback.message.answer(
+                f"🤖 <b>Автоматически сгенерированный промпт:</b>\n\n"
+                f"📝 <b>Товар:</b> {analysis.get('product_identified', 'Не удалось определить')}\n"
+                f"🎨 <b>Стиль:</b> {analysis.get('style_source', 'Не удалось определить')}\n"
+                f"📐 <b>Композиция:</b> {analysis.get('layout_source', 'Не удалось определить')}\n"
+                f"🎨 <b>Палитра:</b> {analysis.get('palette_source', 'Не удалось определить')}\n\n"
+                f"<b>Промпт:</b>\n<code>{generated_prompt}</code>\n\n"
+                f"Вы можете использовать этот промпт или отредактировать его:",
+                reply_markup=prompt_preview_keyboard()
+            )
         
     except Exception as e:
         # Удаляем временные сообщения даже при ошибке
@@ -805,6 +859,97 @@ async def use_auto_prompt(callback: CallbackQuery, state: FSMContext):
             f"<code>{str(e)}</code>\n\n"
             f"Попробуйте ещё раз позже."
         )
+
+
+@router.callback_query(F.data.startswith("select_concept:"))
+async def select_concept(callback: CallbackQuery, state: FSMContext):
+    """Выбор концепции из списка"""
+    await callback.answer()
+    
+    try:
+        concept_idx = int(callback.data.split(":")[1])
+    except (ValueError, IndexError):
+        await callback.message.answer("❌ Ошибка: неверный индекс концепции.")
+        return
+    
+    data = await state.get_data()
+    concepts = data.get("concepts")
+    
+    if not concepts or not isinstance(concepts, list) or concept_idx >= len(concepts):
+        await callback.message.answer("❌ Ошибка: концепция не найдена. Попробуйте ещё раз.")
+        return
+    
+    selected_concept = concepts[concept_idx]
+    
+    # Преобразуем концепцию в промпт для генерации
+    prompt_parts = []
+    
+    # Добавляем описание товара и использование
+    if selected_concept.get("📍 Использование товара"):
+        prompt_parts.append(selected_concept["📍 Использование товара"])
+    
+    # Добавляем описание стиля
+    if selected_concept.get("🔍 Описание"):
+        prompt_parts.append(selected_concept["🔍 Описание"])
+    
+    # Добавляем фон
+    if selected_concept.get("🏞️ Фон"):
+        prompt_parts.append(f"Background: {selected_concept['🏞️ Фон']}")
+    
+    # Добавляем заголовок как текст на карточке
+    if selected_concept.get("🏷️ Заголовок"):
+        prompt_parts.append(f"Title text: '{selected_concept['🏷️ Заголовок']}'")
+    
+    # Добавляем офферы
+    if selected_concept.get("💥 Офферы") and isinstance(selected_concept["💥 Офферы"], list):
+        offers_text = ", ".join(selected_concept["💥 Офферы"])
+        prompt_parts.append(f"Offers: {offers_text}")
+    
+    # Добавляем цветовую палитру
+    if selected_concept.get("cvetovaya_palitra"):
+        prompt_parts.append(f"Color palette: {selected_concept['cvetovaya_palitra']}")
+    
+    # Создаем промпт для генерации
+    generated_prompt = ". ".join(prompt_parts)
+    
+    # Сохраняем выбранную концепцию и промпт
+    await state.update_data(
+        generated_prompt=generated_prompt,
+        selected_concept=selected_concept,
+        selected_concept_idx=concept_idx
+    )
+    
+    # Показываем выбранную концепцию и переходим к генерации
+    concept_name = selected_concept.get("concept_name", f"Концепция {concept_idx + 1}")
+    
+    await safe_delete_message(callback)
+    
+    await callback.message.answer(
+        f"✅ <b>Выбрана концепция: {concept_name}</b>\n\n"
+        f"📝 <b>Описание:</b> {selected_concept.get('🔍 Описание', '—')}\n"
+        f"🏞️ <b>Фон:</b> {selected_concept.get('🏞️ Фон', '—')}\n"
+        f"🏷️ <b>Заголовок:</b> {selected_concept.get('🏷️ Заголовок', '—')}\n\n"
+        f"<b>Промпт:</b>\n<code>{generated_prompt[:500]}{'...' if len(generated_prompt) > 500 else ''}</code>\n\n"
+        "Начинаю генерацию...",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✏️ Редактировать промпт", callback_data="edit_auto_prompt")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
+        ])
+    )
+    
+    # Если указан текст на карточке, добавляем его в промпт
+    card_text = data.get("card_text")
+    if card_text:
+        generated_prompt = f"{generated_prompt}. Add text on the card: '{card_text}'"
+        await state.update_data(generated_prompt=generated_prompt)
+    
+    # Автоматически запускаем генерацию с выбранной концепцией
+    await generate_with_confirmed_prompt(
+        callback.message,
+        state,
+        generated_prompt,
+        user_id=callback.from_user.id
+    )
 
 
 @router.callback_query(F.data == "confirm_auto_prompt")
