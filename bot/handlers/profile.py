@@ -476,11 +476,12 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
             )
             return
         
+        logger.info(f"[generate_mode_handler] Получаю настройки пользователя...")
         selected_model_key = None
         try:
             user_settings = await api.get_user_generation_settings(callback.from_user.id)
             selected_model_key = user_settings.get("selected_model_key")
-            logger.info(f"[generate_mode_handler] Сохраненная модель пользователя: {selected_model_key}")
+            logger.info(f"[generate_mode_handler] ✅ Сохраненная модель пользователя: {selected_model_key}")
             # Если выбранная модель не поддерживается для инфографики, сбрасываем выбор
             if mode == "infographics" and selected_model_key and selected_model_key not in models:
                 logger.warning(f"[generate_mode_handler] Модель {selected_model_key} не поддерживается для инфографики, сбрасываем")
@@ -488,6 +489,7 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
         except Exception as exc:
             logger.warning(f"[generate_mode_handler] Не удалось получить настройки пользователя: {exc}")
         
+        logger.info(f"[generate_mode_handler] Получаю профиль пользователя...")
         try:
             profile = await api.get_profile(
                 callback.from_user.id,
@@ -495,10 +497,12 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
                 full_name=get_full_name(callback.from_user),
             )
             balance = profile.get("bonus_balance", 0) if profile else 0
-            logger.info(f"[generate_mode_handler] Баланс пользователя: {balance}")
+            logger.info(f"[generate_mode_handler] ✅ Баланс пользователя: {balance}")
         except Exception as exc:
             logger.warning(f"[generate_mode_handler] Не удалось получить профиль пользователя: {exc}")
             balance = 0
+        
+        logger.info(f"[generate_mode_handler] Формирую текст сообщения...")
         
         models_text = "\n".join([
             f"• {info.get('name', key)}: {info.get('cost', 0)} токенов - {info.get('description', '')}"
