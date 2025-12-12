@@ -387,22 +387,24 @@ async def generate_handler(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("generate:mode:"))
 async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext):
     """Обработка выбора режима генерации"""
+    from bot.loader import bot
+    
     try:
         logger.info(f"[generate_mode_handler] === НАЧАЛО ОБРАБОТКИ ===")
         logger.info(f"[generate_mode_handler] Callback data: {callback.data}")
         logger.info(f"[generate_mode_handler] User ID: {callback.from_user.id}")
         logger.info(f"[generate_mode_handler] Message available: {callback.message is not None}")
         
+        # Отвечаем на callback сразу
         await callback.answer()
         logger.info(f"[generate_mode_handler] Callback answered")
         
         mode = callback.data.replace("generate:mode:", "")
         logger.info(f"[generate_mode_handler] Извлеченный режим: {mode}")
         
-        # Сохраняем ссылку на сообщение ДО удаления
-        message_to_use = callback.message
+        # Сохраняем chat_id для надежности
         chat_id = callback.from_user.id
-        logger.info(f"[generate_mode_handler] Сообщение доступно: {message_to_use is not None}, chat_id: {chat_id}")
+        logger.info(f"[generate_mode_handler] Chat ID: {chat_id}")
         
         # НЕ удаляем сообщение сразу - сначала отправим новое, потом удалим старое
         # Это поможет избежать проблем с недоступностью callback.message
@@ -517,8 +519,10 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
             logger.info(f"[generate_mode_handler] Клавиатура создана, количество кнопок: {len(keyboard.inline_keyboard) if keyboard and keyboard.inline_keyboard else 0}")
             
             # Всегда используем bot.send_message для надежности
-            from bot.loader import bot
             logger.info(f"[generate_mode_handler] Отправка сообщения через bot.send_message в chat_id: {chat_id}")
+            logger.info(f"[generate_mode_handler] Текст сообщения (первые 100 символов): {text[:100]}")
+            logger.info(f"[generate_mode_handler] Клавиатура: {keyboard}")
+            
             sent_msg = await bot.send_message(
                 chat_id=chat_id,
                 text=text,
@@ -528,7 +532,7 @@ async def generate_mode_handler(callback: types.CallbackQuery, state: FSMContext
             
             # Теперь удаляем старое сообщение (если получится)
             try:
-                if message_to_use:
+                if callback.message:
                     await safe_delete_message(callback)
                     logger.info(f"[generate_mode_handler] Старое сообщение удалено")
             except Exception as del_exc:
