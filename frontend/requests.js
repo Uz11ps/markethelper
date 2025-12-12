@@ -94,8 +94,19 @@ async function loadRequests() {
 
     pending.forEach(req => {
       const row = document.createElement("tr");
-      const subscriptionType = req.subscription_type || "group";
+      // Определяем тип подписки: если не указан явно, определяем по tariff_code
+      let subscriptionType = req.subscription_type;
+      if (!subscriptionType || subscriptionType === "group") {
+        // Если tariff_code INDIVIDUAL, то это индивидуальный доступ
+        if (req.tariff_code === "INDIVIDUAL") {
+          subscriptionType = "individual";
+        } else {
+          subscriptionType = "group"; // По умолчанию складчина
+        }
+      }
       const typeLabel = subscriptionType === "individual" ? "👤 Индивидуальный" : "📦 Складчина";
+      
+      console.log(`[loadRequests] Заявка ${req.id}: tariff_code=${req.tariff_code}, subscription_type=${req.subscription_type}, определенный тип=${subscriptionType}`);
       
       // Для складчины показываем выбор группы, для индивидуального - не показываем
       let groupSelect = '';
@@ -151,6 +162,22 @@ async function loadRequests() {
 
 async function approve(id, subscriptionType) {
   try {
+    console.log(`[approve] Начало одобрения заявки ${id}, subscriptionType=${subscriptionType}`);
+    
+    // Проверяем, что subscriptionType корректный
+    if (!subscriptionType || (subscriptionType !== "individual" && subscriptionType !== "group")) {
+      console.error(`[approve] Некорректный subscriptionType: ${subscriptionType}`);
+      // Пытаемся определить тип по tariff_code из заявки
+      const req = allRequestsData.find(r => r.id === id);
+      if (req && req.tariff_code === "INDIVIDUAL") {
+        subscriptionType = "individual";
+        console.log(`[approve] Исправлен subscriptionType на individual на основе tariff_code`);
+      } else {
+        subscriptionType = "group";
+        console.log(`[approve] Исправлен subscriptionType на group по умолчанию`);
+      }
+    }
+    
     let groupId = null;
     
     if (subscriptionType === "group") {

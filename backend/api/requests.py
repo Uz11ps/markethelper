@@ -169,8 +169,16 @@ async def approve_request(
         approved_status = await get_status(type="request", code="APPROVED")
         end_date = datetime.utcnow() + timedelta(days=30 * req.duration.months)
 
-        subscription_type = getattr(req, 'subscription_type', 'group')
-        logger.info(f"[approve_request] Тип подписки: {subscription_type}, group_id из формы: {group_id}")
+        # Определяем тип подписки: сначала из поля заявки, если не указан - по tariff_code
+        subscription_type = getattr(req, 'subscription_type', None)
+        if not subscription_type or subscription_type == "group":
+            # Если tariff_code INDIVIDUAL, то это индивидуальный доступ
+            if req.tariff.code == "INDIVIDUAL":
+                subscription_type = "individual"
+            else:
+                subscription_type = "group"  # По умолчанию складчина
+        
+        logger.info(f"[approve_request] Тип подписки: {subscription_type} (из поля: {getattr(req, 'subscription_type', None)}, tariff_code: {req.tariff.code}), group_id из формы: {group_id}")
         
         group = None
         
