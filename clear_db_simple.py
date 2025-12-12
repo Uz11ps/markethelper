@@ -10,16 +10,7 @@ sys.path.insert(0, '/app')
 
 from tortoise import Tortoise
 from backend.core.db import TORTOISE_ORM
-from backend.models import (
-    User, Admin, AccessGroup, Subscription, Request,
-    UserGenerationSettings, PendingBonus,
-    ReferralPayout, Referral, TokenPurchaseRequest,
-    AccessFile, Mailing, BroadcastMessage
-)
-from backend.models.channel_bonus import ChannelBonusRequest
-from backend.models.ai import AIRequest
-from backend.models.product_description import ProductDescription, EditablePromptTemplate, InfographicProject
-from backend.models.design_template import DesignTemplate
+# Импорты моделей не нужны, используем прямой SQL
 
 
 async def clear_database(keep_admin_id=None):
@@ -38,52 +29,62 @@ async def clear_database(keep_admin_id=None):
     
     print("\nУдаление данных...")
     
-    await ChannelBonusRequest.all().delete()
-    await UserGenerationSettings.all().delete()
-    await PendingBonus.all().delete()
-    await ReferralPayout.all().delete()
-    await Referral.all().delete()
-    await TokenPurchaseRequest.all().delete()
-    await Request.all().delete()
-    await Subscription.all().delete()
-    await AIRequest.all().delete()
-    await ProductDescription.all().delete()
-    await EditablePromptTemplate.all().delete()
-    await InfographicProject.all().delete()
-    await Mailing.all().delete()
-    await BroadcastMessage.all().delete()
+    # Используем прямой SQL для удаления данных
+    conn = Tortoise.get_connection("default")
     
-    count = await User.all().count()
-    await User.all().delete()
-    print(f"✓ Удалено пользователей: {count}")
+    # Список таблиц для очистки (в правильном порядке из-за внешних ключей)
+    tables_to_clear = [
+        "channel_bonus_requests",
+        "user_generation_settings",
+        "pending_bonuses",
+        "referral_payouts",
+        "referrals",
+        "token_purchase_requests",
+        "requests",
+        "subscriptions",
+        "ai_requests",
+        "product_descriptions",
+        "editable_prompt_templates",
+        "infographic_projects",
+        "mailings",
+        "broadcast_messages",
+        "users",
+        "access_groups",
+        "access_files",
+        "design_templates"
+    ]
     
+    for table in tables_to_clear:
+        try:
+            result = await conn.execute_query(f"SELECT COUNT(*) FROM {table}")
+            count = result[1][0][0] if result[1] else 0
+            if count > 0:
+                await conn.execute_query(f"DELETE FROM {table}")
+                print(f"✓ Удалено из {table}: {count}")
+        except Exception as e:
+            print(f"⚠ Ошибка при удалении из {table}: {e}")
+    
+    # Удаляем админов (кроме указанного ID)
     if keep_admin_id:
-        admin = await Admin.get_or_none(id=keep_admin_id)
-        if admin:
-            count = await Admin.filter(id__ne=keep_admin_id).count()
-            await Admin.filter(id__ne=keep_admin_id).delete()
-            print(f"✓ Удалено админов: {count} (сохранен: {admin.username})")
-        else:
-            print(f"⚠ Админ ID={keep_admin_id} не найден!")
-            count = await Admin.all().count()
-            await Admin.all().delete()
-            print(f"✓ Удалено админов: {count}")
+        try:
+            result = await conn.execute_query(f"SELECT COUNT(*) FROM admins WHERE id != {keep_admin_id}")
+            count = result[1][0][0] if result[1] else 0
+            if count > 0:
+                await conn.execute_query(f"DELETE FROM admins WHERE id != {keep_admin_id}")
+                admin_result = await conn.execute_query(f"SELECT username FROM admins WHERE id = {keep_admin_id}")
+                admin_name = admin_result[1][0][0] if admin_result[1] and admin_result[1][0] else "неизвестно"
+                print(f"✓ Удалено админов: {count} (сохранен ID={keep_admin_id}: {admin_name})")
+        except Exception as e:
+            print(f"⚠ Ошибка при удалении админов: {e}")
     else:
-        count = await Admin.all().count()
-        await Admin.all().delete()
-        print(f"✓ Удалено админов: {count}")
-    
-    count = await AccessGroup.all().count()
-    await AccessGroup.all().delete()
-    print(f"✓ Удалено групп: {count}")
-    
-    count = await AccessFile.all().count()
-    await AccessFile.all().delete()
-    print(f"✓ Удалено файлов: {count}")
-    
-    count = await DesignTemplate.all().count()
-    await DesignTemplate.all().delete()
-    print(f"✓ Удалено шаблонов: {count}")
+        try:
+            result = await conn.execute_query("SELECT COUNT(*) FROM admins")
+            count = result[1][0][0] if result[1] else 0
+            if count > 0:
+                await conn.execute_query("DELETE FROM admins")
+                print(f"✓ Удалено админов: {count}")
+        except Exception as e:
+            print(f"⚠ Ошибка при удалении админов: {e}")
     
     print("\n✅ ГОТОВО! Настройки сохранены.")
     
