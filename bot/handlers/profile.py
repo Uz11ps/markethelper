@@ -640,6 +640,15 @@ async def on_file_get(callback: CallbackQuery):
             return
 
         filename = (res.get("file") or f"group_{res.get('group_id')}_cookies.txt").split("/")[-1]
+        
+        # Гарантируем, что файл имеет расширение .txt
+        if not filename.endswith('.txt'):
+            # Если есть другое расширение, заменяем его на .txt
+            if '.' in filename:
+                filename = f"{filename.rsplit('.', 1)[0]}.txt"
+            else:
+                # Если расширения нет, добавляем .txt
+                filename = f"{filename}.txt"
 
         bio = BytesIO(cookies_text.encode("utf-8"))
         bio.seek(0)
